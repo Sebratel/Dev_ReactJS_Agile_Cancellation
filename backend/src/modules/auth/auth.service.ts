@@ -100,6 +100,46 @@ export class AuthService {
     const googlePayload = await this.googleTokenVerifier.verifyIdToken(
       dto.idToken,
     );
+
+    if (this.isMockGoogleAuthMode()) {
+      const mockUser = MOCK_AUTH_USER_DEFINITIONS.find(
+        (definition) =>
+          definition.email.toLowerCase() === googlePayload.email.toLowerCase() &&
+          definition.status === 'ACTIVE',
+      );
+
+      if (!mockUser) {
+        throw new AppException(
+          'Conta mock nao encontrada ou inativa.',
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+
+      const authenticatedUser: AuthenticatedUser = {
+        id: mockUser.id,
+        email: mockUser.email,
+        name: mockUser.name,
+        roles: mockUser.roleCodes,
+      };
+
+      const payload: JwtPayload = {
+        sub: authenticatedUser.id,
+        email: authenticatedUser.email,
+        roles: authenticatedUser.roles,
+        devSession: true,
+      };
+
+      const accessToken = await this.jwtService.signAsync(payload, {
+        expiresIn: '8h',
+      });
+
+      return createApiResponse<LoginResponse>({
+        accessToken,
+        refreshToken: `dev:${authenticatedUser.id}`,
+        user: this.toAuthUserResponse(authenticatedUser),
+      });
+    }
+
     const user = await this.authRepository.findByEmail(googlePayload.email);
 
     if (!user) {
@@ -131,7 +171,10 @@ export class AuthService {
   }
 
   async refresh(dto: RefreshTokenDto) {
-    if (dto.refreshToken.startsWith('dev:') && process.env.NODE_ENV !== 'production') {
+    if (
+      dto.refreshToken.startsWith('dev:') &&
+      (process.env.NODE_ENV !== 'production' || this.isMockGoogleAuthMode())
+    ) {
       const userId = dto.refreshToken.slice(4);
 
       const mockUser = MOCK_AUTH_USER_DEFINITIONS.find(
@@ -189,7 +232,10 @@ export class AuthService {
   async validateJwtPayload(
     payload: JwtPayload,
   ): Promise<AuthenticatedUser | null> {
-    if (payload.devSession && process.env.NODE_ENV !== 'production') {
+    if (
+      payload.devSession &&
+      (process.env.NODE_ENV !== 'production' || this.isMockGoogleAuthMode())
+    ) {
       const mockUser = MOCK_AUTH_USER_DEFINITIONS.find(
         (u) => u.id === payload.sub && u.status === 'ACTIVE',
       );
@@ -308,5 +354,9 @@ export class AuthService {
       name: user.name,
       roles: user.roles,
     };
+  }
+
+  private isMockGoogleAuthMode(): boolean {
+    return process.env.GOOGLE_AUTH_MODE === 'mock';
   }
 }

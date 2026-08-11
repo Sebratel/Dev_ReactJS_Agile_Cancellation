@@ -8,7 +8,6 @@ RUN npm ci --no-audit --no-fund --legacy-peer-deps || (cat /root/.npm/_logs/*-de
 COPY . .
 RUN npx prisma generate
 RUN npm run build
-RUN npm prune --omit=dev
 
 FROM node:22-bookworm-slim AS runner
 WORKDIR /app
@@ -20,4 +19,4 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
 EXPOSE 4000
-CMD ["node", "dist/main.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
