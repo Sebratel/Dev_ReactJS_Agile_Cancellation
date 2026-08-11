@@ -10,6 +10,13 @@ function shouldAutoConnect(): boolean {
   return process.env.PRISMA_AUTO_CONNECT !== 'false';
 }
 
+function shouldAllowDatabaseUnavailable(): boolean {
+  return (
+    process.env.ALLOW_DATABASE_UNAVAILABLE === 'true' ||
+    process.env.GOOGLE_AUTH_MODE === 'mock'
+  );
+}
+
 @Injectable()
 export class PrismaService
   extends PrismaClient
@@ -17,6 +24,7 @@ export class PrismaService
 {
   private readonly logger = new Logger(PrismaService.name);
   private readonly autoConnect = shouldAutoConnect();
+  private readonly allowDatabaseUnavailable = shouldAllowDatabaseUnavailable();
 
   constructor() {
     super({
@@ -34,6 +42,14 @@ export class PrismaService
       this.logger.log('Prisma conectado ao MySQL.');
     } catch (error) {
       this.logger.error('Falha ao conectar Prisma ao MySQL.');
+
+      if (this.allowDatabaseUnavailable) {
+        this.logger.warn(
+          'API iniciando sem conexao com banco porque o modo mock/staging permite indisponibilidade temporaria.',
+        );
+        return;
+      }
+
       throw error;
     }
   }
