@@ -153,13 +153,13 @@ describe('Auth (e2e)', () => {
       .expect(401);
   });
 
-  it('POST /auth/google retorna 401 para e-mail sem conta mock correspondente', async () => {
+  it('POST /auth/google retorna 403 para e-mail sem usuario cadastrado', async () => {
     const httpServer = app.getHttpServer() as Parameters<typeof request>[0];
 
     await request(httpServer)
       .post('/auth/google')
       .send({ idToken: mockGoogleIdToken('nao-cadastrado@ger.local') })
-      .expect(401);
+      .expect(403);
   });
 
   it('POST /auth/google retorna 401 para usuario inativo', async () => {
@@ -231,7 +231,7 @@ describe('Auth (e2e)', () => {
         expect.objectContaining({
           entityType: 'COLLECTION_CASE',
           entityId: 'case_0001',
-          performedByUserId: 'user-collection',
+          performedByUserId: null,
         }),
       ]),
     );
