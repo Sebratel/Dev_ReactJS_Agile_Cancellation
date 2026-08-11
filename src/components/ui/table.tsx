@@ -20,7 +20,7 @@ export function TableContainer({
     <div
       className={cn(
         'overflow-x-auto animate-fade-in',
-        !flush && 'rounded-lg border border-border bg-card',
+        !flush && 'rounded-lg border border-border/80 bg-card shadow-card',
         className,
       )}
       {...props}
@@ -36,7 +36,7 @@ export function Table({
   ...props
 }: HTMLAttributes<HTMLTableElement>) {
   return (
-    <table className={cn('w-full text-sm', className)} {...props}>
+    <table className={cn('w-full border-separate border-spacing-0 text-sm', className)} {...props}>
       {children}
     </table>
   );
@@ -55,7 +55,7 @@ export function TableHead({
 }: TableHeadProps) {
   return (
     <thead
-      className={cn('bg-muted', sticky && 'sticky top-0 z-10', className)}
+      className={cn('bg-muted/80', sticky && 'sticky top-0 z-10 shadow-[0_1px_0_hsl(var(--border))]', className)}
       {...props}
     >
       {children}
@@ -77,7 +77,7 @@ export function TableHeaderCell({
     <th
       scope="col"
       className={cn(
-        'px-3 py-1.5 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-neutral',
+        'px-3 py-2 text-left text-[11px] font-bold uppercase tracking-[0.1em] text-neutral',
         align === 'center' && 'text-center',
         align === 'right' && 'text-right',
         className,
@@ -96,7 +96,7 @@ export function TableBody({
 }: HTMLAttributes<HTMLTableSectionElement>) {
   return (
     <tbody
-      className={cn('divide-y divide-border bg-card table-stagger', className)}
+      className={cn('divide-y divide-border/80 bg-card table-stagger', className)}
       {...props}
     >
       {children}
@@ -112,7 +112,7 @@ export function TableRow({
   return (
     <tr
       className={cn(
-        'transition-colors duration-200 hover:bg-muted/50',
+        'transition-colors duration-150 hover:bg-primary/[0.035]',
         className,
       )}
       {...props}
@@ -138,7 +138,7 @@ export function TableCell({
   return (
     <td
       className={cn(
-        'px-3 py-1.5',
+        'px-3 py-2 align-middle',
         numeric && 'text-right tabular-nums',
         align === 'center' && 'text-center',
         align === 'right' && 'text-right',

@@ -30,7 +30,7 @@ export function BulkActionBar({
 
   return (
     <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 animate-rise-in-md">
-      <div className="flex items-center gap-3 rounded-2xl border border-border bg-card px-5 py-3 shadow-floating">
+      <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-5 py-3 shadow-floating">
         <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-bold text-primary tabular-nums">
           {selectedCount}
         </span>

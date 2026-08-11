@@ -8,7 +8,8 @@ if (!apiBaseUrl || apiBaseUrl.trim() === '') {
 
 export const appEnv = {
   appName:
-    import.meta.env.VITE_APP_NAME ?? 'GER - Gestão de Cobrança e Cancelamento',
+    import.meta.env.VITE_APP_NAME ??
+    'SEBRATEL - Gestão de Cobrança e Cancelamento',
   apiBaseUrl,
   // Client ID do Google OAuth (Google Cloud Console).
   googleClientId: import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '',

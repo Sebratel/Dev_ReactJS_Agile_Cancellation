@@ -12,7 +12,7 @@ export function AppTopbar({ currentTitle, onOpenMobileMenu }: AppTopbarProps) {
   const { logout } = useAuth();
 
   return (
-    <header className="sticky top-0 z-30 flex h-12 items-center justify-between border-b border-border bg-background/90 px-4 backdrop-blur sm:px-6">
+    <header className="sticky top-0 z-30 flex h-12 items-center justify-between border-b border-border bg-background/95 px-4 shadow-[0_1px_0_rgba(17,17,17,0.02)] backdrop-blur sm:px-6">
       <div className="flex min-w-0 items-center gap-2">
         <Button
           variant="ghost"
@@ -32,7 +32,9 @@ export function AppTopbar({ currentTitle, onOpenMobileMenu }: AppTopbarProps) {
             alt="Sebratel"
             className="h-6 w-6 shrink-0 rounded-full object-cover"
           />
-          <span className="shrink-0 text-neutral">GER</span>
+          <span className="hidden shrink-0 text-[11px] font-black uppercase tracking-[0.16em] text-neutral sm:inline">
+            SEBRATEL
+          </span>
           <ChevronRight
             className="h-3.5 w-3.5 shrink-0 text-neutral/60"
             aria-hidden="true"

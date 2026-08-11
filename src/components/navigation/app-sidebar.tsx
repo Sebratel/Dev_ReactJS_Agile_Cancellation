@@ -38,15 +38,19 @@ function SidebarContent({ onNavigate }: SidebarContentProps) {
 
   return (
     <div className="flex h-full flex-col border-r border-border bg-card">
-      <div className="flex items-center gap-3 border-b border-border px-5 py-4">
+      <div className="relative flex items-center gap-3 border-b border-border px-5 py-4">
+        <span
+          className="absolute bottom-0 left-5 right-5 h-px bg-gradient-to-r from-danger via-primary to-transparent"
+          aria-hidden="true"
+        />
         <img
           src="/logo-circular-sebratel.png"
           alt="Sebratel"
-          className="h-9 w-9 shrink-0 rounded-xl object-cover"
+          className="h-9 w-9 shrink-0 rounded-lg object-cover shadow-[0_0_0_1px_hsl(var(--border))]"
           aria-hidden="true"
         />
         <div className="min-w-0">
-          <p className="bg-gradient-to-r from-[#ed1c24] via-[#ffb000] to-[#ed1c24] bg-clip-text text-[15px] font-black uppercase leading-tight tracking-[0.14em] text-transparent drop-shadow-[0_1px_5px_rgba(255,176,0,0.22)]">
+          <p className="bg-gradient-to-r from-danger via-primary to-danger bg-clip-text text-[15px] font-black uppercase leading-tight tracking-[0.14em] text-transparent drop-shadow-sm">
             SEBRATEL
           </p>
           <p className="truncate text-xs font-medium text-neutral">
@@ -81,8 +85,8 @@ function SidebarContent({ onNavigate }: SidebarContentProps) {
                       cn(
                         'group relative flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm transition-colors duration-150',
                         isActive
-                          ? 'bg-primary/10 font-semibold text-foreground'
-                          : 'font-medium text-neutral hover:bg-muted hover:text-foreground',
+              ? 'bg-primary/10 font-semibold text-foreground shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.22)]'
+              : 'font-medium text-neutral hover:bg-muted/80 hover:text-foreground',
                       )
                     }
                   >
@@ -162,7 +166,7 @@ export function AppSidebarMobile({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-40 bg-foreground/20 data-[state=open]:animate-fade-in data-[state=closed]:animate-fade-out lg:hidden" />
+      <Dialog.Overlay className="fixed inset-0 z-40 bg-foreground/25 backdrop-blur-[2px] data-[state=open]:animate-fade-in data-[state=closed]:animate-fade-out lg:hidden" />
         <Dialog.Content
           className="fixed left-0 top-0 z-50 h-full data-[state=open]:animate-drawer-in-left data-[state=closed]:animate-drawer-out-left lg:hidden"
           style={{ width: theme.sidebarWidth }}

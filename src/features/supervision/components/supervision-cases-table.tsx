@@ -67,6 +67,8 @@ const SORTABLE_COLUMNS: SortableColumn[] = [
   { key: 'slaDueAt', label: 'SLA' },
 ];
 
+const CRITICAL_STATUSES = new Set(['NO_RESPONSE', 'ELIGIBLE_FOR_CANCELLATION']);
+
 function SortIndicator({
   active,
   direction,
@@ -195,11 +197,19 @@ export function SupervisionCasesTable({
             {items.map((item) => {
               const sla = getSlaPresentation(item.slaDueAt);
               const isSelected = selectedIds.has(item.id);
+              const isCritical =
+                CRITICAL_STATUSES.has(item.status) ||
+                item.priority === 'CRITICAL' ||
+                sla.variant === 'danger';
 
               return (
                 <TableRow
                   key={item.id}
-                  className={cn(isSelected && 'bg-primary/5')}
+                  className={cn(
+                    isCritical &&
+                      'border-l-2 border-l-danger bg-danger/[0.025] hover:bg-danger/[0.045]',
+                    isSelected && 'bg-primary/5',
+                  )}
                 >
                   {canDistribute ? (
                     <TableCell className="w-10">

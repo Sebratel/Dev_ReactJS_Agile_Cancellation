@@ -102,7 +102,7 @@ export function useGoogleIdentityServices({
       .catch(() => {
         if (!cancelled) {
           setLoadError(
-            'NÃ£o foi possÃ­vel carregar o login do Google. Verifique sua conexÃ£o.',
+            'Não foi possível carregar o login do Google. Verifique sua conexão.',
           );
         }
       });

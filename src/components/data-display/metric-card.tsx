@@ -36,7 +36,7 @@ export function MetricCard({
   return (
     <article
       className={cn(
-        'rounded-lg border-l-4 bg-card shadow-card animate-rise-in',
+        'rounded-lg border border-border/80 border-l-4 bg-card shadow-card animate-rise-in',
         'transition-[box-shadow,transform] duration-200 hover:shadow-card-hover hover:-translate-y-px',
         isCompact ? 'p-3' : 'p-4',
         accentStyles[variant],
@@ -71,7 +71,7 @@ export function MetricCard({
         {Icon ? (
           <div
             className={cn(
-              'rounded-xl bg-muted text-neutral',
+              'rounded-lg bg-muted text-neutral',
               isCompact ? 'p-2' : 'p-3',
             )}
           >

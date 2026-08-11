@@ -14,7 +14,7 @@ export function ErrorState({
   onRetry,
 }: ErrorStateProps) {
   return (
-    <div className="rounded-2xl border border-danger/20 bg-card p-6 shadow-card">
+    <div className="rounded-lg border border-danger/20 bg-card p-6 shadow-card">
       <h3 className="text-lg font-semibold text-danger">{title}</h3>
       <p className="mt-2 text-sm leading-6 text-neutral">{description}</p>
       {retryLabel && onRetry ? (

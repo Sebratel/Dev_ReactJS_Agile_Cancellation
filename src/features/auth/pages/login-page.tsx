@@ -1,4 +1,4 @@
-﻿import { type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { LoginForm } from '@/features/auth/components/login-form';
 
 // Sombras neumorphicas — Design System Sebratel (LOGIN_SCREEN_SPEC)
@@ -157,7 +157,7 @@ export default function LoginPage() {
                 }}
               />
               <span className="text-xs font-bold uppercase tracking-[0.18em] text-white/70">
-                GER — Gestão de Cobrança
+                SEBRATEL Cobrança
               </span>
             </div>
 
@@ -206,13 +206,13 @@ export default function LoginPage() {
       />
 
       {/* Painel direito — superficie neumorphic clara */}
-      <div className="flex w-full shrink-0 flex-col overflow-y-auto bg-login-surface lg:w-[35%]">
+      <div className="flex w-full shrink-0 flex-col overflow-y-auto bg-login-surface lg:w-[420px] xl:w-[460px]">
         <div className="flex flex-1 flex-col items-center justify-center px-8 py-12">
-          <div className="flex w-full max-w-[320px] flex-col items-center gap-6">
+          <div className="flex w-full max-w-[340px] flex-col items-center gap-6">
             {/* Badge — pill neumorphic inset */}
             <div className="flex w-full justify-center">
               <span
-                className="inline-flex items-center rounded-full bg-login-surface px-5 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-primary"
+                className="inline-flex items-center rounded-full bg-login-surface px-5 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-primary"
                 style={{ boxShadow: NEU_INSET_BADGE }}
               >
                 Gestão de Cobrança
@@ -221,7 +221,7 @@ export default function LoginPage() {
 
             {/* Heading */}
             <div className="w-full text-center">
-              <h1 className="m-0 mb-2 text-[1.75rem] font-black leading-tight tracking-tight text-login-ink">
+              <h1 className="m-0 mb-2 text-[1.8rem] font-black leading-tight tracking-tight text-login-ink">
                 Acessar plataforma
               </h1>
               <p className="m-0 text-sm leading-snug text-login-muted">
@@ -233,11 +233,11 @@ export default function LoginPage() {
 
             {/* Card de dominio — neumorphic elevado */}
             <div
-              className="flex w-full items-center gap-4 rounded-2xl bg-login-surface px-5 py-4"
+              className="flex w-full items-center gap-4 rounded-lg bg-login-surface px-5 py-4"
               style={{ boxShadow: NEU_ELEVATED }}
             >
               <div
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-login-surface text-primary"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-login-surface text-primary"
                 style={{ boxShadow: NEU_INSET_ICON }}
               >
                 <IconLock />

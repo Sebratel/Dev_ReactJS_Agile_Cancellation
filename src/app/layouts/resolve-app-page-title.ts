@@ -18,5 +18,5 @@ export function resolveAppPageTitle(pathname: string): string {
     (route) => route.path !== '/' && pathname.startsWith(`${route.path}/`),
   );
 
-  return prefixRoute?.label ?? 'GER';
+  return prefixRoute?.label ?? 'SEBRATEL';
 }

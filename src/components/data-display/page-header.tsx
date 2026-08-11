@@ -13,16 +13,19 @@ export function PageHeader({
   children,
 }: PageHeaderProps) {
   return (
-    <header className="flex flex-col gap-2">
-      <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
-        <div className="space-y-1">
-          <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
+    <header className="flex flex-col gap-3 border-b border-border/70 pb-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="space-y-1.5">
+          <div className="h-1 w-9 rounded-full bg-primary" aria-hidden="true" />
+          <h1 className="text-[1.35rem] font-bold leading-tight tracking-tight">
+            {title}
+          </h1>
           <p className="max-w-3xl text-sm leading-6 text-neutral">
             {description}
           </p>
         </div>
         {actions ? (
-          <div className="flex shrink-0 flex-wrap items-center gap-3">
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
             {actions}
           </div>
         ) : null}

@@ -58,7 +58,7 @@ function renderSupervision(initialRoute = '/supervisao') {
       session: createMockSession({
         user: {
           id: 'supervisor',
-          name: 'Supervisor GER',
+          name: 'Supervisor SEBRATEL',
           email: 'supervisor@ger.local',
           roles: ['SUPERVISOR'],
           role: 'SUPERVISOR',

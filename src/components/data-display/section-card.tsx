@@ -18,19 +18,26 @@ export function SectionCard({
   children,
 }: SectionCardProps) {
   return (
-    <section className={cn('rounded-lg bg-card shadow-card animate-rise-in', className)}>
+    <section
+      className={cn(
+        'rounded-lg border border-border/80 bg-card shadow-card animate-rise-in',
+        className,
+      )}
+    >
       {(title || description || actions) && (
-        <header className="flex items-start justify-between gap-3 border-b border-border px-3 py-2.5">
+        <header className="flex items-start justify-between gap-3 border-b border-border/80 px-4 py-3">
           <div>
             {title ? <h2 className="text-sm font-semibold">{title}</h2> : null}
             {description ? (
-              <p className="mt-0.5 text-xs text-neutral">{description}</p>
+              <p className="mt-0.5 max-w-2xl text-xs leading-5 text-neutral">
+                {description}
+              </p>
             ) : null}
           </div>
           {actions ? <div className="shrink-0">{actions}</div> : null}
         </header>
       )}
-      <div className={cn('p-3', contentClassName)}>{children}</div>
+      <div className={cn('p-4', contentClassName)}>{children}</div>
     </section>
   );
 }

@@ -14,7 +14,7 @@ describe('resolveAppPageTitle', () => {
     );
   });
 
-  it('retorna GER para rota desconhecida', () => {
-    expect(resolveAppPageTitle('/rota-inexistente')).toBe('GER');
+  it('retorna SEBRATEL para rota desconhecida', () => {
+    expect(resolveAppPageTitle('/rota-inexistente')).toBe('SEBRATEL');
   });
 });

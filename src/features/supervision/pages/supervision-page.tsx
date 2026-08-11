@@ -9,6 +9,7 @@ import { TableSkeleton } from '@/components/feedback/table-skeleton';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/features/auth/auth-context';
 import { useCollectionCases } from '@/features/collection-cases/hooks/use-collection-cases';
+import { CollectionCaseSnapshotStrip } from '@/features/collection-cases/components/collection-case-snapshot-strip';
 import { useBulkAssignCases } from '@/features/collection-cases/hooks/use-bulk-assign-cases';
 import { useAutoDistribute } from '@/features/collection-cases/hooks/use-auto-distribute';
 import { useExportCasesCsv } from '@/features/collection-cases/hooks/use-export-cases-csv';
@@ -179,6 +180,13 @@ export default function SupervisionPage() {
         onClearFilters={handleClearFilters}
         hasActiveFilters={hasActiveFilters}
       />
+
+      {!casesQuery.isLoading && !casesQuery.isError ? (
+        <CollectionCaseSnapshotStrip
+          items={items}
+          totalCases={casesQuery.data?.pagination.total}
+        />
+      ) : null}
 
       {casesQuery.isLoading ? <TableSkeleton rows={6} columns={5} /> : null}
 

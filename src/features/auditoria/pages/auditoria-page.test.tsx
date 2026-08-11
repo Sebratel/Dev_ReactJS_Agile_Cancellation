@@ -37,7 +37,7 @@ function renderAuditoria(initialRoute = '/auditoria') {
       session: createMockSession({
         user: {
           id: 'admin',
-          name: 'Admin GER',
+          name: 'Admin SEBRATEL',
           email: 'admin@ger.local',
           roles: ['ADMIN'],
           role: 'ADMIN',

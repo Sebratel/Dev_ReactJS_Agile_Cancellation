@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/table';
 import { useAuth } from '@/features/auth/auth-context';
 import { ContactCustomerWhatsAppAction } from '@/features/collection-cases/components/contact-customer-whatsapp-action';
+import { CollectionCaseSnapshotStrip } from '@/features/collection-cases/components/collection-case-snapshot-strip';
 import { useCollectionCases } from '@/features/collection-cases/hooks/use-collection-cases';
 import {
   getCollectionStatusLabel,
@@ -90,6 +91,8 @@ export default function MyCollectionPage() {
 
       {!casesQuery.isLoading && !casesQuery.isError && items.length > 0 ? (
         <>
+          <CollectionCaseSnapshotStrip items={items} totalCases={totalCases} />
+
           {nextCase ? (
             <div className="grid gap-4 lg:grid-cols-[240px_1fr]">
               <MetricCard
@@ -99,7 +102,7 @@ export default function MyCollectionPage() {
                 icon={BookUser}
                 density="compact"
               />
-              <div className="flex flex-col justify-between gap-3 rounded-2xl border-l-4 border-l-primary bg-card p-4 shadow-card sm:flex-row sm:items-center">
+              <div className="flex flex-col justify-between gap-3 rounded-lg border border-border/80 border-l-4 border-l-primary bg-card p-4 shadow-card sm:flex-row sm:items-center">
                 <div className="min-w-0">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral/80">
                     Próximo a tratar
@@ -117,7 +120,7 @@ export default function MyCollectionPage() {
                 </div>
                 <Link
                   to={`/minha-cobranca/${nextCase.id}`}
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-foreground transition-colors duration-150 hover:bg-primary/90"
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-foreground transition-colors duration-150 hover:bg-primary/90"
                 >
                   Abrir caso
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
