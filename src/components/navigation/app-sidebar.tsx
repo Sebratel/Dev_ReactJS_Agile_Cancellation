@@ -46,8 +46,12 @@ function SidebarContent({ onNavigate }: SidebarContentProps) {
           aria-hidden="true"
         />
         <div className="min-w-0">
-          <p className="text-sm font-bold leading-tight">GER</p>
-          <p className="truncate text-xs text-neutral">Gestão de Cobrança</p>
+          <p className="bg-gradient-to-r from-[#ed1c24] via-[#ffb000] to-[#ed1c24] bg-clip-text text-[15px] font-black uppercase leading-tight tracking-[0.14em] text-transparent drop-shadow-[0_1px_5px_rgba(255,176,0,0.22)]">
+            SEBRATEL
+          </p>
+          <p className="truncate text-xs font-medium text-neutral">
+            Gestão de Cobrança
+          </p>
         </div>
       </div>
 
