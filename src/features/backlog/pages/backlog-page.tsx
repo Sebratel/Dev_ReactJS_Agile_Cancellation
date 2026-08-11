@@ -67,7 +67,6 @@ export default function BacklogPage() {
   const eligibleQuery = useCollectionCases({ status: 'ELIGIBLE_FOR_CANCELLATION', limit: 1 });
 
   const agentsQuery = useUsers({
-    role: 'COLLECTION_AGENT',
     status: 'ACTIVE',
     limit: 100,
     enabled: canDistribute,

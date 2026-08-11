@@ -64,7 +64,6 @@ export default function SupervisionPage() {
   const casesQuery = useCollectionCases(listParams);
 
   const agentsQuery = useUsers({
-    role: 'COLLECTION_AGENT',
     status: 'ACTIVE',
     limit: 100,
     enabled: canDistribute,

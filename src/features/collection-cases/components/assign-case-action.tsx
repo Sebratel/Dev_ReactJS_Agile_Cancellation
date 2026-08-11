@@ -21,7 +21,6 @@ export function AssignCaseAction({
   const [selectedId, setSelectedId] = useState(currentAssigneeId ?? '');
 
   const agentsQuery = useUsers({
-    role: 'COLLECTION_AGENT',
     status: 'ACTIVE',
     limit: 100,
   });
@@ -70,7 +69,8 @@ export function AssignCaseAction({
             <option value="">Não atribuído</option>
             {agents.map((agent) => (
               <option key={agent.id} value={agent.id}>
-                {agent.name} — {agent.roles.map(getRoleLabel).join(', ')}
+                {agent.name} - {agent.email} -{' '}
+                {agent.roles.map(getRoleLabel).join(', ')}
               </option>
             ))}
           </Select>
@@ -101,3 +101,4 @@ export function AssignCaseAction({
     </SectionCard>
   );
 }
+

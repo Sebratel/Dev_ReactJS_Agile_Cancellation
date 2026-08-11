@@ -47,11 +47,11 @@ export function BulkActionBar({
             disabled={isAssigning}
             className="h-8 min-w-[180px] appearance-none rounded-md border border-border bg-card pl-3 pr-8 text-sm text-foreground transition-colors hover:border-neutral/40 disabled:opacity-50"
           >
-            <option value="">Selecionar agente...</option>
+            <option value="">Selecionar pessoa...</option>
             <option value="__remove__">— Remover atribuição</option>
             {agents.map((a) => (
               <option key={a.id} value={a.id}>
-                {a.name}
+                {a.name} - {a.email}
                 {workload ? ` (${workload[a.id] ?? 0} casos)` : ''}
               </option>
             ))}
@@ -88,3 +88,4 @@ export function BulkActionBar({
     </div>
   );
 }
+

@@ -50,10 +50,11 @@ export function InlineAssigneeSelect({
       <option value="">Não atribuído</option>
       {agents.map((agent) => (
         <option key={agent.id} value={agent.id}>
-          {agent.name}
+          {agent.name} - {agent.email}
           {workload ? ` (${workload[agent.id] ?? 0} casos)` : ''}
         </option>
       ))}
     </Select>
   );
 }
+
