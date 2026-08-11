@@ -48,11 +48,11 @@ describe('AssignCaseAction', () => {
     );
 
     await user.selectOptions(
-      screen.getByLabelText('Responsável pelo caso'),
+      screen.getByLabelText('Responsavel pelo caso'),
       'user-collection',
     );
     await user.click(
-      screen.getByRole('button', { name: /Salvar responsável/i }),
+      screen.getByRole('button', { name: /Salvar responsavel/i }),
     );
 
     await waitFor(() => {
@@ -72,7 +72,7 @@ describe('AssignCaseAction', () => {
     );
 
     expect(
-      screen.getByRole('button', { name: /Salvar responsável/i }),
+      screen.getByRole('button', { name: /Salvar responsavel/i }),
     ).toBeDisabled();
   });
 });

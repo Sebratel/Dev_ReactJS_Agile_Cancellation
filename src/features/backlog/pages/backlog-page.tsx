@@ -68,6 +68,7 @@ export default function BacklogPage() {
 
   const agentsQuery = useUsers({
     status: 'ACTIVE',
+    role: 'COLLECTION_AGENT',
     limit: 100,
     enabled: canDistribute,
   });

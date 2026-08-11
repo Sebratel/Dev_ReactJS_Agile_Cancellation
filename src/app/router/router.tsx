@@ -119,6 +119,10 @@ export const appRouter = createBrowserRouter([
                 path: 'cancelamentos',
                 element: withRouteFallback(<LazyCancellationsPage />),
               },
+              {
+                path: 'cancelamentos/:caseId',
+                element: withRouteFallback(<LazyCollectionCaseDetailPage />),
+              },
             ],
           },
           {

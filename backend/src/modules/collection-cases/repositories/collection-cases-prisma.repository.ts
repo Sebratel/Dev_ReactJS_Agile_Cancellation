@@ -66,6 +66,19 @@ import {
 import { buildDefaultCancellationStepsForPrisma } from '@/modules/cancellations/utils/create-default-cancellation-steps.util';
 import { getCancellationStepLabel } from '@/modules/cancellations/constants/default-cancellation-steps.constants';
 
+const ASSIGNABLE_CASE_ROLE_CODES = new Set([
+  'COLLECTION_AGENT',
+  'CANCELLATION_AGENT',
+]);
+
+function hasAssignableCaseRole(user: {
+  userRoles: Array<{ role: { code: string } }>;
+}) {
+  return user.userRoles.some(({ role }) =>
+    ASSIGNABLE_CASE_ROLE_CODES.has(role.code),
+  );
+}
+
 const collectionCaseDetailsInclude = {
   customer: true,
   contract: { include: { invoices: true } },
@@ -793,10 +806,18 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
     if (assignedUserId) {
       const user = await this.prisma.user.findUnique({
         where: { id: assignedUserId },
-        select: { id: true, status: true },
+        select: {
+          id: true,
+          status: true,
+          userRoles: { select: { role: { select: { code: true } } } },
+        },
       });
 
-      if (!user || user.status !== UserStatus.ACTIVE) {
+      if (
+        !user ||
+        user.status !== UserStatus.ACTIVE ||
+        !hasAssignableCaseRole(user)
+      ) {
         return { outcome: 'user_not_found' };
       }
     }
@@ -842,9 +863,17 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
     if (assignedUserId) {
       const user = await this.prisma.user.findUnique({
         where: { id: assignedUserId },
-        select: { id: true, status: true },
+        select: {
+          id: true,
+          status: true,
+          userRoles: { select: { role: { select: { code: true } } } },
+        },
       });
-      if (!user || user.status !== UserStatus.ACTIVE) {
+      if (
+        !user ||
+        user.status !== UserStatus.ACTIVE ||
+        !hasAssignableCaseRole(user)
+      ) {
         return { assigned: 0, skipped: caseIds.length };
       }
     }

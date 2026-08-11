@@ -143,6 +143,7 @@ export default function CancellationsPage() {
 
   const agentsQuery = useUsers({
     status: 'ACTIVE',
+    role: 'CANCELLATION_AGENT',
     limit: 100,
     enabled: canDistribute,
   });

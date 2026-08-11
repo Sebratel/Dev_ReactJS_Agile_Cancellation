@@ -8,20 +8,24 @@ import { useUsers } from '@/features/users/hooks/use-users';
 import { getRoleLabel } from '@/features/users/utils/user-labels';
 import { toast } from '@/lib/toast';
 import { ApiError } from '@/services/api/api-error';
+import { type UserRole } from '@/types/auth';
 
 type AssignCaseActionProps = {
   caseId: string;
   currentAssigneeId: string | null;
+  targetRole?: Extract<UserRole, 'COLLECTION_AGENT' | 'CANCELLATION_AGENT'>;
 };
 
 export function AssignCaseAction({
   caseId,
   currentAssigneeId,
+  targetRole = 'COLLECTION_AGENT',
 }: AssignCaseActionProps) {
   const [selectedId, setSelectedId] = useState(currentAssigneeId ?? '');
 
   const agentsQuery = useUsers({
     status: 'ACTIVE',
+    role: targetRole,
     limit: 100,
   });
   const mutation = useAssignCase(caseId);
@@ -32,14 +36,15 @@ export function AssignCaseAction({
 
   const agents = agentsQuery.data?.items ?? [];
   const isDirty = selectedId !== (currentAssigneeId ?? '');
+  const isCancellationAssignment = targetRole === 'CANCELLATION_AGENT';
 
   async function handleSave() {
     try {
       await mutation.mutateAsync({ assignedUserId: selectedId || null });
       toast.success(
         selectedId
-          ? 'Caso atribuído com sucesso.'
-          : 'Atribuição removida com sucesso.',
+          ? 'Caso atribuido com sucesso.'
+          : 'Atribuicao removida com sucesso.',
       );
     } catch {
       return;
@@ -50,13 +55,17 @@ export function AssignCaseAction({
     mutation.error instanceof ApiError
       ? mutation.error.message
       : mutation.isError
-        ? 'Não foi possível atualizar a atribuição.'
+        ? 'Nao foi possivel atualizar a atribuicao.'
         : null;
 
   return (
     <SectionCard
-      title="Distribuição"
-      description="Defina o colaborador de cobrança responsável por este caso."
+      title="Distribuicao"
+      description={
+        isCancellationAssignment
+          ? 'Defina o atendente de cancelamento responsavel por este processo.'
+          : 'Defina o atendente de cobranca responsavel por este caso.'
+      }
     >
       <div className="space-y-3">
         <div className="sm:max-w-sm">
@@ -64,9 +73,9 @@ export function AssignCaseAction({
             value={selectedId}
             disabled={agentsQuery.isLoading || mutation.isPending}
             onChange={(event) => setSelectedId(event.target.value)}
-            aria-label="Responsável pelo caso"
+            aria-label="Responsavel pelo caso"
           >
-            <option value="">Não atribuído</option>
+            <option value="">Nao atribuido</option>
             {agents.map((agent) => (
               <option key={agent.id} value={agent.id}>
                 {agent.name} - {agent.email} -{' '}
@@ -78,7 +87,7 @@ export function AssignCaseAction({
 
         {agentsQuery.isError ? (
           <p className="text-sm text-danger">
-            Não foi possível carregar a lista de colaboradores.
+            Nao foi possivel carregar a lista de colaboradores.
           </p>
         ) : null}
 
@@ -95,10 +104,9 @@ export function AssignCaseAction({
           }}
           disabled={!isDirty || mutation.isPending}
         >
-          {mutation.isPending ? 'Salvando...' : 'Salvar responsável'}
+          {mutation.isPending ? 'Salvando...' : 'Salvar responsavel'}
         </Button>
       </div>
     </SectionCard>
   );
 }
-

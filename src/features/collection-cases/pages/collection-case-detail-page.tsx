@@ -63,10 +63,17 @@ export default function CollectionCaseDetailPage() {
   const { session } = useAuth();
 
   const fromMyCollection = location.pathname.startsWith('/minha-cobranca');
-  const backTo = fromMyCollection ? '/minha-cobranca' : '/supervisao';
+  const fromCancellations = location.pathname.startsWith('/cancelamentos');
+  const backTo = fromMyCollection
+    ? '/minha-cobranca'
+    : fromCancellations
+      ? '/cancelamentos'
+      : '/supervisao';
   const backLabel = fromMyCollection
     ? 'Voltar para minha cobrança'
-    : 'Voltar para supervisão';
+    : fromCancellations
+      ? 'Voltar para cancelamentos'
+      : 'Voltar para supervisão';
   const canDistribute =
     session?.user.roles.some(
       (role) => role === 'ADMIN' || role === 'SUPERVISOR',
@@ -249,6 +256,11 @@ export default function CollectionCaseDetailPage() {
                 <AssignCaseAction
                   caseId={caseQuery.data.id}
                   currentAssigneeId={caseQuery.data.assignedTo?.id ?? null}
+                  targetRole={
+                    caseQuery.data.status === 'CANCELLATION_IN_PROGRESS'
+                      ? 'CANCELLATION_AGENT'
+                      : 'COLLECTION_AGENT'
+                  }
                 />
               ) : null}
             </div>

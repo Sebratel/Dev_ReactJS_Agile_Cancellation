@@ -256,7 +256,7 @@ export function CancellationsTable({
                   </TableCell>
                   <TableCell>
                     <Link
-                      to={`/supervisao/${item.id}`}
+                      to={`/cancelamentos/${item.id}`}
                       className={cn(
                         buttonVariants({ variant: 'secondary', size: 'sm' }),
                       )}

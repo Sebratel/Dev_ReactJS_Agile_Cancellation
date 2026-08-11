@@ -10,6 +10,7 @@ import type { RevertCancellationDto } from '@/modules/collection-cases/dto/rever
 import type { AssignCaseDto } from '@/modules/collection-cases/dto/assign-case.dto';
 import type { BulkAssignCasesDto } from '@/modules/collection-cases/dto/bulk-assign-cases.dto';
 import type { AutoDistributeDto } from '@/modules/collection-cases/dto/auto-distribute.dto';
+import type { AuthenticatedUser } from '@/modules/auth/types/authenticated-user.type';
 import type {
   CollectionCasesListParams,
   CollectionCasesRepository,
@@ -47,6 +48,18 @@ function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
+function canAccessCaseDetails(
+  user: AuthenticatedUser | undefined,
+  assignedToId: string | null,
+) {
+  if (!user) return true;
+  if (user.roles.some((role) => role === 'ADMIN' || role === 'SUPERVISOR')) {
+    return true;
+  }
+
+  return assignedToId === user.id;
+}
+
 @Injectable()
 export class CollectionCasesService {
   constructor(
@@ -63,10 +76,13 @@ export class CollectionCasesService {
     return createApiResponse(paginated);
   }
 
-  async getCaseById(id: string) {
+  async getCaseById(id: string, user?: AuthenticatedUser) {
     const details = await this.collectionCasesRepository.getCaseById(id);
 
-    if (!details) {
+    if (
+      !details ||
+      !canAccessCaseDetails(user, details.assignedTo?.id ?? null)
+    ) {
       throw new AppException(
         `Caso de cobrança ${id} não encontrado.`,
         HttpStatus.NOT_FOUND,
@@ -76,7 +92,9 @@ export class CollectionCasesService {
     return createApiResponse(details);
   }
 
-  async getCaseTimeline(id: string) {
+  async getCaseTimeline(id: string, user?: AuthenticatedUser) {
+    await this.getCaseById(id, user);
+
     const timeline = await this.collectionCasesRepository.getCaseTimeline(id);
 
     if (!timeline) {
@@ -358,7 +376,7 @@ export class CollectionCasesService {
 
     if (result.outcome === 'user_not_found') {
       throw new AppException(
-        'Usuário responsável não encontrado ou inativo.',
+        'Usuario responsavel nao encontrado, inativo ou sem perfil operacional.',
         HttpStatus.UNPROCESSABLE_ENTITY,
       );
     }

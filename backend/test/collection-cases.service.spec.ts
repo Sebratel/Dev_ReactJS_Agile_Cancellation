@@ -6,6 +6,7 @@ import { createPaginatedResponse } from '@/common/pagination/paginated-response'
 import type { PerformedByResolverService } from '@/modules/collection-cases/services/performed-by-resolver.service';
 import type { MatrixWhatsappContactService } from '@/modules/collection-cases/services/matrix-whatsapp-contact.service';
 import type { NotificationsService } from '@/modules/notifications/notifications.service';
+import type { AuthenticatedUser } from '@/modules/auth/types/authenticated-user.type';
 
 function createService(repository: CollectionCasesRepository) {
   const resolvePerformedBy = jest.fn().mockReturnValue('usr_marina');
@@ -91,6 +92,7 @@ describe('CollectionCasesService', () => {
   });
 
   it('retorna timeline quando repository encontra caso', async () => {
+    const details = mockCollectionCaseDetails.case_0001;
     const timeline = {
       caseId: 'case_0001',
       events: [
@@ -104,6 +106,7 @@ describe('CollectionCasesService', () => {
       ],
     };
     const repository = createRepository({
+      getCaseById: jest.fn().mockResolvedValue(details),
       getCaseTimeline: jest.fn().mockResolvedValue(timeline),
     });
 
@@ -116,6 +119,7 @@ describe('CollectionCasesService', () => {
 
   it('retorna 404 ao buscar timeline de caso inexistente', async () => {
     const repository = createRepository({
+      getCaseById: jest.fn().mockResolvedValue(null),
       getCaseTimeline: jest.fn().mockResolvedValue(null),
     });
 
@@ -124,6 +128,28 @@ describe('CollectionCasesService', () => {
     await expect(
       service.getCaseTimeline('case_inexistente'),
     ).rejects.toMatchObject({
+      status: HttpStatus.NOT_FOUND,
+    });
+  });
+
+  it('bloqueia detalhe quando agente tenta acessar caso de outra carteira', async () => {
+    const details = {
+      ...mockCollectionCaseDetails.case_0001,
+      assignedTo: { id: 'usr_marina', name: 'Marina Lopes' },
+    };
+    const repository = createRepository({
+      getCaseById: jest.fn().mockResolvedValue(details),
+    });
+    const user = {
+      id: 'usr_outro',
+      email: 'outro@ger.local',
+      name: 'Outro Agente',
+      roles: ['COLLECTION_AGENT'],
+    } satisfies AuthenticatedUser;
+
+    const { service } = createService(repository);
+
+    await expect(service.getCaseById('case_0001', user)).rejects.toMatchObject({
       status: HttpStatus.NOT_FOUND,
     });
   });
