@@ -65,7 +65,7 @@ export function InlineAssigneeSelect({
   }, []);
 
   return (
-    <div ref={containerRef} className="relative min-w-[210px]">
+    <div ref={containerRef} className="relative min-w-[190px]">
       <button
         type="button"
         disabled={disabled}
@@ -73,8 +73,9 @@ export function InlineAssigneeSelect({
         aria-expanded={open}
         aria-label={`Responsavel pelo caso ${caseId}`}
         className={cn(
-          'flex h-9 w-full items-center gap-2 rounded-lg border border-input bg-card px-2.5 text-left text-xs shadow-sm transition-colors',
-          'hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50',
+          'flex h-8 w-full items-center gap-2 rounded-lg border border-input bg-card px-2 text-left text-xs shadow-sm transition-colors',
+          'hover:border-primary/50 hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50',
+          open && 'border-primary/70 ring-2 ring-primary/15',
           disabled && 'cursor-not-allowed opacity-60',
         )}
         onClick={() => setOpen((value) => !value)}
@@ -86,21 +87,16 @@ export function InlineAssigneeSelect({
         <span className="min-w-0 flex-1 truncate font-medium">
           {selectedAgent?.name ?? currentAssignee?.name ?? 'Nao atribuido'}
         </span>
-        {selectedAgent && workload ? (
-          <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-neutral">
-            {workload[selectedAgent.id] ?? 0}
-          </span>
-        ) : null}
         <ChevronDown className="h-3.5 w-3.5 shrink-0 text-neutral" />
       </button>
 
       {open ? (
-        <div className="absolute right-0 z-30 mt-1 max-h-72 w-[280px] overflow-y-auto rounded-lg border border-border bg-card p-1 shadow-floating">
+        <div className="absolute right-0 z-50 mt-1 max-h-64 w-[260px] overflow-y-auto rounded-lg border border-border bg-card p-1 shadow-floating">
           <div role="listbox" aria-label={`Responsavel pelo caso ${caseId}`}>
             <AssigneeOption
               selected={!currentAssignee}
               name="Nao atribuido"
-              description="Remover responsavel"
+              meta="Sem responsavel"
               onSelect={() => {
                 void handleChange('');
               }}
@@ -111,10 +107,8 @@ export function InlineAssigneeSelect({
                 selected={agent.id === currentAssignee?.id}
                 name={agent.name}
                 avatarUrl={agent.avatarUrl}
-                description={
-                  workload
-                    ? `${workload[agent.id] ?? 0} casos na carteira`
-                    : agent.email
+                meta={
+                  workload ? `${workload[agent.id] ?? 0} casos` : agent.email
                 }
                 onSelect={() => {
                   void handleChange(agent.id);
@@ -148,7 +142,7 @@ function AssigneeAvatar({
       <img
         src={avatarUrl}
         alt=""
-        className="h-6 w-6 shrink-0 rounded-full object-cover"
+        className="h-5 w-5 shrink-0 rounded-full object-cover"
         referrerPolicy="no-referrer"
       />
     );
@@ -156,14 +150,14 @@ function AssigneeAvatar({
 
   if (name === 'Nao atribuido') {
     return (
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-neutral">
-        <UserRound className="h-3.5 w-3.5" aria-hidden="true" />
+      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-neutral">
+        <UserRound className="h-3 w-3" aria-hidden="true" />
       </span>
     );
   }
 
   return (
-    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[10px] font-bold text-foreground">
+    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[9px] font-bold text-foreground">
       {getInitials(name)}
     </span>
   );
@@ -172,13 +166,13 @@ function AssigneeAvatar({
 function AssigneeOption({
   selected,
   name,
-  description,
+  meta,
   avatarUrl,
   onSelect,
 }: {
   selected: boolean;
   name: string;
-  description: string;
+  meta: string;
   avatarUrl?: string | null;
   onSelect: () => void;
 }) {
@@ -188,17 +182,17 @@ function AssigneeOption({
       role="option"
       aria-selected={selected}
       className={cn(
-        'flex w-full items-center gap-2 rounded-md px-2 py-2 text-left transition-colors',
-        selected ? 'bg-primary/10' : 'hover:bg-muted',
+        'flex h-9 w-full items-center gap-2 rounded-md px-2 text-left transition-colors',
+        selected ? 'bg-primary/10 text-foreground' : 'hover:bg-muted',
       )}
       onClick={onSelect}
     >
       <AssigneeAvatar name={name} avatarUrl={avatarUrl} />
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-xs font-semibold">{name}</span>
-        <span className="block truncate text-[11px] text-neutral">
-          {description}
-        </span>
+      <span className="min-w-0 flex-1 truncate text-xs font-semibold">
+        {name}
+      </span>
+      <span className="max-w-[82px] shrink-0 truncate rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-neutral">
+        {meta}
       </span>
       {selected ? (
         <Check className="h-3.5 w-3.5 shrink-0 text-primary" />
