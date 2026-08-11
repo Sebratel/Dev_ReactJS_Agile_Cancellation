@@ -12,5 +12,15 @@ export function createGoogleTokenVerifier(
   mockVerifier: GoogleTokenVerifierMockService,
   realVerifier: GoogleTokenVerifierService,
 ): GoogleTokenVerifier {
-  return getGoogleAuthConfig().clientId ? realVerifier : mockVerifier;
+  const config = getGoogleAuthConfig();
+
+  if (config.mode === 'mock') {
+    return mockVerifier;
+  }
+
+  if (config.mode === 'real') {
+    return realVerifier;
+  }
+
+  return config.clientId ? realVerifier : mockVerifier;
 }

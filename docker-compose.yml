@@ -24,13 +24,14 @@ services:
     environment:
       NODE_ENV: production
       PORT: 4000
-      DATABASE_URL: mysql://${MARIADB_USER}:${MARIADB_PASSWORD}@db:3306/DB_Cancellation_Plataform?connection_limit=5
+      DATABASE_URL: ${DATABASE_URL:-mysql://${MARIADB_USER}:${MARIADB_PASSWORD}@db:3306/DB_Cancellation_Plataform?connection_limit=5}
       CORS_ORIGIN: ${CORS_ORIGIN}
       APP_TIMEZONE: ${APP_TIMEZONE:-UTC}
       JWT_SECRET: ${JWT_SECRET}
       JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
       JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_AUTH_MODE: ${GOOGLE_AUTH_MODE:-mock}
       GOOGLE_WORKSPACE_DOMAIN: ${GOOGLE_WORKSPACE_DOMAIN:-}
       DATA_SOURCE_MODE: database
       PRISMA_AUTO_CONNECT: 'true'
