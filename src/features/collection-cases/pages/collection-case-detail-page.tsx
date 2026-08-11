@@ -1,5 +1,15 @@
 import { Link, useLocation, useParams } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import {
+  ArrowLeft,
+  FileText,
+  HandCoins,
+  History,
+  ListChecks,
+  MessageCircle,
+  MessageSquareText,
+} from 'lucide-react';
+import { useState } from 'react';
+import type { LucideIcon } from 'lucide-react';
 import { PageHeader } from '@/components/data-display/page-header';
 import { SectionCard } from '@/components/data-display/section-card';
 import { StatusBadge } from '@/components/data-display/status-badge';
@@ -56,8 +66,146 @@ const tableHeadClassName =
 
 const tableCellClassName = 'px-4 py-3 lg:px-6';
 
+type CaseWorkspaceModule =
+  | 'invoices'
+  | 'attempts'
+  | 'promises'
+  | 'cancellation'
+  | 'timeline'
+  | 'notes';
+
+type CaseWorkspaceItem = {
+  id: CaseWorkspaceModule;
+  label: string;
+  description: string;
+  badge: string;
+  icon: LucideIcon;
+};
+
+const workspaceItemsBase: Omit<CaseWorkspaceItem, 'badge'>[] = [
+  {
+    id: 'attempts',
+    label: 'Tentativas',
+    description: 'Registrar contato',
+    icon: MessageCircle,
+  },
+  {
+    id: 'promises',
+    label: 'Promessas',
+    description: 'Acordos e datas',
+    icon: HandCoins,
+  },
+  {
+    id: 'cancellation',
+    label: 'Cancelamento',
+    description: 'Checklist operacional',
+    icon: ListChecks,
+  },
+  {
+    id: 'timeline',
+    label: 'Timeline',
+    description: 'Histórico do caso',
+    icon: History,
+  },
+  {
+    id: 'notes',
+    label: 'Comentários',
+    description: 'Notas internas',
+    icon: MessageSquareText,
+  },
+  {
+    id: 'invoices',
+    label: 'Faturas',
+    description: 'Títulos e valores',
+    icon: FileText,
+  },
+];
+
+function CaseWorkspaceSwitcher({
+  activeModule,
+  items,
+  onChange,
+}: {
+  activeModule: CaseWorkspaceModule;
+  items: CaseWorkspaceItem[];
+  onChange: (module: CaseWorkspaceModule) => void;
+}) {
+  return (
+    <section className="sticky top-[72px] z-10 rounded-lg border border-border/80 bg-card p-2 shadow-card animate-rise-in">
+      <div
+        className="grid gap-2 sm:grid-cols-2 2xl:grid-cols-3"
+        role="tablist"
+        aria-label="Módulos do caso"
+      >
+        {items.map((item) => {
+          const Icon = item.icon;
+          const isActive = activeModule === item.id;
+
+          return (
+            <button
+              key={item.id}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => onChange(item.id)}
+              className={cn(
+                'group relative overflow-hidden rounded-lg border p-3 text-left transition-all duration-200',
+                'hover:-translate-y-px hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60',
+                isActive
+                  ? 'border-primary bg-primary/10 shadow-card'
+                  : 'border-border/80 bg-background hover:border-primary/50',
+              )}
+            >
+              <span
+                className={cn(
+                  'absolute inset-x-3 bottom-0 h-0.5 origin-left rounded-full bg-primary transition-transform duration-300',
+                  isActive ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-50',
+                )}
+              />
+              <span className="flex items-start gap-3">
+                <span
+                  className={cn(
+                    'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors',
+                    isActive
+                      ? 'bg-primary text-foreground'
+                      : 'bg-muted text-neutral group-hover:text-foreground',
+                  )}
+                >
+                  <Icon className="h-4 w-4" aria-hidden="true" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="truncate text-sm font-semibold">
+                      {item.label}
+                    </span>
+                    <span
+                      className={cn(
+                        'rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums',
+                        isActive
+                          ? 'bg-card text-foreground'
+                          : 'bg-muted text-neutral',
+                      )}
+                    >
+                      {item.badge}
+                    </span>
+                  </span>
+                  <span className="mt-1 block truncate text-xs text-neutral">
+                    {item.description}
+                  </span>
+                </span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 export default function CollectionCaseDetailPage() {
   const { caseId = '' } = useParams<{ caseId: string }>();
+  const [activeWorkspaceModule, setActiveWorkspaceModule] =
+    useState<CaseWorkspaceModule>('attempts');
   const caseQuery = useCollectionCase(caseId);
   const location = useLocation();
   const { session } = useAuth();
@@ -92,6 +240,33 @@ export default function CollectionCaseDetailPage() {
         ? 1
         : 0
     : 0;
+  const invoicesCount = caseQuery.data?.invoices?.length ?? 0;
+  const workspaceItems: CaseWorkspaceItem[] = workspaceItemsBase.map((item) => {
+    if (item.id === 'attempts') {
+      return { ...item, badge: formatInteger(attemptsCount) };
+    }
+
+    if (item.id === 'promises') {
+      return { ...item, badge: formatInteger(promisesCount) };
+    }
+
+    if (item.id === 'cancellation') {
+      return {
+        ...item,
+        badge: caseQuery.data?.cancellationProcess ? 'Ativo' : 'Pendente',
+      };
+    }
+
+    if (item.id === 'invoices') {
+      return { ...item, badge: formatInteger(invoicesCount) };
+    }
+
+    if (item.id === 'timeline') {
+      return { ...item, badge: 'Live' };
+    }
+
+    return { ...item, badge: 'Interno' };
+  });
   const highlightAttempts = useHighlightOnGrow(attemptsCount);
   const highlightPromises = useHighlightOnGrow(promisesCount);
 
@@ -266,7 +441,14 @@ export default function CollectionCaseDetailPage() {
             </div>
 
             <div className="flex min-w-0 flex-1 flex-col gap-6">
-              {(caseQuery.data.invoices ?? []).length > 0 ? (
+              <CaseWorkspaceSwitcher
+                activeModule={activeWorkspaceModule}
+                items={workspaceItems}
+                onChange={setActiveWorkspaceModule}
+              />
+
+              {activeWorkspaceModule === 'invoices' &&
+              (caseQuery.data.invoices ?? []).length > 0 ? (
                 <SectionCard
                   title="Faturas"
                   description="Títulos vinculados ao contrato em cobrança."
@@ -311,164 +493,218 @@ export default function CollectionCaseDetailPage() {
                 </SectionCard>
               ) : null}
 
-              <CreateCollectionAttemptForm caseId={caseQuery.data.id} />
+              {activeWorkspaceModule === 'attempts' ? (
+                <div className="flex flex-col gap-6 animate-rise-in-md">
+                  <CreateCollectionAttemptForm caseId={caseQuery.data.id} />
 
-              <SectionCard
-                title="Tentativas de contato"
-                description="Histórico de abordagens registradas para o caso."
-                contentClassName="p-0"
-              >
-                {(caseQuery.data.attempts.length > 0
-                  ? caseQuery.data.attempts
-                  : caseQuery.data.recentAttempts
-                ).length > 0 ? (
-                  <div
-                    className={cn(
-                      'overflow-x-auto',
-                      highlightAttempts && 'animate-highlight-pulse',
-                    )}
+                  <SectionCard
+                    title="Tentativas de contato"
+                    description="Histórico de abordagens registradas para o caso."
+                    contentClassName="p-0"
                   >
-                    <table className="min-w-full divide-y divide-border">
-                      <thead className={tableHeadClassName}>
-                        <tr>
-                          <th className={tableCellClassName}>Canal</th>
-                          <th className={tableCellClassName}>Resultado</th>
-                          <th className={tableCellClassName}>Data</th>
-                          <th className={tableCellClassName}>
-                            Próximo contato
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border bg-card text-sm">
-                        {(caseQuery.data.attempts.length > 0
-                          ? caseQuery.data.attempts
-                          : caseQuery.data.recentAttempts
-                        ).map((attempt) => (
-                          <tr key={attempt.id}>
-                            <td className={tableCellClassName}>
-                              {getAttemptChannelLabel(attempt.channel)}
-                            </td>
-                            <td className={tableCellClassName}>
-                              {getAttemptResultLabel(attempt.result)}
-                            </td>
-                            <td className={tableCellClassName}>
-                              {formatDatePtBR(attempt.attemptedAt)}
-                            </td>
-                            <td className={tableCellClassName}>
-                              {attempt.nextContactAt
-                                ? formatDateTimePtBR(attempt.nextContactAt)
-                                : 'Não informado'}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <p className="px-4 py-4 text-sm text-neutral lg:px-6">
-                    Nenhuma tentativa registrada para este caso.
-                  </p>
-                )}
-              </SectionCard>
-
-              <CreatePaymentPromiseForm caseId={caseQuery.data.id} />
-
-              <SectionCard
-                title="Promessas de pagamento"
-                description="Acordos registrados para regularização do contrato."
-                contentClassName="p-0"
-              >
-                {(caseQuery.data.promises.length > 0
-                  ? caseQuery.data.promises
-                  : caseQuery.data.activePromise
-                    ? [caseQuery.data.activePromise]
-                    : []
-                ).length > 0 ? (
-                  <div
-                    className={cn(
-                      'overflow-x-auto',
-                      highlightPromises && 'animate-highlight-pulse',
+                    {(caseQuery.data.attempts.length > 0
+                      ? caseQuery.data.attempts
+                      : caseQuery.data.recentAttempts
+                    ).length > 0 ? (
+                      <div
+                        className={cn(
+                          'overflow-x-auto',
+                          highlightAttempts && 'animate-highlight-pulse',
+                        )}
+                      >
+                        <table className="min-w-full divide-y divide-border">
+                          <thead className={tableHeadClassName}>
+                            <tr>
+                              <th className={tableCellClassName}>Canal</th>
+                              <th className={tableCellClassName}>Resultado</th>
+                              <th className={tableCellClassName}>Data</th>
+                              <th className={tableCellClassName}>
+                                Próximo contato
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border bg-card text-sm">
+                            {(caseQuery.data.attempts.length > 0
+                              ? caseQuery.data.attempts
+                              : caseQuery.data.recentAttempts
+                            ).map((attempt) => (
+                              <tr key={attempt.id}>
+                                <td className={tableCellClassName}>
+                                  {getAttemptChannelLabel(attempt.channel)}
+                                </td>
+                                <td className={tableCellClassName}>
+                                  {getAttemptResultLabel(attempt.result)}
+                                </td>
+                                <td className={tableCellClassName}>
+                                  {formatDatePtBR(attempt.attemptedAt)}
+                                </td>
+                                <td className={tableCellClassName}>
+                                  {attempt.nextContactAt
+                                    ? formatDateTimePtBR(attempt.nextContactAt)
+                                    : 'Não informado'}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <p className="px-4 py-4 text-sm text-neutral lg:px-6">
+                        Nenhuma tentativa registrada para este caso.
+                      </p>
                     )}
-                  >
-                    <table className="min-w-full divide-y divide-border">
-                      <thead className={tableHeadClassName}>
-                        <tr>
-                          <th className={tableCellClassName}>Status</th>
-                          <th className={tableCellClassName}>
-                            Valor prometido
-                          </th>
-                          <th className={tableCellClassName}>Data prometida</th>
-                          <th className={tableCellClassName}>Observação</th>
-                          <th className={tableCellClassName}>Criado em</th>
-                          <th className={tableCellClassName}>Ações</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border bg-card text-sm">
-                        {(caseQuery.data.promises.length > 0
-                          ? caseQuery.data.promises
-                          : caseQuery.data.activePromise
-                            ? [caseQuery.data.activePromise]
-                            : []
-                        ).map((promise) => (
-                          <tr key={promise.id}>
-                            <td className={tableCellClassName}>
-                              <StatusBadge
-                                label={getPromiseStatusLabel(promise.status)}
-                                variant={getPromiseStatusVariant(
-                                  promise.status,
-                                )}
-                              />
-                            </td>
-                            <td className={tableCellClassName}>
-                              {formatCurrencyFromDecimalString(
-                                promise.promisedAmount,
-                              )}
-                            </td>
-                            <td className={tableCellClassName}>
-                              {formatDatePtBR(promise.promisedDate)}
-                            </td>
-                            <td className={tableCellClassName}>
-                              {promise.notes?.trim()
-                                ? promise.notes
-                                : 'Não informado'}
-                            </td>
-                            <td className={tableCellClassName}>
-                              {promise.createdAt
-                                ? formatDatePtBR(promise.createdAt)
-                                : 'Não informado'}
-                            </td>
-                            <td className={tableCellClassName}>
-                              {promise.status === 'ACTIVE' ? (
-                                <PaymentPromiseActions
-                                  caseId={caseQuery.data.id}
-                                  promiseId={promise.id}
-                                />
-                              ) : (
-                                <span className="text-neutral">—</span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <p className="px-4 py-4 text-sm text-neutral lg:px-6">
-                    Nenhuma promessa registrada para este caso.
-                  </p>
-                )}
-              </SectionCard>
+                  </SectionCard>
+                </div>
+              ) : null}
 
-              {caseQuery.data.cancellationProcess ? (
+              {activeWorkspaceModule === 'promises' ? (
+                <div className="flex flex-col gap-6 animate-rise-in-md">
+                  <CreatePaymentPromiseForm caseId={caseQuery.data.id} />
+
+                  <SectionCard
+                    title="Promessas de pagamento"
+                    description="Acordos registrados para regularização do contrato."
+                    contentClassName="p-0"
+                  >
+                    {(caseQuery.data.promises.length > 0
+                      ? caseQuery.data.promises
+                      : caseQuery.data.activePromise
+                        ? [caseQuery.data.activePromise]
+                        : []
+                    ).length > 0 ? (
+                      <div
+                        className={cn(
+                          'overflow-x-auto',
+                          highlightPromises && 'animate-highlight-pulse',
+                        )}
+                      >
+                        <table className="min-w-full divide-y divide-border">
+                          <thead className={tableHeadClassName}>
+                            <tr>
+                              <th className={tableCellClassName}>Status</th>
+                              <th className={tableCellClassName}>
+                                Valor prometido
+                              </th>
+                              <th className={tableCellClassName}>
+                                Data prometida
+                              </th>
+                              <th className={tableCellClassName}>Observação</th>
+                              <th className={tableCellClassName}>Criado em</th>
+                              <th className={tableCellClassName}>Ações</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border bg-card text-sm">
+                            {(caseQuery.data.promises.length > 0
+                              ? caseQuery.data.promises
+                              : caseQuery.data.activePromise
+                                ? [caseQuery.data.activePromise]
+                                : []
+                            ).map((promise) => (
+                              <tr key={promise.id}>
+                                <td className={tableCellClassName}>
+                                  <StatusBadge
+                                    label={getPromiseStatusLabel(
+                                      promise.status,
+                                    )}
+                                    variant={getPromiseStatusVariant(
+                                      promise.status,
+                                    )}
+                                  />
+                                </td>
+                                <td className={tableCellClassName}>
+                                  {formatCurrencyFromDecimalString(
+                                    promise.promisedAmount,
+                                  )}
+                                </td>
+                                <td className={tableCellClassName}>
+                                  {formatDatePtBR(promise.promisedDate)}
+                                </td>
+                                <td className={tableCellClassName}>
+                                  {promise.notes?.trim()
+                                    ? promise.notes
+                                    : 'Não informado'}
+                                </td>
+                                <td className={tableCellClassName}>
+                                  {promise.createdAt
+                                    ? formatDatePtBR(promise.createdAt)
+                                    : 'Não informado'}
+                                </td>
+                                <td className={tableCellClassName}>
+                                  {promise.status === 'ACTIVE' ? (
+                                    <PaymentPromiseActions
+                                      caseId={caseQuery.data.id}
+                                      promiseId={promise.id}
+                                    />
+                                  ) : (
+                                    <span className="text-neutral">—</span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <p className="px-4 py-4 text-sm text-neutral lg:px-6">
+                        Nenhuma promessa registrada para este caso.
+                      </p>
+                    )}
+                  </SectionCard>
+                </div>
+              ) : null}
+
+              {activeWorkspaceModule === 'cancellation' &&
+              caseQuery.data.cancellationProcess ? (
                 <CancellationProcessSection
                   caseId={caseQuery.data.id}
                   cancellationProcess={caseQuery.data.cancellationProcess}
                 />
               ) : null}
 
-              <CaseNotesSection caseId={caseQuery.data.id} />
+              {activeWorkspaceModule === 'cancellation' &&
+              !caseQuery.data.cancellationProcess ? (
+                <SectionCard
+                  title="Processo de cancelamento"
+                  description="Checklist sequencial das etapas operacionais e integração Eleven."
+                >
+                  <div className="flex flex-col gap-3 rounded-lg border border-dashed border-border bg-background p-4 text-sm text-neutral sm:flex-row sm:items-center sm:justify-between">
+                    <p>
+                      Este caso ainda não possui processo de cancelamento
+                      iniciado.
+                    </p>
+                    {canSendCaseToCancellation({
+                      status: caseQuery.data.status,
+                      cancellationProcess: caseQuery.data.cancellationProcess,
+                    }) ? (
+                      <SendToCancellationAction caseId={caseQuery.data.id} />
+                    ) : null}
+                  </div>
+                </SectionCard>
+              ) : null}
 
-              <CollectionCaseTimeline caseId={caseQuery.data.id} />
+              {activeWorkspaceModule === 'invoices' &&
+              (caseQuery.data.invoices ?? []).length === 0 ? (
+                <SectionCard
+                  title="Faturas"
+                  description="Títulos vinculados ao contrato em cobrança."
+                >
+                  <p className="rounded-lg border border-dashed border-border bg-background p-4 text-sm text-neutral">
+                    Nenhuma fatura vinculada a este caso.
+                  </p>
+                </SectionCard>
+              ) : null}
+
+              {activeWorkspaceModule === 'notes' ? (
+                <div className="animate-rise-in-md">
+                  <CaseNotesSection caseId={caseQuery.data.id} />
+                </div>
+              ) : null}
+
+              {activeWorkspaceModule === 'timeline' ? (
+                <div className="animate-rise-in-md">
+                  <CollectionCaseTimeline caseId={caseQuery.data.id} />
+                </div>
+              ) : null}
             </div>
           </div>
         </>

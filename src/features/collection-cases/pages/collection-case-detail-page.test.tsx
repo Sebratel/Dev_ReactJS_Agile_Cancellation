@@ -1,5 +1,6 @@
 import { Route, Routes } from 'react-router-dom';
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import CollectionCaseDetailPage from '@/features/collection-cases/pages/collection-case-detail-page';
 import { ApiError } from '@/services/api/api-error';
@@ -137,6 +138,7 @@ function renderDetailPage(route: string) {
 
 describe('CollectionCaseDetailPage', () => {
   it('renderiza dados principais do caso', async () => {
+    const user = userEvent.setup();
     vi.mocked(getCollectionCaseById).mockResolvedValue(
       mockCollectionCaseDetails,
     );
@@ -153,19 +155,12 @@ describe('CollectionCaseDetailPage', () => {
     expect(screen.getByText('12.345.678/0001-90')).toBeInTheDocument();
     expect(screen.getAllByText('Marina Lopes').length).toBeGreaterThan(0);
     expect(screen.getByText('Resumo')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Tentativas/ })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
     expect(screen.getByText('Nova tentativa de cobrança')).toBeInTheDocument();
     expect(screen.getByText('Tentativas de contato')).toBeInTheDocument();
-    expect(screen.getByText('Nova promessa de pagamento')).toBeInTheDocument();
-    expect(screen.getByText('Promessas de pagamento')).toBeInTheDocument();
-    expect(screen.getByText('Timeline do caso')).toBeInTheDocument();
-    expect(
-      screen.getByRole('columnheader', { name: 'Observação' }),
-    ).toBeInTheDocument();
-    expect(screen.getByText('Criado em')).toBeInTheDocument();
-    expect(
-      screen.getByText('Pagamento parcelado acordado.'),
-    ).toBeInTheDocument();
-    expect(screen.getByText('R$ 2.500,00')).toBeInTheDocument();
     expect(screen.getByText('Próximo contato')).toBeInTheDocument();
     expect(
       screen.getByText(
@@ -174,17 +169,39 @@ describe('CollectionCaseDetailPage', () => {
         ),
       ),
     ).toBeInTheDocument();
-    expect(screen.getByText('Faturas')).toBeInTheDocument();
-    expect(getCollectionCaseById).toHaveBeenCalledWith('case_0001');
+
+    await user.click(screen.getByRole('tab', { name: /Promessas/ }));
+
+    expect(screen.getByText('Nova promessa de pagamento')).toBeInTheDocument();
+    expect(screen.getByText('Promessas de pagamento')).toBeInTheDocument();
+    expect(
+      screen.getByRole('columnheader', { name: 'Observação' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Criado em')).toBeInTheDocument();
+    expect(
+      screen.getByText('Pagamento parcelado acordado.'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('R$ 2.500,00')).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Marcar como cumprida' }),
     ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: /Timeline/ }));
+
+    expect(screen.getByText('Timeline do caso')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: /Faturas/ }));
+
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Faturas' }),
+    ).toBeInTheDocument();
+    expect(getCollectionCaseById).toHaveBeenCalledWith('case_0001');
     expect(
       screen.getByRole('button', { name: 'Encaminhar para cancelamento' }),
     ).toBeInTheDocument();
   });
-
   it('nao mostra botao quando caso ja possui cancelamento', async () => {
+    const user = userEvent.setup();
     vi.mocked(getCollectionCaseById).mockResolvedValue({
       ...mockCollectionCaseDetails,
       status: 'CANCELLATION_IN_PROGRESS',
@@ -208,10 +225,13 @@ describe('CollectionCaseDetailPage', () => {
     expect(
       screen.queryByRole('button', { name: 'Encaminhar para cancelamento' }),
     ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: /Cancelamento/ }));
+
     expect(screen.getByText('Processo de cancelamento')).toBeInTheDocument();
   });
-
   it('nao mostra acoes para promessa FULFILLED', async () => {
+    const user = userEvent.setup();
     vi.mocked(getCollectionCaseById).mockResolvedValue({
       ...mockCollectionCaseDetails,
       promises: [
@@ -234,13 +254,16 @@ describe('CollectionCaseDetailPage', () => {
         name: 'Construtora Horizonte',
       }),
     ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: /Promessas/ }));
+
     expect(
       screen.queryByRole('button', { name: 'Marcar como cumprida' }),
     ).not.toBeInTheDocument();
     expect(screen.getByText('Cumprida')).toBeInTheDocument();
   });
-
   it('nao mostra acoes para promessa BROKEN', async () => {
+    const user = userEvent.setup();
     vi.mocked(getCollectionCaseById).mockResolvedValue({
       ...mockCollectionCaseDetails,
       promises: [
@@ -257,12 +280,17 @@ describe('CollectionCaseDetailPage', () => {
 
     renderDetailPage('/supervisao/case_0001');
 
+    await screen.findByRole('heading', {
+      level: 1,
+      name: 'Construtora Horizonte',
+    });
+    await user.click(screen.getByRole('tab', { name: /Promessas/ }));
+
     expect(await screen.findByText('Descumprida')).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: 'Marcar como quebrada' }),
     ).not.toBeInTheDocument();
   });
-
   it('mostra estado de erro quando API retorna 404', async () => {
     vi.mocked(getCollectionCaseById).mockRejectedValue(
       new ApiError(404, { message: 'Caso não encontrado' }),
