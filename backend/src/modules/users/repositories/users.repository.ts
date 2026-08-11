@@ -5,6 +5,7 @@ export type UserRecord = {
   id: string;
   email: string;
   name: string;
+  avatarUrl: string | null;
   status: UserStatus;
   roles: RoleCode[];
   lastLoginAt: Date | null;

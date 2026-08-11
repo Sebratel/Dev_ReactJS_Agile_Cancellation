@@ -42,7 +42,10 @@ export class AuthService {
 
   async devLogin(email: string) {
     if (process.env.NODE_ENV === 'production') {
-      throw new AppException('Não disponível em produção.', HttpStatus.FORBIDDEN);
+      throw new AppException(
+        'Não disponível em produção.',
+        HttpStatus.FORBIDDEN,
+      );
     }
 
     // Tenta usuario mock primeiro; se nao encontrar, busca no banco real
@@ -57,6 +60,7 @@ export class AuthService {
         id: mockDef.id,
         email: mockDef.email,
         name: mockDef.name,
+        avatarUrl: null,
         roles: mockDef.roleCodes,
       };
     } else {
@@ -70,7 +74,10 @@ export class AuthService {
       }
 
       if (dbUser.status !== UserStatus.ACTIVE) {
-        throw new AppException('Usuário inativo ou bloqueado.', HttpStatus.UNAUTHORIZED);
+        throw new AppException(
+          'Usuário inativo ou bloqueado.',
+          HttpStatus.UNAUTHORIZED,
+        );
       }
 
       authenticatedUser = this.toAuthenticatedUser(dbUser);
@@ -118,13 +125,19 @@ export class AuthService {
 
       const mockUser = MOCK_AUTH_USER_DEFINITIONS.find(
         (definition) =>
-          definition.email.toLowerCase() === googlePayload.email.toLowerCase() &&
-          definition.status === 'ACTIVE',
+          definition.email.toLowerCase() === googlePayload.email.toLowerCase(),
       );
 
       if (!mockUser) {
         throw new AppException(
-          'Conta mock nao encontrada ou inativa.',
+          'Seu e-mail nÃ£o estÃ¡ cadastrado na plataforma. Solicite acesso a um administrador.',
+          HttpStatus.FORBIDDEN,
+        );
+      }
+
+      if (mockUser.status !== 'ACTIVE') {
+        throw new AppException(
+          'UsuÃ¡rio inativo ou bloqueado.',
           HttpStatus.UNAUTHORIZED,
         );
       }
@@ -133,6 +146,7 @@ export class AuthService {
         id: mockUser.id,
         email: mockUser.email,
         name: mockUser.name,
+        avatarUrl: null,
         roles: mockUser.roleCodes,
       };
 
@@ -174,11 +188,21 @@ export class AuthService {
     const tokens = await this.issueAuthTokens(authenticatedUser);
     const lastLoginAt = new Date();
 
-    await this.authRepository.updateLastLogin(user.id, lastLoginAt);
+    await Promise.all([
+      this.authRepository.updateLastLogin(user.id, lastLoginAt),
+      this.authRepository.updateGoogleProfile(user.id, {
+        name: googlePayload.name,
+        avatarUrl: googlePayload.picture,
+      }),
+    ]);
 
     const response: LoginResponse = {
       ...tokens,
-      user: this.toAuthUserResponse(authenticatedUser),
+      user: this.toAuthUserResponse({
+        ...authenticatedUser,
+        name: googlePayload.name,
+        avatarUrl: googlePayload.picture ?? authenticatedUser.avatarUrl,
+      }),
     };
 
     return createApiResponse(response);
@@ -196,10 +220,20 @@ export class AuthService {
       );
 
       const devUser: AuthenticatedUser | null = mockUser
-        ? { id: mockUser.id, email: mockUser.email, name: mockUser.name, roles: mockUser.roleCodes }
-        : await this.authRepository.findById(userId).then((u) =>
-            u && u.status === UserStatus.ACTIVE ? this.toAuthenticatedUser(u) : null,
-          );
+        ? {
+            id: mockUser.id,
+            email: mockUser.email,
+            name: mockUser.name,
+            avatarUrl: null,
+            roles: mockUser.roleCodes,
+          }
+        : await this.authRepository
+            .findById(userId)
+            .then((u) =>
+              u && u.status === UserStatus.ACTIVE
+                ? this.toAuthenticatedUser(u)
+                : null,
+            );
 
       if (devUser) {
         const payload: JwtPayload = {
@@ -208,8 +242,13 @@ export class AuthService {
           roles: devUser.roles,
           devSession: true,
         };
-        const accessToken = await this.jwtService.signAsync(payload, { expiresIn: '8h' });
-        return createApiResponse<RefreshResponse>({ accessToken, refreshToken: dto.refreshToken });
+        const accessToken = await this.jwtService.signAsync(payload, {
+          expiresIn: '8h',
+        });
+        return createApiResponse<RefreshResponse>({
+          accessToken,
+          refreshToken: dto.refreshToken,
+        });
       }
     }
 
@@ -262,7 +301,13 @@ export class AuthService {
         (u) => u.id === payload.sub && u.status === 'ACTIVE',
       );
       if (mockUser) {
-        return { id: mockUser.id, email: mockUser.email, name: mockUser.name, roles: mockUser.roleCodes };
+        return {
+          id: mockUser.id,
+          email: mockUser.email,
+          name: mockUser.name,
+          avatarUrl: null,
+          roles: mockUser.roleCodes,
+        };
       }
       // Usuario real com token dev — cai no lookup normal abaixo
     }
@@ -359,12 +404,14 @@ export class AuthService {
     id: string;
     email: string;
     name: string;
+    avatarUrl: string | null;
     roles: AuthenticatedUser['roles'];
   }): AuthenticatedUser {
     return {
       id: user.id,
       email: user.email,
       name: user.name,
+      avatarUrl: user.avatarUrl,
       roles: user.roles,
     };
   }
@@ -374,6 +421,7 @@ export class AuthService {
       id: user.id,
       email: user.email,
       name: user.name,
+      avatarUrl: user.avatarUrl,
       roles: user.roles,
     };
   }

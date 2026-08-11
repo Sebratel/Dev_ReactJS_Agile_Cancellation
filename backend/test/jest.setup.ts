@@ -11,6 +11,7 @@ process.env.GOOGLE_WORKSPACE_DOMAIN =
 // usado nos testes, mesmo que o .env local tenha um Client ID real configurado
 // para teste manual (o factory usa o verificador real sempre que essa env
 // estiver preenchida, independente de DATA_SOURCE_MODE).
+process.env.GOOGLE_AUTH_MODE = 'mock';
 process.env.GOOGLE_CLIENT_ID = '';
 process.env.ELEVEN_MODE = process.env.ELEVEN_MODE ?? 'stub';
 process.env.N8N_WEBHOOK_SECRET =

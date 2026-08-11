@@ -26,6 +26,7 @@ export class AuthMockRepository implements AuthRepository, OnModuleInit {
         id: definition.id,
         email: definition.email.toLowerCase(),
         name: definition.name,
+        avatarUrl: null,
         status: definition.status,
         refreshTokenHash: null,
         roles: definition.roleCodes,
@@ -71,6 +72,26 @@ export class AuthMockRepository implements AuthRepository, OnModuleInit {
 
     void lastLoginAt;
     this.syncUserRecord({ ...user });
+    return Promise.resolve();
+  }
+
+  updateGoogleProfile(
+    userId: string,
+    profile: { name?: string; avatarUrl?: string | null },
+  ): Promise<void> {
+    this.ensureReady();
+    const user = this.users.get(userId);
+
+    if (!user) {
+      return Promise.resolve();
+    }
+
+    this.syncUserRecord({
+      ...user,
+      name: profile.name ?? user.name,
+      avatarUrl: profile.avatarUrl ?? user.avatarUrl,
+    });
+
     return Promise.resolve();
   }
 

@@ -62,6 +62,7 @@ export class GoogleTokenVerifierService implements GoogleTokenVerifier {
     return {
       email,
       name: payload.name ?? email,
+      picture: payload.picture ?? null,
     };
   }
 }

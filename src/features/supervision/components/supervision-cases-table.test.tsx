@@ -24,6 +24,7 @@ vi.mock('@/features/users/hooks/use-users', () => ({
           id: 'user-collection',
           email: 'collection@ger.local',
           name: 'Marina Lopes',
+          avatarUrl: null,
           status: 'ACTIVE',
           roles: ['COLLECTION_AGENT'],
           lastLoginAt: null,
@@ -61,7 +62,8 @@ const defaultAgents: UserResponse[] = [
     id: 'user-collection',
     email: 'collection@ger.local',
     name: 'Marina Lopes',
-    status: 'ACTIVE' as const,
+    avatarUrl: null,
+    status: 'ACTIVE',
     roles: ['COLLECTION_AGENT'],
     lastLoginAt: null,
     createdAt: '2025-01-01T00:00:00.000Z',
@@ -101,10 +103,13 @@ describe('SupervisionCasesTable', () => {
 
     renderTable();
 
-    const select = await screen.findByLabelText(
-      'Responsável pelo caso case_0001',
+    const trigger = await screen.findByRole('button', {
+      name: 'Responsavel pelo caso case_0001',
+    });
+    await user.click(trigger);
+    await user.click(
+      await screen.findByRole('option', { name: /Marina Lopes/ }),
     );
-    await user.selectOptions(select, 'user-collection');
 
     await waitFor(() => {
       expect(mutateAsync).toHaveBeenCalledWith({
@@ -127,9 +132,11 @@ describe('SupervisionCasesTable', () => {
       { canDistribute: false },
     );
 
-    expect(await screen.findByText('Não atribuído')).toBeInTheDocument();
+    expect(await screen.findByText(/atribu/i)).toBeInTheDocument();
     expect(
-      screen.queryByLabelText('Responsável pelo caso case_0001'),
+      screen.queryByRole('button', {
+        name: 'Responsavel pelo caso case_0001',
+      }),
     ).not.toBeInTheDocument();
   });
 });

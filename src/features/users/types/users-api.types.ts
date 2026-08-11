@@ -13,6 +13,7 @@ export type UserResponse = {
   id: string;
   email: string;
   name: string;
+  avatarUrl?: string | null;
   status: UserStatus;
   roles: UserRole[];
   lastLoginAt: string | null;

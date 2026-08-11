@@ -4,6 +4,7 @@ export type AuthUserResponse = {
   id: string;
   email: string;
   name: string;
+  avatarUrl: string | null;
   roles: RoleCode[];
 };
 

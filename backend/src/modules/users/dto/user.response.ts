@@ -6,6 +6,7 @@ export type UserResponse = {
   id: string;
   email: string;
   name: string;
+  avatarUrl: string | null;
   status: UserStatus;
   roles: RoleCode[];
   lastLoginAt: string | null;
@@ -18,6 +19,7 @@ export function toUserResponse(user: UserRecord): UserResponse {
     id: user.id,
     email: user.email,
     name: user.name,
+    avatarUrl: user.avatarUrl,
     status: user.status,
     roles: user.roles,
     lastLoginAt: user.lastLoginAt ? user.lastLoginAt.toISOString() : null,

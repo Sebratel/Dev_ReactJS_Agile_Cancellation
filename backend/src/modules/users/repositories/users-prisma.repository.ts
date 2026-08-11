@@ -18,6 +18,7 @@ type PrismaUserWithRoles = {
   id: string;
   email: string;
   name: string;
+  avatarUrl?: string | null;
   status: UserStatus;
   lastLoginAt: Date | null;
   createdAt: Date;
@@ -38,6 +39,7 @@ export class UsersPrismaRepository implements UsersRepository {
       id: user.id,
       email: user.email,
       name: user.name,
+      avatarUrl: user.avatarUrl ?? null,
       status: user.status,
       roles: mapPrismaRoles(user.userRoles.map((ur) => ur.role.code)),
       lastLoginAt: user.lastLoginAt,

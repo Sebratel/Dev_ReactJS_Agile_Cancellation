@@ -1,6 +1,7 @@
 export type GoogleVerifiedPayload = {
   email: string;
   name: string;
+  picture: string | null;
 };
 
 export interface GoogleTokenVerifier {

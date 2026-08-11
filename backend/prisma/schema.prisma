@@ -122,6 +122,7 @@ model User {
   email            String     @unique
   name             String
   status           UserStatus @default(ACTIVE)
+  avatarUrl        String?
   lastLoginAt      DateTime?
   refreshTokenHash String?
   externalId       String?    @unique

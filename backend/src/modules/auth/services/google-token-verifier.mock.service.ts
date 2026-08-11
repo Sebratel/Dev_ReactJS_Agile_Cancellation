@@ -34,6 +34,7 @@ export class GoogleTokenVerifierMockService implements GoogleTokenVerifier {
     return Promise.resolve({
       email,
       name: email.split('@')[0] || email,
+      picture: null,
     });
   }
 }

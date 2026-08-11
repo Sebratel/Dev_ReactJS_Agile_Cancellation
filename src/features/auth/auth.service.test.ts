@@ -40,6 +40,7 @@ describe('auth.service', () => {
           id: 'user-admin',
           email: 'admin@ger.local',
           name: 'Ana Martins',
+          avatarUrl: null,
           roles: ['ADMIN'],
         },
       },
@@ -72,6 +73,7 @@ describe('auth.service', () => {
           id: 'user-supervisor',
           email: 'supervisor@ger.local',
           name: 'Paulo Nogueira',
+          avatarUrl: null,
           roles: ['SUPERVISOR'],
         },
       },
@@ -132,6 +134,7 @@ describe('auth.service', () => {
         id: 'user-admin',
         email: 'admin@ger.local',
         name: 'Ana Martins',
+        avatarUrl: null,
         roles: ['ADMIN'],
       },
       status: 200,
@@ -177,8 +180,8 @@ describe('auth.service', () => {
       new ApiError(401, { message: 'Credenciais invalidas.' }),
     );
 
-    await expect(
-      loginWithGoogle(TEST_INVALID_GOOGLE_ID_TOKEN),
-    ).rejects.toThrow('Credenciais invalidas.');
+    await expect(loginWithGoogle(TEST_INVALID_GOOGLE_ID_TOKEN)).rejects.toThrow(
+      'Credenciais invalidas.',
+    );
   });
 });

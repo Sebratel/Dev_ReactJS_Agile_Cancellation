@@ -14,6 +14,7 @@ export class AuthPrismaRepository implements AuthRepository {
     id: string;
     email: string;
     name: string;
+    avatarUrl?: string | null;
     status: AuthUserRecord['status'];
     refreshTokenHash: string | null;
     userRoles: Array<{ role: { code: string } }>;
@@ -22,6 +23,7 @@ export class AuthPrismaRepository implements AuthRepository {
       id: user.id,
       email: user.email,
       name: user.name,
+      avatarUrl: user.avatarUrl ?? null,
       status: user.status,
       refreshTokenHash: user.refreshTokenHash,
       roles: mapPrismaRoles(
@@ -68,6 +70,19 @@ export class AuthPrismaRepository implements AuthRepository {
     await this.prisma.user.update({
       where: { id: userId },
       data: { lastLoginAt },
+    });
+  }
+
+  async updateGoogleProfile(
+    userId: string,
+    profile: { name?: string; avatarUrl?: string | null },
+  ): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        name: profile.name ?? undefined,
+        avatarUrl: profile.avatarUrl ?? undefined,
+      } as Record<string, string | undefined>,
     });
   }
 

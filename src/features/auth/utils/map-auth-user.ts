@@ -8,6 +8,7 @@ export function mapAuthUserFromApi(user: {
   id: string;
   email: string;
   name: string;
+  avatarUrl?: string | null;
   roles: string[];
 }) {
   const roles = user.roles.filter(isUserRole);
@@ -16,6 +17,7 @@ export function mapAuthUserFromApi(user: {
     id: user.id,
     email: user.email,
     name: user.name,
+    avatarUrl: user.avatarUrl ?? null,
     roles,
   };
 }

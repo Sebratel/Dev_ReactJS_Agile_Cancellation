@@ -145,6 +145,7 @@ describe('CollectionCasesService', () => {
       id: 'usr_outro',
       email: 'outro@ger.local',
       name: 'Outro Agente',
+      avatarUrl: null,
       roles: ['COLLECTION_AGENT'],
     } satisfies AuthenticatedUser;
 
@@ -240,19 +241,17 @@ describe('CollectionCasesService', () => {
     });
     const { service, matrixWhatsappContactService } = createService(repository);
 
-    jest
-      .mocked(matrixWhatsappContactService.sendHsm)
-      .mockResolvedValue({
-        provider: 'n8n',
-        statusCode: 200,
-        responseBody: {
-          success: true,
-          codAtendimento: '5081836',
-          codMensagem: '82498574',
-        },
+    jest.mocked(matrixWhatsappContactService.sendHsm).mockResolvedValue({
+      provider: 'n8n',
+      statusCode: 200,
+      responseBody: {
+        success: true,
         codAtendimento: '5081836',
         codMensagem: '82498574',
-      });
+      },
+      codAtendimento: '5081836',
+      codMensagem: '82498574',
+    });
 
     const response = await service.contactCustomerByWhatsApp(
       'case_0001',
