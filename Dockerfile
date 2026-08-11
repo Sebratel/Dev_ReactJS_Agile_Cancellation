@@ -5,8 +5,10 @@ RUN npm ci --no-audit --no-fund --legacy-peer-deps || (cat /root/.npm/_logs/*-de
 COPY . .
 ARG VITE_API_BASE_URL
 ARG VITE_APP_NAME
+ARG VITE_GOOGLE_CLIENT_ID
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 ENV VITE_APP_NAME=$VITE_APP_NAME
+ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
 RUN npm run build
 
 FROM nginx:alpine AS runner
