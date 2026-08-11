@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { SupervisionCasesTable } from '@/features/supervision/components/supervision-cases-table';
 import { type CollectionCaseListItemResponse } from '@/features/collection-cases/types/collection-cases-api.types';
+import { type UserResponse } from '@/features/users/types/users-api.types';
 import { createMockSession } from '@/test/auth-test-utils';
 import { renderWithProviders } from '@/test/test-utils';
 
@@ -41,6 +42,7 @@ const items: CollectionCaseListItemResponse[] = [
   {
     id: 'case_0001',
     customerName: 'Construtora Horizonte',
+    customerPhone: '(51) 99911-2233',
     contractCode: 'CTR-10428',
     status: 'IN_COLLECTION',
     priority: 'HIGH',
@@ -51,13 +53,13 @@ const items: CollectionCaseListItemResponse[] = [
   },
 ];
 
-const defaultAgents = [
+const defaultAgents: UserResponse[] = [
   {
     id: 'user-collection',
     email: 'collection@ger.local',
     name: 'Marina Lopes',
     status: 'ACTIVE' as const,
-    roles: ['COLLECTION_AGENT'] as const,
+    roles: ['COLLECTION_AGENT'],
     lastLoginAt: null,
     createdAt: '2025-01-01T00:00:00.000Z',
     updatedAt: '2025-01-01T00:00:00.000Z',

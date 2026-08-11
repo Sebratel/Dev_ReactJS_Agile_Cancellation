@@ -52,6 +52,15 @@ export class CollectionCasesController {
   }
 
   @Roles('COLLECTION_AGENT', 'SUPERVISOR', 'ADMIN')
+  @Post(':id/contact-whatsapp')
+  contactCustomerByWhatsApp(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.collectionCasesService.contactCustomerByWhatsApp(id, user.id);
+  }
+
+  @Roles('COLLECTION_AGENT', 'SUPERVISOR', 'ADMIN')
   @Post(':id/promises')
   createPromise(
     @Param('id') id: string,

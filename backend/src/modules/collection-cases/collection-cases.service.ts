@@ -19,7 +19,33 @@ import type {
   UpdatePaymentPromiseStatusResult,
 } from '@/modules/collection-cases/repositories/collection-cases.repository';
 import { PerformedByResolverService } from '@/modules/collection-cases/services/performed-by-resolver.service';
+import { MatrixWhatsappContactService } from '@/modules/collection-cases/services/matrix-whatsapp-contact.service';
 import { NotificationsService } from '@/modules/notifications/notifications.service';
+
+const CONTACT_ALLOWED_STATUSES = new Set([
+  'WAITING_TRIAGE',
+  'IN_COLLECTION',
+  'AWAITING_PAYMENT',
+  'NO_RESPONSE',
+  'ELIGIBLE_FOR_CANCELLATION',
+  'CANCELLATION_IN_PROGRESS',
+]);
+
+function firstName(name: string) {
+  return name.trim().split(/\s+/)[0] || 'cliente';
+}
+
+function hasUsablePhone(phone: string | null) {
+  return Boolean(phone && phone.replace(/\D/g, '').length >= 10);
+}
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof AppException) {
+    return error.message;
+  }
+
+  return error instanceof Error ? error.message : String(error);
+}
 
 @Injectable()
 export class CollectionCasesService {
@@ -27,6 +53,7 @@ export class CollectionCasesService {
     @Inject(COLLECTION_CASES_REPOSITORY)
     private readonly collectionCasesRepository: CollectionCasesRepository,
     private readonly performedByResolver: PerformedByResolverService,
+    private readonly matrixWhatsappContactService: MatrixWhatsappContactService,
     private readonly notificationsService: NotificationsService,
   ) {}
 
@@ -83,6 +110,84 @@ export class CollectionCasesService {
     }
 
     return createApiResponse(attempt);
+  }
+
+  async contactCustomerByWhatsApp(caseId: string, performedByUserId: string) {
+    const resolvedPerformerId =
+      this.performedByResolver.resolve(performedByUserId);
+    const context =
+      await this.collectionCasesRepository.getContactContext(caseId);
+
+    if (!context) {
+      throw new AppException(
+        `Caso de cobranÃ§a ${caseId} nÃ£o encontrado.`,
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    if (!CONTACT_ALLOWED_STATUSES.has(context.status)) {
+      throw new AppException(
+        `Caso de cobranÃ§a ${caseId} nÃ£o permite contato a partir do status ${context.status}.`,
+        HttpStatus.CONFLICT,
+      );
+    }
+
+    if (!hasUsablePhone(context.customer.phone)) {
+      throw new AppException(
+        'Cliente sem telefone valido para contato via WhatsApp.',
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    }
+
+    const payload = {
+      caseId: context.id,
+      cliente: context.customer.name,
+      nomeCurtoCliente: firstName(context.customer.name),
+      contrato: context.contract.code,
+      telefone: context.customer.phone!,
+    };
+
+    let providerResult;
+
+    try {
+      providerResult = await this.matrixWhatsappContactService.sendHsm(payload);
+    } catch (error) {
+      await this.collectionCasesRepository.recordWhatsAppContactIntegration({
+        caseId,
+        performedByUserId: resolvedPerformerId,
+        status: 'FAILED',
+        payload: {
+          provider: 'n8n',
+          caseId: payload.caseId,
+          contrato: payload.contrato,
+          telefone: payload.telefone,
+        },
+        errorMessage: getErrorMessage(error),
+      });
+
+      throw error;
+    }
+
+    const recorded =
+      await this.collectionCasesRepository.recordWhatsAppContactIntegration({
+        caseId,
+        performedByUserId: resolvedPerformerId,
+        status: 'COMPLETED',
+        payload: {
+          provider: providerResult.provider,
+          statusCode: providerResult.statusCode,
+          caseId: payload.caseId,
+          contrato: payload.contrato,
+          telefone: payload.telefone,
+          responseBody: providerResult.responseBody,
+        },
+      });
+
+    return createApiResponse({
+      attemptId: recorded.attemptId,
+      provider: providerResult.provider,
+      statusCode: providerResult.statusCode,
+    });
   }
 
   async createPromise(

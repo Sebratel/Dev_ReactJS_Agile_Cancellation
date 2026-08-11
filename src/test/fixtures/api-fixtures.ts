@@ -123,6 +123,7 @@ export const mockCollectionCaseListItems: CollectionCaseListItemResponse[] = [
   {
     id: 'case_0001',
     customerName: 'Construtora Horizonte',
+    customerPhone: '(51) 99911-2233',
     contractCode: 'CTR-10428',
     status: 'NO_RESPONSE',
     priority: 'HIGH',
@@ -134,6 +135,7 @@ export const mockCollectionCaseListItems: CollectionCaseListItemResponse[] = [
   {
     id: 'case_0002',
     customerName: 'Mercado Litoral',
+    customerPhone: '(51) 99944-5566',
     contractCode: 'CTR-10311',
     status: 'ELIGIBLE_FOR_CANCELLATION',
     priority: 'HIGH',
@@ -188,6 +190,7 @@ export const mockCollectionCaseDetails: CollectionCaseDetailsResponse = {
     id: 'cus_horizonte',
     name: 'Construtora Horizonte',
     document: '12.345.678/0001-90',
+    phone: '(51) 99911-2233',
   },
   contract: {
     id: 'ctr_10428',

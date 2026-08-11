@@ -68,6 +68,18 @@ export class EnvValidationSchema {
 
   @IsOptional()
   @IsString()
+  N8N_MATRIX_HSM_WEBHOOK_URL?: string;
+
+  @IsOptional()
+  @IsString()
+  N8N_MATRIX_HSM_WEBHOOK_SECRET?: string;
+
+  @IsOptional()
+  @IsString()
+  N8N_MATRIX_HSM_TIMEOUT_MS?: string;
+
+  @IsOptional()
+  @IsString()
   ERP_SYNC_ENABLED?: string;
 
   @IsOptional()

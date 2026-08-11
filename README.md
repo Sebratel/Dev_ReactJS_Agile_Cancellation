@@ -97,9 +97,10 @@ src/
 
 ## Ambiente
 
-- existe apenas `.env.example`
+- o `.env` real fica na raiz do projeto e centraliza frontend, backend, Docker/Portainer, ERP e N8N
+- existe apenas um `.env.example` versionado, tambem na raiz
 - nao devem ser commitadas credenciais reais
-- backend e MySQL serao implementados posteriormente
+- alteracoes no `.env` exigem reiniciar o servico afetado
 
 ## Autenticacao mockada
 

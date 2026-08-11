@@ -30,13 +30,14 @@ CREATE DATABASE DB_Cancellation_Plataform
 
 ## Configuracao local
 
-1. Copie o exemplo:
+1. Na raiz do projeto, copie o exemplo:
 
 ```bash
+cd ..
 cp .env.example .env
 ```
 
-2. Edite `backend/.env` localmente com sua conexao MySQL:
+2. Edite `.env` na raiz localmente com sua conexao MySQL:
 
 ```env
 DATABASE_URL="mysql://USER:PASSWORD@HOST:3306/DB_Cancellation_Plataform"
@@ -53,7 +54,7 @@ Substitua `USER`, `PASSWORD`, `HOST` e `PORTA` pelos valores do seu ambiente.
 
 ## Fonte de dados (mock vs database)
 
-Use `DATA_SOURCE_MODE` no `backend/.env`:
+Use `DATA_SOURCE_MODE` no `.env` da raiz:
 
 | Valor      | Comportamento                                       |
 | ---------- | --------------------------------------------------- |

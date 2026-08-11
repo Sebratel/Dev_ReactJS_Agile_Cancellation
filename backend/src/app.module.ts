@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
@@ -27,9 +28,20 @@ import { RolesModule } from '@/modules/roles/roles.module';
 import { UsersModule } from '@/modules/users/users.module';
 import { WebhooksModule } from '@/modules/webhooks/webhooks.module';
 
+const cwd = process.cwd();
+const rootEnvPath =
+  path.basename(cwd) === 'backend'
+    ? path.resolve(cwd, '..', '.env')
+    : path.resolve(cwd, '.env');
+const legacyBackendEnvPath =
+  path.basename(cwd) === 'backend'
+    ? path.resolve(cwd, '.env')
+    : path.resolve(cwd, 'backend', '.env');
+
 @Module({
   imports: [
     ConfigModule.forRoot({
+      envFilePath: [rootEnvPath, legacyBackendEnvPath],
       isGlobal: true,
       load: [configuration],
       validate: validateEnv,

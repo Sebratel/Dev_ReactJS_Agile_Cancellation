@@ -3,6 +3,7 @@ import { type CollectionCaseAssigneeSummary } from '@/modules/collection-cases/d
 export type CollectionCaseListItemResponse = {
   id: string;
   customerName: string;
+  customerPhone: string | null;
   contractCode: string;
   status: string;
   priority: string;

@@ -40,6 +40,8 @@ import type {
   CollectionCasesRepository,
   CreateCollectionAttemptParams,
   CreatePaymentPromiseParams,
+  RecordWhatsAppContactIntegrationParams,
+  RecordWhatsAppContactIntegrationResult,
   RevertCancellationParams,
   RevertCancellationResult,
   SendToCancellationParams,
@@ -241,6 +243,81 @@ export class CollectionCasesMockRepository implements CollectionCasesRepository 
     });
 
     return Promise.resolve(response);
+  }
+
+  getContactContext(caseId: string) {
+    const details = mockCollectionCaseDetails[caseId];
+
+    if (!details) {
+      return Promise.resolve(null);
+    }
+
+    return Promise.resolve({
+      id: details.id,
+      status: details.status,
+      customer: {
+        id: details.customer.id,
+        name: details.customer.name,
+        phone: details.customer.phone,
+      },
+      contract: {
+        id: details.contract.id,
+        code: details.contract.code,
+      },
+    });
+  }
+
+  recordWhatsAppContactIntegration({
+    caseId,
+    performedByUserId,
+    status,
+    payload,
+    errorMessage,
+  }: RecordWhatsAppContactIntegrationParams): Promise<RecordWhatsAppContactIntegrationResult> {
+    const now = new Date().toISOString();
+    const attemptId = `att_matrix_${Date.now()}`;
+    const integrationEventId = `evt_matrix_${Date.now()}`;
+    const details = mockCollectionCaseDetails[caseId];
+
+    if (details) {
+      const attempt = {
+        id: attemptId,
+        channel: 'WHATSAPP',
+        result: status === 'COMPLETED' ? 'CONTACTED' : 'OTHER',
+        attemptedAt: now,
+        notes:
+          status === 'COMPLETED'
+            ? 'HSM Matrix solicitado via N8N.'
+            : `Falha ao solicitar HSM Matrix via N8N.${errorMessage ? ` ${errorMessage}` : ''}`,
+        nextContactAt: null,
+      };
+
+      details.attempts = [attempt, ...details.attempts];
+      details.recentAttempts = details.attempts.slice(0, 5);
+      details.updatedAt = now;
+    }
+
+    pushMockAuditLog({
+      entityType: 'COLLECTION_CASE',
+      entityId: caseId,
+      action: 'INTEGRATION',
+      performedByUserId,
+      beforeSnapshot: null,
+      afterSnapshot: {
+        attemptId,
+        integrationEventId,
+        status,
+        channel: 'WHATSAPP',
+        provider: 'n8n_matrix',
+        sentAt: now,
+      },
+      metadata: {
+        provider: 'n8n_matrix',
+        payload,
+      },
+    });
+
+    return Promise.resolve({ attemptId, integrationEventId });
   }
 
   createPromise({

@@ -422,6 +422,7 @@ export function toListItemResponse(
   return {
     id: record.id,
     customerName: record.customerName,
+    customerPhone: record.customerPhone,
     contractCode: record.contractCode,
     status: record.status,
     priority: record.priority,

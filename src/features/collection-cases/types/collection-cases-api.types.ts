@@ -22,6 +22,7 @@ export type CollectionCasesPromiseStatus =
 export type CollectionCaseListItemResponse = {
   id: string;
   customerName: string;
+  customerPhone: string | null;
   contractCode: string;
   status: string;
   priority: string;
@@ -63,6 +64,7 @@ export type CollectionCaseCustomerSummary = {
   id: string;
   name: string;
   document: string;
+  phone: string | null;
 };
 
 export type CollectionCaseContractSummary = {
@@ -178,6 +180,12 @@ export type RevertCancellationPayload = {
 
 export type AssignCasePayload = {
   assignedUserId: string | null;
+};
+
+export type ContactCustomerWhatsAppResponse = {
+  attemptId: string;
+  provider: string;
+  statusCode: number;
 };
 
 export type CancellationProcessResponse = {

@@ -19,6 +19,7 @@ const page = {
     {
       id: 'case_0001',
       customerName: 'Construtora Horizonte',
+      customerPhone: '(51) 99911-2233',
       contractCode: 'CTR-10428',
       status: 'IN_COLLECTION',
       priority: 'HIGH',

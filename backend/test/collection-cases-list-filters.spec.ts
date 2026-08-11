@@ -10,6 +10,7 @@ function createRecord(
   return {
     id: 'case_test',
     customerName: 'Cliente Teste',
+    customerPhone: '(51) 99999-0000',
     contractCode: 'CTR-1',
     status: 'IN_COLLECTION',
     priority: 'HIGH',

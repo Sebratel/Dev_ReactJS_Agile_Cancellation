@@ -20,6 +20,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useAuth } from '@/features/auth/auth-context';
+import { ContactCustomerWhatsAppAction } from '@/features/collection-cases/components/contact-customer-whatsapp-action';
 import { useCollectionCases } from '@/features/collection-cases/hooks/use-collection-cases';
 import {
   getCollectionStatusLabel,
@@ -149,12 +150,19 @@ export default function MyCollectionPage() {
                   return (
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">
-                        <Link
-                          to={`/minha-cobranca/${item.id}`}
-                          className="text-primary hover:underline"
-                        >
-                          {item.customerName}
-                        </Link>
+                        <div className="flex items-center gap-2">
+                          <Link
+                            to={`/minha-cobranca/${item.id}`}
+                            className="min-w-0 text-primary hover:underline"
+                          >
+                            {item.customerName}
+                          </Link>
+                          <ContactCustomerWhatsAppAction
+                            caseId={item.id}
+                            customerName={item.customerName}
+                            customerPhone={item.customerPhone}
+                          />
+                        </div>
                       </TableCell>
                       <TableCell className="text-neutral">
                         {item.contractCode}

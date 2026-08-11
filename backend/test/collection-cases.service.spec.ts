@@ -4,6 +4,7 @@ import type { CollectionCasesRepository } from '@/modules/collection-cases/repos
 import { mockCollectionCaseDetails } from '@/modules/collection-cases/mocks/collection-cases.mock';
 import { createPaginatedResponse } from '@/common/pagination/paginated-response';
 import type { PerformedByResolverService } from '@/modules/collection-cases/services/performed-by-resolver.service';
+import type { MatrixWhatsappContactService } from '@/modules/collection-cases/services/matrix-whatsapp-contact.service';
 import type { NotificationsService } from '@/modules/notifications/notifications.service';
 
 function createService(repository: CollectionCasesRepository) {
@@ -14,11 +15,15 @@ function createService(repository: CollectionCasesRepository) {
   const notificationsService = {
     notify: jest.fn().mockResolvedValue(undefined),
   } as unknown as NotificationsService;
+  const matrixWhatsappContactService = {
+    sendHsm: jest.fn(),
+  } as unknown as MatrixWhatsappContactService;
 
   return {
     service: new CollectionCasesService(
       repository,
       performedByResolver,
+      matrixWhatsappContactService,
       notificationsService,
     ),
     resolvePerformedBy,
@@ -33,6 +38,8 @@ function createRepository(
     getCaseById: jest.fn(),
     getCaseTimeline: jest.fn(),
     createAttempt: jest.fn(),
+    getContactContext: jest.fn(),
+    recordWhatsAppContactIntegration: jest.fn(),
     createPromise: jest.fn(),
     updatePromiseStatus: jest.fn(),
     sendToCancellation: jest.fn(),

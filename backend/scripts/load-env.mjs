@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const backendRoot = path.resolve(import.meta.dirname, '..');
+const workspaceRoot = path.resolve(backendRoot, '..');
 const placeholderDatabaseUrl =
   'mysql://USER:PASSWORD@HOST:3306/DB_Cancellation_Plataform?connection_limit=5';
 
@@ -32,27 +33,33 @@ function parseEnvLine(line) {
 }
 
 export function loadBackendEnv() {
-  const envPath = path.join(backendRoot, '.env');
+  const envPaths = [
+    path.join(backendRoot, '.env'),
+    path.join(workspaceRoot, '.env'),
+  ];
   const mergedEnv = {
-    ...process.env,
-    DATABASE_URL: process.env.DATABASE_URL ?? placeholderDatabaseUrl,
+    DATABASE_URL: placeholderDatabaseUrl,
   };
 
-  if (!fs.existsSync(envPath)) {
-    return mergedEnv;
-  }
-
-  const content = fs.readFileSync(envPath, 'utf8');
-
-  for (const line of content.split('\n')) {
-    const parsed = parseEnvLine(line);
-
-    if (!parsed) {
+  for (const envPath of envPaths) {
+    if (!fs.existsSync(envPath)) {
       continue;
     }
 
-    mergedEnv[parsed.key] = parsed.value;
+    const content = fs.readFileSync(envPath, 'utf8');
+
+    for (const line of content.split('\n')) {
+      const parsed = parseEnvLine(line);
+
+      if (!parsed) {
+        continue;
+      }
+
+      mergedEnv[parsed.key] = parsed.value;
+    }
   }
+
+  Object.assign(mergedEnv, process.env);
 
   if (!mergedEnv.DATABASE_URL) {
     mergedEnv.DATABASE_URL = placeholderDatabaseUrl;
@@ -61,4 +68,4 @@ export function loadBackendEnv() {
   return mergedEnv;
 }
 
-export { backendRoot, placeholderDatabaseUrl };
+export { backendRoot, workspaceRoot, placeholderDatabaseUrl };

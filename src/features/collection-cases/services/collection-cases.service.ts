@@ -10,6 +10,7 @@ import {
   type CollectionCaseDetailsResponse,
   type CollectionCaseTimelineResponse,
   type CancellationProcessResponse,
+  type ContactCustomerWhatsAppResponse,
   type CollectionCaseListItemResponse,
   type CollectionCasesListParams,
   type CreateCollectionAttemptPayload,
@@ -129,6 +130,16 @@ export async function createCollectionAttempt(
     method: 'POST',
     body: JSON.stringify(payload),
   });
+
+  return response.data;
+}
+
+export async function contactCustomerByWhatsApp(caseId: string) {
+  const response =
+    await httpClient.request<ContactCustomerWhatsAppResponse>({
+      path: `/collection-cases/${caseId}/contact-whatsapp`,
+      method: 'POST',
+    });
 
   return response.data;
 }

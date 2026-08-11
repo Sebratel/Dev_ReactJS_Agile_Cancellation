@@ -15,21 +15,25 @@ const CUSTOMERS = [
     id: 'cus_horizonte',
     name: 'Construtora Horizonte',
     document: '12.345.678/0001-90',
+    phone: '(51) 99911-2233',
   },
   {
     id: 'cus_litoral',
     name: 'Mercado Litoral',
     document: '98.765.432/0001-10',
+    phone: '(51) 99944-5566',
   },
   {
     id: 'cus_gabriel',
     name: 'Clinica Sao Gabriel',
     document: '11.222.333/0001-44',
+    phone: '(51) 99977-8899',
   },
   {
     id: 'cus_vale',
     name: 'Industria Vale Norte',
     document: '55.666.777/0001-88',
+    phone: null,
   },
 ] as const;
 
@@ -72,6 +76,7 @@ function buildListRecord(index: number): MockCollectionCaseListRecord {
   return {
     id: `case_${String(index + 1).padStart(4, '0')}`,
     customerName: customer.name,
+    customerPhone: customer.phone,
     contractCode: `CTR-${contractNumber}`,
     status: STATUSES[index % STATUSES.length]!,
     priority: PRIORITIES[index % PRIORITIES.length]!,
@@ -104,6 +109,7 @@ export function createMockCollectionCaseListItems(
   return listRecords.map((record) => ({
     id: record.id,
     customerName: record.customerName,
+    customerPhone: record.customerPhone,
     contractCode: record.contractCode,
     status: record.status,
     priority: record.priority,

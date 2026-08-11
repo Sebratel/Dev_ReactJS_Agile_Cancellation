@@ -18,7 +18,7 @@ export function useExportCasesCsv() {
         query.set('sortBy', params.sortBy);
         if (params.sortDirection) query.set('sortDirection', params.sortDirection);
       }
-      if (params.assignedUserId) query.set('assignedUserId', params.assignedUserId);
+      if (params.assignedToId) query.set('assignedToId', params.assignedToId);
 
       const qs = query.toString();
       const url = `${appEnv.apiBaseUrl}/collection-cases/export${qs ? `?${qs}` : ''}`;

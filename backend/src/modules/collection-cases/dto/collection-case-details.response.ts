@@ -30,6 +30,7 @@ export type CollectionCaseCustomerSummary = {
   id: string;
   name: string;
   document: string;
+  phone: string | null;
 };
 
 export type CollectionCaseContractSummary = {

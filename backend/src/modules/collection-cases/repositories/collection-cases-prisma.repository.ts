@@ -5,6 +5,7 @@ import {
   PaymentPromiseStatus,
   Prisma,
   UserStatus,
+  IntegrationEventStatus,
 } from '@prisma/client';
 import { Injectable } from '@nestjs/common';
 import { createPaginatedResponse } from '@/common/pagination/paginated-response';
@@ -31,6 +32,8 @@ import type {
   CollectionCasesRepository,
   CreateCollectionAttemptParams,
   CreatePaymentPromiseParams,
+  RecordWhatsAppContactIntegrationParams,
+  RecordWhatsAppContactIntegrationResult,
   RevertCancellationParams,
   RevertCancellationResult,
   SendToCancellationParams,
@@ -101,7 +104,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
         take: normalized.limit,
         orderBy,
         include: {
-          customer: { select: { name: true } },
+          customer: { select: { name: true, phone: true } },
           contract: { select: { code: true } },
           assignedUser: { select: { id: true, name: true } },
         },
@@ -112,6 +115,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
     const items: CollectionCaseListItemResponse[] = records.map((record) => ({
       id: record.id,
       customerName: record.customer.name,
+      customerPhone: record.customer.phone,
       contractCode: record.contract.code,
       status: record.status,
       priority: record.priority,
@@ -501,6 +505,108 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
       nextContactAt: attempt.nextContactAt?.toISOString() ?? null,
       performedByUserId,
     };
+  }
+
+  async getContactContext(caseId: string) {
+    const record = await this.prisma.collectionCase.findUnique({
+      where: { id: caseId },
+      select: {
+        id: true,
+        status: true,
+        customer: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+          },
+        },
+        contract: {
+          select: {
+            id: true,
+            code: true,
+          },
+        },
+      },
+    });
+
+    return record;
+  }
+
+  async recordWhatsAppContactIntegration({
+    caseId,
+    performedByUserId,
+    status,
+    payload,
+    errorMessage,
+  }: RecordWhatsAppContactIntegrationParams): Promise<RecordWhatsAppContactIntegrationResult> {
+    const now = new Date();
+
+    return this.prisma.$transaction(async (tx) => {
+      const attempt = await tx.collectionAttempt.create({
+        data: {
+          collectionCaseId: caseId,
+          performedByUserId,
+          channel: 'WHATSAPP',
+          result: status === 'COMPLETED' ? 'CONTACTED' : 'OTHER',
+          notes:
+            status === 'COMPLETED'
+              ? 'HSM Matrix solicitado via N8N.'
+              : `Falha ao solicitar HSM Matrix via N8N.${errorMessage ? ` ${errorMessage}` : ''}`,
+          attemptedAt: now,
+        },
+      });
+
+      await tx.collectionCase.update({
+        where: { id: caseId },
+        data: { updatedAt: now },
+      });
+
+      const integrationEvent = await tx.integrationEvent.create({
+        data: {
+          source: 'n8n_matrix',
+          eventType: 'collection_cases.whatsapp_hsm',
+          status:
+            status === 'COMPLETED'
+              ? IntegrationEventStatus.COMPLETED
+              : IntegrationEventStatus.FAILED,
+          payload: {
+            ...payload,
+            attemptId: attempt.id,
+          },
+          errorMessage: errorMessage ?? null,
+          processedAt: now,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          entityType: 'COLLECTION_CASE',
+          entityId: caseId,
+          action: AuditAction.INTEGRATION,
+          performedByUserId,
+          beforeSnapshot: Prisma.DbNull,
+          afterSnapshot: {
+            attemptId: attempt.id,
+            integrationEventId: integrationEvent.id,
+            status,
+            channel: 'WHATSAPP',
+            provider: 'n8n_matrix',
+            sentAt: now.toISOString(),
+          },
+          metadata: {
+            resourceType: 'COLLECTION_ATTEMPT',
+            attemptId: attempt.id,
+            integrationEventId: integrationEvent.id,
+            provider: 'n8n_matrix',
+          },
+        },
+      });
+
+      return {
+        attemptId: attempt.id,
+        integrationEventId: integrationEvent.id,
+      };
+    });
   }
 
   async createPromise({
@@ -913,6 +1019,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
         id: record.customer.id,
         name: record.customer.name,
         document: record.customer.document,
+        phone: record.customer.phone,
       },
       contract: {
         id: record.contract.id,

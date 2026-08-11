@@ -68,6 +68,33 @@ export type CreateCollectionAttemptParams = {
   performedByUserId: string | null;
 };
 
+export type CollectionCaseContactContext = {
+  id: string;
+  status: string;
+  customer: {
+    id: string;
+    name: string;
+    phone: string | null;
+  };
+  contract: {
+    id: string;
+    code: string;
+  };
+};
+
+export type RecordWhatsAppContactIntegrationParams = {
+  caseId: string;
+  performedByUserId: string | null;
+  status: 'COMPLETED' | 'FAILED';
+  payload: Record<string, unknown>;
+  errorMessage?: string;
+};
+
+export type RecordWhatsAppContactIntegrationResult = {
+  attemptId: string;
+  integrationEventId: string;
+};
+
 export type SendToCancellationInput = {
   reason: string;
   notes?: string;
@@ -165,6 +192,12 @@ export interface CollectionCasesRepository {
   createAttempt(
     params: CreateCollectionAttemptParams,
   ): Promise<CollectionAttemptResponse | null>;
+
+  getContactContext(caseId: string): Promise<CollectionCaseContactContext | null>;
+
+  recordWhatsAppContactIntegration(
+    params: RecordWhatsAppContactIntegrationParams,
+  ): Promise<RecordWhatsAppContactIntegrationResult>;
 
   createPromise(
     params: CreatePaymentPromiseParams,

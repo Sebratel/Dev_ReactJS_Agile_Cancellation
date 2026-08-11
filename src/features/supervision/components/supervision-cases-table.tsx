@@ -20,6 +20,7 @@ import {
   type CollectionCasesSortBy,
   type CollectionCasesSortDirection,
 } from '@/features/collection-cases/types/collection-cases-api.types';
+import { ContactCustomerWhatsAppAction } from '@/features/collection-cases/components/contact-customer-whatsapp-action';
 import {
   getCollectionStatusLabel,
   getCollectionStatusVariant,
@@ -212,7 +213,16 @@ export function SupervisionCasesTable({
                     </TableCell>
                   ) : null}
                   <TableCell className="font-medium">
-                    {item.customerName}
+                    <div className="flex items-center gap-2">
+                      <span className="min-w-0 truncate">
+                        {item.customerName}
+                      </span>
+                      <ContactCustomerWhatsAppAction
+                        caseId={item.id}
+                        customerName={item.customerName}
+                        customerPhone={item.customerPhone}
+                      />
+                    </div>
                   </TableCell>
                   <TableCell className="text-neutral">
                     {item.contractCode}
