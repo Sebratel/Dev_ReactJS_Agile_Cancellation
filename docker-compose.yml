@@ -22,10 +22,10 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
-      NODE_ENV: production
+      NODE_ENV: ${NODE_ENV:-staging}
       PORT: 4000
       DATABASE_URL: ${DATABASE_URL:-mysql://${MARIADB_USER}:${MARIADB_PASSWORD}@db:3306/DB_Cancellation_Plataform?connection_limit=5}
-      CORS_ORIGIN: ${CORS_ORIGIN}
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
       APP_TIMEZONE: ${APP_TIMEZONE:-UTC}
       JWT_SECRET: ${JWT_SECRET}
       JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
