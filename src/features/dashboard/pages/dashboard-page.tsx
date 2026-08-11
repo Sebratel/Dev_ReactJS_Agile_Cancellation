@@ -10,6 +10,7 @@ import { TableSkeleton } from '@/components/feedback/table-skeleton';
 import { buttonVariants, Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { DashboardKpiGrid } from '@/features/dashboard/components/dashboard-kpi-grid';
+import { DashboardWelcomePanel } from '@/features/dashboard/components/dashboard-welcome-panel';
 import { DashboardOperationsSection } from '@/features/dashboard/components/dashboard-operations-section';
 import { OperationalAlerts } from '@/features/dashboard/components/operational-alerts';
 import { OperationalSummary } from '@/features/dashboard/components/operational-summary';
@@ -25,6 +26,7 @@ import {
   mapDashboardSummaryToRecoveryTrend,
   mapDashboardSummaryToStatusDistribution,
 } from '@/features/dashboard/utils/dashboard.mapper';
+import { useAuth } from '@/features/auth/auth-context';
 
 const StatusDistributionChart = lazy(
   () => import('@/features/dashboard/components/status-distribution-chart'),
@@ -55,6 +57,7 @@ function DashboardLoadingState() {
 }
 
 export default function DashboardPage() {
+  const { session } = useAuth();
   const dashboardQuery = useDashboardSummary();
   const criticalCasesQuery = useCollectionCases({
     page: 1,
@@ -153,6 +156,13 @@ export default function DashboardPage() {
 
       {!isLoading && !isError && dashboardQuery.data ? (
         <>
+          {session ? (
+            <DashboardWelcomePanel
+              user={session.user}
+              summary={dashboardQuery.data}
+            />
+          ) : null}
+
           <DashboardKpiGrid metrics={metrics} />
 
           <OperationalAlerts alerts={operationalAlerts} />
