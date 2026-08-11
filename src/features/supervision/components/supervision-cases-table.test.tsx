@@ -50,6 +50,9 @@ const items: CollectionCaseListItemResponse[] = [
     outstandingAmount: '12890.55',
     assignedTo: null,
     slaDueAt: null,
+    matrixAwaitingReply: false,
+    matrixLastOutboundAt: null,
+    matrixLastReplyAt: null,
   },
 ];
 

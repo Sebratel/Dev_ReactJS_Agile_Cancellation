@@ -11,4 +11,7 @@ export type CollectionCaseListItemResponse = {
   outstandingAmount: string;
   assignedTo: CollectionCaseAssigneeSummary | null;
   slaDueAt: string | null;
+  matrixAwaitingReply: boolean;
+  matrixLastOutboundAt: string | null;
+  matrixLastReplyAt: string | null;
 };

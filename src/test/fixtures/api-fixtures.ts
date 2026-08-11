@@ -131,6 +131,9 @@ export const mockCollectionCaseListItems: CollectionCaseListItemResponse[] = [
     outstandingAmount: '12890.55',
     assignedTo: { id: 'usr_marina', name: 'Marina Lopes' },
     slaDueAt: new Date(Date.now() - 172_800_000).toISOString(),
+    matrixAwaitingReply: false,
+    matrixLastOutboundAt: null,
+    matrixLastReplyAt: null,
   },
   {
     id: 'case_0002',
@@ -143,6 +146,9 @@ export const mockCollectionCaseListItems: CollectionCaseListItemResponse[] = [
     outstandingAmount: '9430.90',
     assignedTo: { id: 'usr_carlos', name: 'Carlos Nunes' },
     slaDueAt: new Date(Date.now() + 14_400_000).toISOString(),
+    matrixAwaitingReply: false,
+    matrixLastOutboundAt: null,
+    matrixLastReplyAt: null,
   },
 ];
 
@@ -251,6 +257,13 @@ export const mockCollectionCaseDetails: CollectionCaseDetailsResponse = {
       paidAmount: '0.00',
     },
   ],
+  matrixContact: {
+    attendanceCode: null,
+    messageCode: null,
+    awaitingReply: false,
+    lastOutboundAt: null,
+    lastReplyAt: null,
+  },
   cancellationProcess: null,
   createdAt: new Date(Date.now() - 2_592_000_000).toISOString(),
   updatedAt: new Date(Date.now() - 86_400_000).toISOString(),

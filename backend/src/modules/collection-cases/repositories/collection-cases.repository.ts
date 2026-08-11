@@ -87,12 +87,16 @@ export type RecordWhatsAppContactIntegrationParams = {
   performedByUserId: string | null;
   status: 'COMPLETED' | 'FAILED';
   payload: Record<string, unknown>;
+  matrixAttendanceCode?: string | null;
+  matrixMessageCode?: string | null;
   errorMessage?: string;
 };
 
 export type RecordWhatsAppContactIntegrationResult = {
   attemptId: string;
   integrationEventId: string;
+  matrixAttendanceCode: string | null;
+  matrixMessageCode: string | null;
 };
 
 export type SendToCancellationInput = {

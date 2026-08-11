@@ -197,14 +197,21 @@ export class CollectionCasesService {
           caseId: payload.caseId,
           contrato: payload.contrato,
           telefone: payload.telefone,
+          codAtendimento: providerResult.codAtendimento,
+          codMensagem: providerResult.codMensagem,
           responseBody: providerResult.responseBody,
         },
+        matrixAttendanceCode: providerResult.codAtendimento,
+        matrixMessageCode: providerResult.codMensagem,
       });
 
     return createApiResponse({
       attemptId: recorded.attemptId,
       provider: providerResult.provider,
       statusCode: providerResult.statusCode,
+      codAtendimento: recorded.matrixAttendanceCode,
+      codMensagem: recorded.matrixMessageCode,
+      awaitingReply: Boolean(recorded.matrixAttendanceCode),
     });
   }
 

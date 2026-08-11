@@ -100,6 +100,14 @@ type CollectionCaseWithRelations = Prisma.CollectionCaseGetPayload<{
   include: typeof collectionCaseDetailsInclude;
 }>;
 
+type MatrixTrackingFields = {
+  matrixAttendanceCode?: string | null;
+  matrixMessageCode?: string | null;
+  matrixAwaitingReply?: boolean;
+  matrixLastOutboundAt?: Date | null;
+  matrixLastReplyAt?: Date | null;
+};
+
 @Injectable()
 export class CollectionCasesPrismaRepository implements CollectionCasesRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -125,20 +133,28 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
       this.prisma.collectionCase.count({ where }),
     ]);
 
-    const items: CollectionCaseListItemResponse[] = records.map((record) => ({
-      id: record.id,
-      customerName: record.customer.name,
-      customerPhone: record.customer.phone,
-      contractCode: record.contract.code,
-      status: record.status,
-      priority: record.priority,
-      daysOverdue: record.daysOverdue,
-      outstandingAmount: formatDecimal(record.outstandingAmount),
-      assignedTo: record.assignedUser
-        ? { id: record.assignedUser.id, name: record.assignedUser.name }
-        : null,
-      slaDueAt: record.slaDueAt?.toISOString() ?? null,
-    }));
+    const items: CollectionCaseListItemResponse[] = records.map((record) => {
+      const matrix = record as typeof record & MatrixTrackingFields;
+
+      return {
+        id: record.id,
+        customerName: record.customer.name,
+        customerPhone: record.customer.phone,
+        contractCode: record.contract.code,
+        status: record.status,
+        priority: record.priority,
+        daysOverdue: record.daysOverdue,
+        outstandingAmount: formatDecimal(record.outstandingAmount),
+        assignedTo: record.assignedUser
+          ? { id: record.assignedUser.id, name: record.assignedUser.name }
+          : null,
+        slaDueAt: record.slaDueAt?.toISOString() ?? null,
+        matrixAwaitingReply: matrix.matrixAwaitingReply ?? false,
+        matrixLastOutboundAt:
+          matrix.matrixLastOutboundAt?.toISOString() ?? null,
+        matrixLastReplyAt: matrix.matrixLastReplyAt?.toISOString() ?? null,
+      };
+    });
 
     return createPaginatedResponse(
       items,
@@ -550,6 +566,8 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
     performedByUserId,
     status,
     payload,
+    matrixAttendanceCode,
+    matrixMessageCode,
     errorMessage,
   }: RecordWhatsAppContactIntegrationParams): Promise<RecordWhatsAppContactIntegrationResult> {
     const now = new Date();
@@ -571,7 +589,17 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
 
       await tx.collectionCase.update({
         where: { id: caseId },
-        data: { updatedAt: now },
+        data: {
+          ...(status === 'COMPLETED'
+            ? {
+                matrixAttendanceCode: matrixAttendanceCode ?? undefined,
+                matrixMessageCode: matrixMessageCode ?? undefined,
+                matrixAwaitingReply: Boolean(matrixAttendanceCode),
+                matrixLastOutboundAt: now,
+              }
+            : {}),
+          updatedAt: now,
+        } as Prisma.CollectionCaseUncheckedUpdateInput,
       });
 
       const integrationEvent = await tx.integrationEvent.create({
@@ -604,6 +632,8 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
             status,
             channel: 'WHATSAPP',
             provider: 'n8n_matrix',
+            matrixAttendanceCode: matrixAttendanceCode ?? null,
+            matrixMessageCode: matrixMessageCode ?? null,
             sentAt: now.toISOString(),
           },
           metadata: {
@@ -611,6 +641,8 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
             attemptId: attempt.id,
             integrationEventId: integrationEvent.id,
             provider: 'n8n_matrix',
+            matrixAttendanceCode: matrixAttendanceCode ?? null,
+            matrixMessageCode: matrixMessageCode ?? null,
           },
         },
       });
@@ -618,6 +650,8 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
       return {
         attemptId: attempt.id,
         integrationEventId: integrationEvent.id,
+        matrixAttendanceCode: matrixAttendanceCode ?? null,
+        matrixMessageCode: matrixMessageCode ?? null,
       };
     });
   }
@@ -987,6 +1021,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
   private mapDetails(
     record: CollectionCaseWithRelations,
   ): CollectionCaseDetailsResponse {
+    const matrix = record as CollectionCaseWithRelations & MatrixTrackingFields;
     const attempts = record.collectionAttempts.map((attempt) => ({
       id: attempt.id,
       channel: attempt.channel,
@@ -1075,6 +1110,13 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
       activePromise,
       promises,
       invoices,
+      matrixContact: {
+        attendanceCode: matrix.matrixAttendanceCode ?? null,
+        messageCode: matrix.matrixMessageCode ?? null,
+        awaitingReply: matrix.matrixAwaitingReply ?? false,
+        lastOutboundAt: matrix.matrixLastOutboundAt?.toISOString() ?? null,
+        lastReplyAt: matrix.matrixLastReplyAt?.toISOString() ?? null,
+      },
       cancellationProcess: cancellation
         ? {
             id: cancellation.id,

@@ -30,6 +30,9 @@ export type CollectionCaseListItemResponse = {
   outstandingAmount: string;
   assignedTo: CollectionCaseAssigneeSummary | null;
   slaDueAt: string | null;
+  matrixAwaitingReply: boolean;
+  matrixLastOutboundAt: string | null;
+  matrixLastReplyAt: string | null;
 };
 
 export type CollectionCaseInvoiceSummary = {
@@ -117,6 +120,14 @@ export type CollectionCasePromiseSummary = {
   createdAt?: string;
 };
 
+export type CollectionCaseMatrixContactSummary = {
+  attendanceCode: string | null;
+  messageCode: string | null;
+  awaitingReply: boolean;
+  lastOutboundAt: string | null;
+  lastReplyAt: string | null;
+};
+
 export type CreatePaymentPromisePayload = {
   promisedAmount: number;
   promisedDate: string;
@@ -186,6 +197,9 @@ export type ContactCustomerWhatsAppResponse = {
   attemptId: string;
   provider: string;
   statusCode: number;
+  codAtendimento: string | null;
+  codMensagem: string | null;
+  awaitingReply: boolean;
 };
 
 export type CancellationProcessResponse = {
@@ -215,6 +229,7 @@ export type CollectionCaseDetailsResponse = {
   activePromise: CollectionCasePromiseSummary | null;
   promises: CollectionCasePromiseSummary[];
   invoices: CollectionCaseInvoiceSummary[];
+  matrixContact: CollectionCaseMatrixContactSummary;
   cancellationProcess: CollectionCaseCancellationSummary | null;
   createdAt: string;
   updatedAt: string;

@@ -149,7 +149,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={\n  \"success\": true,\n  \"provider\": \"matrix\",\n  \"caseId\": \"{{ $('Normalizar telefone').first().json.caseId }}\",\n  \"telefone\": \"{{ $('Normalizar telefone').first().json.phone_formatted }}\",\n  \"matrixResponse\": {{ JSON.stringify($json) }}\n}",
+        "responseBody": "={\n  \"success\": true,\n  \"provider\": \"matrix\",\n  \"caseId\": \"{{ $('Normalizar telefone').first().json.caseId }}\",\n  \"telefone\": \"{{ $('Normalizar telefone').first().json.phone_formatted }}\",\n  \"codAtendimento\": \"{{ $json.cod_atendimento }}\",\n  \"codMensagem\": \"{{ $json.cod_mensagem }}\",\n  \"matrixMessage\": \"{{ $json.msg }}\",\n  \"matrixResponse\": {{ JSON.stringify($json) }}\n}",
         "options": {
           "responseCode": 200
         }
@@ -183,7 +183,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={\n  \"success\": false,\n  \"message\": \"Falha ao enviar HSM Matrix.\",\n  \"caseId\": \"{{ $('Normalizar telefone').first().json.caseId }}\",\n  \"error\": {{ JSON.stringify($json) }}\n}",
+        "responseBody": "={\n  \"success\": false,\n  \"message\": \"Falha ao enviar HSM Matrix.\",\n  \"caseId\": \"{{ $('Normalizar telefone').first().json.caseId }}\",\n  \"telefone\": \"{{ $('Normalizar telefone').first().json.phone_formatted }}\",\n  \"error\": {{ JSON.stringify($json) }}\n}",
         "options": {
           "responseCode": 502
         }

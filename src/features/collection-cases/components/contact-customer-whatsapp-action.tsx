@@ -28,8 +28,12 @@ export function ContactCustomerWhatsAppAction({
 
   async function handleContact() {
     try {
-      await mutation.mutateAsync();
-      toast.success('Mensagem enviada para o cliente.');
+      const result = await mutation.mutateAsync();
+      toast.success(
+        result.codAtendimento
+          ? `Mensagem enviada. Atendimento Matrix ${result.codAtendimento} salvo.`
+          : 'Mensagem enviada para o cliente.',
+      );
     } catch (error) {
       toast.error(getErrorMessage(error));
     }

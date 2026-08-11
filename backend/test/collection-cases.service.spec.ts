@@ -28,6 +28,7 @@ function createService(repository: CollectionCasesRepository) {
       notificationsService,
     ),
     resolvePerformedBy,
+    matrixWhatsappContactService,
   };
 }
 
@@ -210,6 +211,67 @@ describe('CollectionCasesService', () => {
       ),
     ).rejects.toMatchObject({
       status: HttpStatus.NOT_FOUND,
+    });
+  });
+
+  it('salva codigos Matrix ao solicitar contato por WhatsApp', async () => {
+    const getContactContext = jest.fn().mockResolvedValue({
+      id: 'case_0001',
+      status: 'IN_COLLECTION',
+      customer: {
+        id: 'cus_1',
+        name: 'Cliente Teste',
+        phone: '(51) 99999-9999',
+      },
+      contract: {
+        id: 'ctr_1',
+        code: 'CTR-001',
+      },
+    });
+    const recordWhatsAppContactIntegration = jest.fn().mockResolvedValue({
+      attemptId: 'att_matrix',
+      integrationEventId: 'evt_matrix',
+      matrixAttendanceCode: '5081836',
+      matrixMessageCode: '82498574',
+    });
+    const repository = createRepository({
+      getContactContext,
+      recordWhatsAppContactIntegration,
+    });
+    const { service, matrixWhatsappContactService } = createService(repository);
+
+    jest
+      .mocked(matrixWhatsappContactService.sendHsm)
+      .mockResolvedValue({
+        provider: 'n8n',
+        statusCode: 200,
+        responseBody: {
+          success: true,
+          codAtendimento: '5081836',
+          codMensagem: '82498574',
+        },
+        codAtendimento: '5081836',
+        codMensagem: '82498574',
+      });
+
+    const response = await service.contactCustomerByWhatsApp(
+      'case_0001',
+      'usr_marina',
+    );
+
+    expect(recordWhatsAppContactIntegration).toHaveBeenCalledWith(
+      expect.objectContaining({
+        caseId: 'case_0001',
+        status: 'COMPLETED',
+        matrixAttendanceCode: '5081836',
+        matrixMessageCode: '82498574',
+      }),
+    );
+    expect(response.data).toMatchObject({
+      attemptId: 'att_matrix',
+      codAtendimento: '5081836',
+      codMensagem: '82498574',
+      awaitingReply: true,
     });
   });
 

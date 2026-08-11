@@ -334,6 +334,9 @@ export default function CollectionCaseDetailPage() {
                   label={getPriorityLabel(caseQuery.data.priority)}
                   variant={getPriorityVariant(caseQuery.data.priority)}
                 />
+                {caseQuery.data.matrixContact.awaitingReply ? (
+                  <StatusBadge label="Aguardando Matrix" variant="warning" />
+                ) : null}
               </div>
             }
           >

@@ -430,5 +430,8 @@ export function toListItemResponse(
     outstandingAmount: record.outstandingAmount,
     assignedTo: record.assignedTo,
     slaDueAt: record.slaDueAt,
+    matrixAwaitingReply: record.matrixAwaitingReply,
+    matrixLastOutboundAt: record.matrixLastOutboundAt,
+    matrixLastReplyAt: record.matrixLastReplyAt,
   };
 }

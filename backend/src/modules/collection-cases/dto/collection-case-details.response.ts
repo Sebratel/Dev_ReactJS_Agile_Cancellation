@@ -65,6 +65,14 @@ export type CollectionCasePromiseSummary = {
   createdAt?: string;
 };
 
+export type CollectionCaseMatrixContactSummary = {
+  attendanceCode: string | null;
+  messageCode: string | null;
+  awaitingReply: boolean;
+  lastOutboundAt: string | null;
+  lastReplyAt: string | null;
+};
+
 export type CollectionCaseDetailsResponse = {
   id: string;
   customer: CollectionCaseCustomerSummary;
@@ -81,6 +89,7 @@ export type CollectionCaseDetailsResponse = {
   activePromise: CollectionCasePromiseSummary | null;
   promises: CollectionCasePromiseSummary[];
   invoices: CollectionCaseInvoiceSummary[];
+  matrixContact: CollectionCaseMatrixContactSummary;
   cancellationProcess: CollectionCaseCancellationSummary | null;
   createdAt: string;
   updatedAt: string;

@@ -272,6 +272,8 @@ export class CollectionCasesMockRepository implements CollectionCasesRepository 
     performedByUserId,
     status,
     payload,
+    matrixAttendanceCode,
+    matrixMessageCode,
     errorMessage,
   }: RecordWhatsAppContactIntegrationParams): Promise<RecordWhatsAppContactIntegrationResult> {
     const now = new Date().toISOString();
@@ -294,7 +296,26 @@ export class CollectionCasesMockRepository implements CollectionCasesRepository 
 
       details.attempts = [attempt, ...details.attempts];
       details.recentAttempts = details.attempts.slice(0, 5);
+      details.matrixContact = {
+        attendanceCode: matrixAttendanceCode ?? null,
+        messageCode: matrixMessageCode ?? null,
+        awaitingReply: status === 'COMPLETED' && Boolean(matrixAttendanceCode),
+        lastOutboundAt: status === 'COMPLETED' ? now : details.matrixContact.lastOutboundAt,
+        lastReplyAt: details.matrixContact.lastReplyAt,
+      };
       details.updatedAt = now;
+    }
+
+    const record = mockCollectionCaseListRecords.find(
+      (item) => item.id === caseId,
+    );
+
+    if (record) {
+      record.matrixAwaitingReply =
+        status === 'COMPLETED' && Boolean(matrixAttendanceCode);
+      record.matrixLastOutboundAt =
+        status === 'COMPLETED' ? now : record.matrixLastOutboundAt;
+      record.updatedAt = now;
     }
 
     pushMockAuditLog({
@@ -309,15 +330,24 @@ export class CollectionCasesMockRepository implements CollectionCasesRepository 
         status,
         channel: 'WHATSAPP',
         provider: 'n8n_matrix',
+        matrixAttendanceCode: matrixAttendanceCode ?? null,
+        matrixMessageCode: matrixMessageCode ?? null,
         sentAt: now,
       },
       metadata: {
         provider: 'n8n_matrix',
+        matrixAttendanceCode: matrixAttendanceCode ?? null,
+        matrixMessageCode: matrixMessageCode ?? null,
         payload,
       },
     });
 
-    return Promise.resolve({ attemptId, integrationEventId });
+    return Promise.resolve({
+      attemptId,
+      integrationEventId,
+      matrixAttendanceCode: matrixAttendanceCode ?? null,
+      matrixMessageCode: matrixMessageCode ?? null,
+    });
   }
 
   createPromise({

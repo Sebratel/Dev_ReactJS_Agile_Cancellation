@@ -15,6 +15,8 @@ export type MatrixWhatsappContactResult = {
   provider: 'n8n';
   statusCode: number;
   responseBody: unknown;
+  codAtendimento: string | null;
+  codMensagem: string | null;
 };
 
 function parseResponseBody(text: string): unknown {
@@ -27,6 +29,60 @@ function parseResponseBody(text: string): unknown {
   } catch {
     return text;
   }
+}
+
+function readObject(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function readExternalCode(value: unknown): string | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed ? trimmed : null;
+  }
+
+  return null;
+}
+
+function extractMatrixCode(
+  responseBody: unknown,
+  keys: Array<'codAtendimento' | 'cod_atendimento' | 'codMensagem' | 'cod_mensagem'>,
+): string | null {
+  const root = readObject(responseBody);
+
+  if (!root) {
+    return null;
+  }
+
+  for (const key of keys) {
+    const code = readExternalCode(root[key]);
+
+    if (code) {
+      return code;
+    }
+  }
+
+  const matrixResponse = readObject(root.matrixResponse);
+
+  if (!matrixResponse) {
+    return null;
+  }
+
+  for (const key of keys) {
+    const code = readExternalCode(matrixResponse[key]);
+
+    if (code) {
+      return code;
+    }
+  }
+
+  return null;
 }
 
 @Injectable()
@@ -83,6 +139,14 @@ export class MatrixWhatsappContactService {
         provider: 'n8n',
         statusCode: response.status,
         responseBody,
+        codAtendimento: extractMatrixCode(responseBody, [
+          'codAtendimento',
+          'cod_atendimento',
+        ]),
+        codMensagem: extractMatrixCode(responseBody, [
+          'codMensagem',
+          'cod_mensagem',
+        ]),
       };
     } catch (error) {
       if (error instanceof AppException) {

@@ -83,6 +83,9 @@ function buildListRecord(index: number): MockCollectionCaseListRecord {
     daysOverdue: 90 + (index % 60),
     outstandingAmount: (8500 + index * 137.55).toFixed(2),
     assignedTo: assignee ? { id: assignee.id, name: assignee.name } : null,
+    matrixAwaitingReply: false,
+    matrixLastOutboundAt: null,
+    matrixLastReplyAt: null,
     assignedUserId: assignee?.id ?? null,
     customerDocument: customer.document,
     contractExternalId: `EXT-${contractNumber}`,
@@ -117,7 +120,20 @@ export function createMockCollectionCaseListItems(
     outstandingAmount: record.outstandingAmount,
     assignedTo: record.assignedTo,
     slaDueAt: record.slaDueAt,
+    matrixAwaitingReply: record.matrixAwaitingReply,
+    matrixLastOutboundAt: record.matrixLastOutboundAt,
+    matrixLastReplyAt: record.matrixLastReplyAt,
   }));
+}
+
+function emptyMatrixContact() {
+  return {
+    attendanceCode: null,
+    messageCode: null,
+    awaitingReply: false,
+    lastOutboundAt: null,
+    lastReplyAt: null,
+  };
 }
 
 export function createMockCollectionCaseDetails(): Record<
@@ -160,6 +176,7 @@ export function createMockCollectionCaseDetails(): Record<
         },
       ],
       activePromise: null,
+      matrixContact: emptyMatrixContact(),
       ...buildMockDetailExtensions(
         '12890.55',
         [
@@ -210,6 +227,7 @@ export function createMockCollectionCaseDetails(): Record<
         },
       ],
       activePromise: null,
+      matrixContact: emptyMatrixContact(),
       ...buildMockDetailExtensions(
         '9430.90',
         [
@@ -253,6 +271,7 @@ export function createMockCollectionCaseDetails(): Record<
         promisedAmount: '15120.40',
         promisedDate: new Date(Date.now() + 604_800_000).toISOString(),
       },
+      matrixContact: emptyMatrixContact(),
       ...buildMockDetailExtensions(
         '15120.40',
         [
@@ -289,6 +308,7 @@ export function createMockCollectionCaseDetails(): Record<
       slaDueAt: null,
       recentAttempts: [],
       activePromise: null,
+      matrixContact: emptyMatrixContact(),
       ...buildMockDetailExtensions('0.00', [], null),
       createdAt: new Date(Date.now() - 3_888_000_000).toISOString(),
       updatedAt: new Date(Date.now() - 172_800_000).toISOString(),

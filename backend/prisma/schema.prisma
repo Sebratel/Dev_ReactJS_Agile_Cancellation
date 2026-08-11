@@ -233,19 +233,24 @@ model Invoice {
 }
 
 model CollectionCase {
-  id                String           @id @default(cuid())
-  contractId        String
-  customerId        String
-  assignedUserId    String?
-  status            CollectionStatus @default(WAITING_TRIAGE)
-  priority          Priority         @default(MEDIUM)
-  outstandingAmount Decimal          @db.Decimal(15, 2)
-  daysOverdue       Int              @default(0)
-  externalId        String?          @unique
-  slaDueAt          DateTime?
-  recoveredAt       DateTime?
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
+  id                   String           @id @default(cuid())
+  contractId           String
+  customerId           String
+  assignedUserId       String?
+  status               CollectionStatus @default(WAITING_TRIAGE)
+  priority             Priority         @default(MEDIUM)
+  outstandingAmount    Decimal          @db.Decimal(15, 2)
+  daysOverdue          Int              @default(0)
+  externalId           String?          @unique
+  slaDueAt             DateTime?
+  recoveredAt          DateTime?
+  matrixAttendanceCode String?          @unique
+  matrixMessageCode    String?          @unique
+  matrixAwaitingReply  Boolean          @default(false)
+  matrixLastOutboundAt DateTime?
+  matrixLastReplyAt    DateTime?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
 
   contract              Contract              @relation(fields: [contractId], references: [id], onDelete: Cascade)
   customer              Customer              @relation(fields: [customerId], references: [id], onDelete: Cascade)
@@ -263,6 +268,9 @@ model CollectionCase {
   @@index([daysOverdue])
   @@index([slaDueAt])
   @@index([recoveredAt])
+  @@index([matrixAwaitingReply])
+  @@index([matrixLastOutboundAt])
+  @@index([matrixLastReplyAt])
   @@map("collection_cases")
 }
 
