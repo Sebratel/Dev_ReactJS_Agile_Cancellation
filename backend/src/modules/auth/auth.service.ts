@@ -102,6 +102,20 @@ export class AuthService {
     );
 
     if (this.isMockGoogleAuthMode()) {
+      const dbUser = await this.authRepository
+        .findByEmail(googlePayload.email)
+        .catch(() => null);
+
+      if (dbUser?.status === UserStatus.ACTIVE) {
+        const authenticatedUser = this.toAuthenticatedUser(dbUser);
+        const tokens = await this.issueAuthTokens(authenticatedUser);
+
+        return createApiResponse<LoginResponse>({
+          ...tokens,
+          user: this.toAuthUserResponse(authenticatedUser),
+        });
+      }
+
       const mockUser = MOCK_AUTH_USER_DEFINITIONS.find(
         (definition) =>
           definition.email.toLowerCase() === googlePayload.email.toLowerCase() &&
@@ -236,6 +250,14 @@ export class AuthService {
       payload.devSession &&
       (process.env.NODE_ENV !== 'production' || this.isMockGoogleAuthMode())
     ) {
+      const dbUser = await this.authRepository
+        .findByEmail(payload.email)
+        .catch(() => null);
+
+      if (dbUser?.status === UserStatus.ACTIVE) {
+        return this.toAuthenticatedUser(dbUser);
+      }
+
       const mockUser = MOCK_AUTH_USER_DEFINITIONS.find(
         (u) => u.id === payload.sub && u.status === 'ACTIVE',
       );
