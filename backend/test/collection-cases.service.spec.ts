@@ -1,0 +1,528 @@
+import { HttpStatus } from '@nestjs/common';
+import { CollectionCasesService } from '@/modules/collection-cases/collection-cases.service';
+import type { CollectionCasesRepository } from '@/modules/collection-cases/repositories/collection-cases.repository';
+import { mockCollectionCaseDetails } from '@/modules/collection-cases/mocks/collection-cases.mock';
+import { createPaginatedResponse } from '@/common/pagination/paginated-response';
+import type { PerformedByResolverService } from '@/modules/collection-cases/services/performed-by-resolver.service';
+import type { NotificationsService } from '@/modules/notifications/notifications.service';
+
+function createService(repository: CollectionCasesRepository) {
+  const resolvePerformedBy = jest.fn().mockReturnValue('usr_marina');
+  const performedByResolver = {
+    resolve: resolvePerformedBy,
+  } as unknown as PerformedByResolverService;
+  const notificationsService = {
+    notify: jest.fn().mockResolvedValue(undefined),
+  } as unknown as NotificationsService;
+
+  return {
+    service: new CollectionCasesService(
+      repository,
+      performedByResolver,
+      notificationsService,
+    ),
+    resolvePerformedBy,
+  };
+}
+
+function createRepository(
+  overrides: Partial<CollectionCasesRepository> = {},
+): CollectionCasesRepository {
+  return {
+    listCases: jest.fn(),
+    getCaseById: jest.fn(),
+    getCaseTimeline: jest.fn(),
+    createAttempt: jest.fn(),
+    createPromise: jest.fn(),
+    updatePromiseStatus: jest.fn(),
+    sendToCancellation: jest.fn(),
+    revertCancellation: jest.fn(),
+    assignCase: jest.fn(),
+    bulkAssignCases: jest.fn(),
+    autoDistributeCases: jest.fn(),
+    ...overrides,
+  };
+}
+
+describe('CollectionCasesService', () => {
+  it('usa contrato de repository para listagem', async () => {
+    const paginated = createPaginatedResponse([], 1, 10, 0);
+    const listCases = jest.fn().mockResolvedValue(paginated);
+    const repository = createRepository({ listCases });
+
+    const { service } = createService(repository);
+    const response = await service.listCases({ page: 1, limit: 10 });
+
+    expect(listCases).toHaveBeenCalledWith({ page: 1, limit: 10 });
+    expect(response.data.pagination.total).toBe(0);
+  });
+
+  it('retorna 404 quando repository nao encontra caso', async () => {
+    const repository = createRepository({
+      getCaseById: jest.fn().mockResolvedValue(null),
+    });
+
+    const { service } = createService(repository);
+
+    await expect(service.getCaseById('case_inexistente')).rejects.toMatchObject(
+      {
+        status: HttpStatus.NOT_FOUND,
+      },
+    );
+  });
+
+  it('retorna detalhe quando repository encontra caso', async () => {
+    const details = mockCollectionCaseDetails.case_0001;
+    const repository = createRepository({
+      getCaseById: jest.fn().mockResolvedValue(details),
+    });
+
+    const { service } = createService(repository);
+    const response = await service.getCaseById('case_0001');
+
+    expect(response.data.id).toBe('case_0001');
+  });
+
+  it('retorna timeline quando repository encontra caso', async () => {
+    const timeline = {
+      caseId: 'case_0001',
+      events: [
+        {
+          id: 'case-case_0001-created',
+          type: 'CASE_CREATED',
+          title: 'Caso de cobranca criado',
+          description: 'Caso aberto.',
+          occurredAt: new Date().toISOString(),
+        },
+      ],
+    };
+    const repository = createRepository({
+      getCaseTimeline: jest.fn().mockResolvedValue(timeline),
+    });
+
+    const { service } = createService(repository);
+    const response = await service.getCaseTimeline('case_0001');
+
+    expect(response.data.caseId).toBe('case_0001');
+    expect(response.data.events).toHaveLength(1);
+  });
+
+  it('retorna 404 ao buscar timeline de caso inexistente', async () => {
+    const repository = createRepository({
+      getCaseTimeline: jest.fn().mockResolvedValue(null),
+    });
+
+    const { service } = createService(repository);
+
+    await expect(
+      service.getCaseTimeline('case_inexistente'),
+    ).rejects.toMatchObject({
+      status: HttpStatus.NOT_FOUND,
+    });
+  });
+
+  it('cria tentativa quando repository retorna registro', async () => {
+    const attempt = {
+      id: 'att_new',
+      collectionCaseId: 'case_0001',
+      channel: 'PHONE',
+      result: 'CONTACTED',
+      attemptedAt: new Date().toISOString(),
+      notes: 'Cliente atendeu.',
+      nextContactAt: null,
+      performedByUserId: 'usr_marina',
+    };
+    const createAttempt = jest.fn().mockResolvedValue(attempt);
+    const repository = createRepository({ createAttempt });
+
+    const { service, resolvePerformedBy } = createService(repository);
+    const response = await service.createAttempt(
+      'case_0001',
+      {
+        channel: 'PHONE',
+        result: 'CONTACTED',
+        notes: 'Cliente atendeu.',
+      },
+      'usr_custom',
+    );
+
+    expect(resolvePerformedBy).toHaveBeenCalledWith('usr_custom');
+    expect(createAttempt).toHaveBeenCalledWith({
+      caseId: 'case_0001',
+      input: {
+        channel: 'PHONE',
+        result: 'CONTACTED',
+        notes: 'Cliente atendeu.',
+      },
+      performedByUserId: 'usr_marina',
+    });
+    expect(response.data.id).toBe('att_new');
+  });
+
+  it('retorna 404 ao criar tentativa para caso inexistente', async () => {
+    const repository = createRepository({
+      createAttempt: jest.fn().mockResolvedValue(null),
+    });
+
+    const { service } = createService(repository);
+
+    await expect(
+      service.createAttempt(
+        'case_inexistente',
+        {
+          channel: 'PHONE',
+          result: 'NO_ANSWER',
+        },
+        'usr_marina',
+      ),
+    ).rejects.toMatchObject({
+      status: HttpStatus.NOT_FOUND,
+    });
+  });
+
+  it('cria promessa quando repository retorna registro', async () => {
+    const promise = {
+      id: 'prm_new',
+      collectionCaseId: 'case_0001',
+      status: 'ACTIVE',
+      promisedAmount: '1500.00',
+      promisedDate: '2026-07-01T00:00:00.000Z',
+      notes: 'Acordo confirmado.',
+      fulfilledAt: null,
+      brokenAt: null,
+      cancelledAt: null,
+      createdAt: new Date().toISOString(),
+      createdByUserId: 'usr_marina',
+    };
+    const createPromise = jest.fn().mockResolvedValue(promise);
+    const repository = createRepository({ createPromise });
+
+    const { service, resolvePerformedBy } = createService(repository);
+    const response = await service.createPromise(
+      'case_0001',
+      {
+        promisedAmount: 1500,
+        promisedDate: '2026-07-01T00:00:00.000Z',
+        notes: 'Acordo confirmado.',
+      },
+      'usr_custom',
+    );
+
+    expect(resolvePerformedBy).toHaveBeenCalledWith('usr_custom');
+    expect(createPromise).toHaveBeenCalledWith({
+      caseId: 'case_0001',
+      input: {
+        promisedAmount: 1500,
+        promisedDate: '2026-07-01T00:00:00.000Z',
+        notes: 'Acordo confirmado.',
+      },
+      createdByUserId: 'usr_marina',
+    });
+    expect(response.data.id).toBe('prm_new');
+  });
+
+  it('retorna 404 ao criar promessa para caso inexistente', async () => {
+    const repository = createRepository({
+      createPromise: jest.fn().mockResolvedValue(null),
+    });
+
+    const { service } = createService(repository);
+
+    await expect(
+      service.createPromise(
+        'case_inexistente',
+        {
+          promisedAmount: 100,
+          promisedDate: '2026-07-01T00:00:00.000Z',
+        },
+        'usr_marina',
+      ),
+    ).rejects.toMatchObject({
+      status: HttpStatus.NOT_FOUND,
+    });
+  });
+
+  it('atribui caso a um usuario e resolve o executor', async () => {
+    const details = mockCollectionCaseDetails.case_0001;
+    const assignCase = jest
+      .fn()
+      .mockResolvedValue({ outcome: 'success', case: details });
+    const repository = createRepository({ assignCase });
+
+    const { service, resolvePerformedBy } = createService(repository);
+    const response = await service.assignCase(
+      'case_0001',
+      { assignedUserId: 'usr_carlos' },
+      'usr_custom',
+    );
+
+    expect(resolvePerformedBy).toHaveBeenCalledWith('usr_custom');
+    expect(assignCase).toHaveBeenCalledWith({
+      caseId: 'case_0001',
+      assignedUserId: 'usr_carlos',
+      performedByUserId: 'usr_marina',
+    });
+    expect(response.data.id).toBe('case_0001');
+  });
+
+  it('remove a atribuicao quando assignedUserId nao e informado', async () => {
+    const details = mockCollectionCaseDetails.case_0001;
+    const assignCase = jest
+      .fn()
+      .mockResolvedValue({ outcome: 'success', case: details });
+    const repository = createRepository({ assignCase });
+
+    const { service } = createService(repository);
+    await service.assignCase('case_0001', {}, 'usr_marina');
+
+    expect(assignCase).toHaveBeenCalledWith({
+      caseId: 'case_0001',
+      assignedUserId: null,
+      performedByUserId: 'usr_marina',
+    });
+  });
+
+  it('retorna 404 ao atribuir caso inexistente', async () => {
+    const repository = createRepository({
+      assignCase: jest.fn().mockResolvedValue({ outcome: 'case_not_found' }),
+    });
+
+    const { service } = createService(repository);
+
+    await expect(
+      service.assignCase(
+        'case_inexistente',
+        { assignedUserId: 'x' },
+        'usr_marina',
+      ),
+    ).rejects.toMatchObject({ status: HttpStatus.NOT_FOUND });
+  });
+
+  it('retorna 422 ao atribuir usuario inexistente ou inativo', async () => {
+    const repository = createRepository({
+      assignCase: jest.fn().mockResolvedValue({ outcome: 'user_not_found' }),
+    });
+
+    const { service } = createService(repository);
+
+    await expect(
+      service.assignCase(
+        'case_0001',
+        { assignedUserId: 'inativo' },
+        'usr_marina',
+      ),
+    ).rejects.toMatchObject({ status: HttpStatus.UNPROCESSABLE_ENTITY });
+  });
+
+  it('marca promessa como cumprida quando repository retorna sucesso', async () => {
+    const promise = {
+      id: 'prm_new',
+      collectionCaseId: 'case_0001',
+      status: 'FULFILLED',
+      promisedAmount: '1500.00',
+      promisedDate: '2026-07-01T00:00:00.000Z',
+      notes: null,
+      fulfilledAt: new Date().toISOString(),
+      brokenAt: null,
+      cancelledAt: null,
+      createdAt: new Date().toISOString(),
+      createdByUserId: 'usr_marina',
+    };
+    const updatePromiseStatus = jest
+      .fn()
+      .mockResolvedValue({ outcome: 'success', promise });
+    const repository = createRepository({ updatePromiseStatus });
+
+    const { service, resolvePerformedBy } = createService(repository);
+    const response = await service.fulfillPromise(
+      'case_0001',
+      'prm_new',
+      { notes: 'Pagamento confirmado.' },
+      'usr_custom',
+    );
+
+    expect(resolvePerformedBy).toHaveBeenCalledWith('usr_custom');
+    expect(updatePromiseStatus).toHaveBeenCalledWith({
+      caseId: 'case_0001',
+      promiseId: 'prm_new',
+      action: 'FULFILLED',
+      input: { notes: 'Pagamento confirmado.' },
+      performedByUserId: 'usr_marina',
+    });
+    expect(response.data).toMatchObject({ status: 'FULFILLED' });
+  });
+
+  it('retorna 409 ao tentar alterar promessa com transicao invalida', async () => {
+    const repository = createRepository({
+      updatePromiseStatus: jest.fn().mockResolvedValue({
+        outcome: 'invalid_transition',
+        currentStatus: 'FULFILLED',
+      }),
+    });
+
+    const { service } = createService(repository);
+
+    await expect(
+      service.breakPromise('case_0001', 'prm_new', {}, 'usr_marina'),
+    ).rejects.toMatchObject({
+      status: HttpStatus.CONFLICT,
+    });
+  });
+
+  it('retorna 404 ao atualizar promessa inexistente', async () => {
+    const repository = createRepository({
+      updatePromiseStatus: jest.fn().mockResolvedValue({
+        outcome: 'promise_not_found',
+      }),
+    });
+
+    const { service } = createService(repository);
+
+    await expect(
+      service.cancelPromise('case_0001', 'prm_missing', {}, 'usr_marina'),
+    ).rejects.toMatchObject({
+      status: HttpStatus.NOT_FOUND,
+    });
+  });
+
+  it('encaminha caso para cancelamento quando repository retorna sucesso', async () => {
+    const cancellationProcess = {
+      id: 'can_new',
+      collectionCaseId: 'case_0001',
+      status: 'PENDING',
+      reason: 'Cliente recusou acordo.',
+      notes: null,
+      startedAt: new Date().toISOString(),
+      completedAt: null,
+      createdAt: new Date().toISOString(),
+    };
+    const sendToCancellation = jest
+      .fn()
+      .mockResolvedValue({ outcome: 'success', cancellationProcess });
+    const repository = createRepository({ sendToCancellation });
+
+    const { service, resolvePerformedBy } = createService(repository);
+    const response = await service.sendToCancellation(
+      'case_0001',
+      { reason: 'Cliente recusou acordo.' },
+      'usr_custom',
+    );
+
+    expect(resolvePerformedBy).toHaveBeenCalledWith('usr_custom');
+    expect(sendToCancellation).toHaveBeenCalledWith({
+      caseId: 'case_0001',
+      input: { reason: 'Cliente recusou acordo.' },
+      performedByUserId: 'usr_marina',
+    });
+    expect(response.data.id).toBe('can_new');
+  });
+
+  it('retorna 409 ao encaminhar caso ja em cancelamento', async () => {
+    const repository = createRepository({
+      sendToCancellation: jest
+        .fn()
+        .mockResolvedValue({ outcome: 'already_in_cancellation' }),
+    });
+
+    const { service } = createService(repository);
+
+    await expect(
+      service.sendToCancellation(
+        'case_0001',
+        {
+          reason: 'Cliente recusou acordo.',
+        },
+        'usr_marina',
+      ),
+    ).rejects.toMatchObject({
+      status: HttpStatus.CONFLICT,
+    });
+  });
+
+  it('retorna 409 ao encaminhar caso com status nao permitido', async () => {
+    const repository = createRepository({
+      sendToCancellation: jest.fn().mockResolvedValue({
+        outcome: 'status_not_allowed',
+        currentStatus: 'RECOVERED',
+      }),
+    });
+
+    const { service } = createService(repository);
+
+    await expect(
+      service.sendToCancellation(
+        'case_0001',
+        {
+          reason: 'Cliente recusou acordo.',
+        },
+        'usr_marina',
+      ),
+    ).rejects.toMatchObject({
+      status: HttpStatus.CONFLICT,
+    });
+  });
+
+  it('reverte cancelamento e credita o responsavel resolvido', async () => {
+    const details = mockCollectionCaseDetails.case_0001;
+    const revertCancellation = jest
+      .fn()
+      .mockResolvedValue({ outcome: 'success', case: details });
+    const repository = createRepository({ revertCancellation });
+
+    const { service, resolvePerformedBy } = createService(repository);
+    const response = await service.revertCancellation(
+      'case_0001',
+      { reason: 'Cliente reteve o contrato.' },
+      'usr_custom',
+    );
+
+    expect(resolvePerformedBy).toHaveBeenCalledWith('usr_custom');
+    expect(revertCancellation).toHaveBeenCalledWith({
+      caseId: 'case_0001',
+      input: { reason: 'Cliente reteve o contrato.' },
+      performedByUserId: 'usr_marina',
+    });
+    expect(response.data.id).toBe('case_0001');
+  });
+
+  it('retorna 404 ao reverter caso inexistente', async () => {
+    const repository = createRepository({
+      revertCancellation: jest
+        .fn()
+        .mockResolvedValue({ outcome: 'case_not_found' }),
+    });
+
+    const { service } = createService(repository);
+
+    await expect(
+      service.revertCancellation(
+        'case_inexistente',
+        { reason: 'Cliente reteve o contrato.' },
+        'usr_marina',
+      ),
+    ).rejects.toMatchObject({
+      status: HttpStatus.NOT_FOUND,
+    });
+  });
+
+  it('retorna 409 ao reverter caso com status nao permitido', async () => {
+    const repository = createRepository({
+      revertCancellation: jest.fn().mockResolvedValue({
+        outcome: 'status_not_allowed',
+        currentStatus: 'CLOSED',
+      }),
+    });
+
+    const { service } = createService(repository);
+
+    await expect(
+      service.revertCancellation(
+        'case_0001',
+        { reason: 'Cliente reteve o contrato.' },
+        'usr_marina',
+      ),
+    ).rejects.toMatchObject({
+      status: HttpStatus.CONFLICT,
+    });
+  });
+});

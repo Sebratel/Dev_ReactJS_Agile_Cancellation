@@ -1,0 +1,513 @@
+import {
+  CancellationStatus,
+  CancellationStepStatus,
+  CollectionStatus,
+  InvoiceStatus,
+  PaymentPromiseStatus,
+  UserStatus,
+} from '@prisma/client';
+import { Injectable } from '@nestjs/common';
+import { formatDecimal } from '@/common/utils/decimal.util';
+import { PrismaService } from '@/database/prisma/prisma.service';
+import type { DashboardOperationsResponse } from '@/modules/dashboard/dto/dashboard-operations.response';
+import type {
+  DashboardOperationalAlert,
+  DashboardRecoveryTrendItem,
+  DashboardStatusDistributionItem,
+  DashboardSummaryResponse,
+} from '@/modules/dashboard/dto/dashboard-summary.response';
+import type {
+  DashboardRecoveryRankingItem,
+  DashboardRecoveryRankingResponse,
+} from '@/modules/dashboard/dto/dashboard-ranking.response';
+import type {
+  DashboardRepository,
+  RecoveryRankingParams,
+} from '@/modules/dashboard/repositories/dashboard.repository';
+import {
+  calculateAverageCompletionDays,
+  calculateFulfillmentRate,
+  resolveMostBlockedStep,
+} from '@/modules/dashboard/utils/dashboard-operations.utils';
+
+const STATUS_LABELS: Record<CollectionStatus, string> = {
+  WAITING_TRIAGE: 'Aguardando triagem',
+  IN_COLLECTION: 'Em cobranca',
+  AWAITING_PAYMENT: 'Aguardando pagamento',
+  NO_RESPONSE: 'Sem resposta',
+  ELIGIBLE_FOR_CANCELLATION: 'Elegivel para cancelamento',
+  CANCELLATION_IN_PROGRESS: 'Cancelamento em andamento',
+  CLOSED: 'Encerrado',
+  RECOVERED: 'Recuperado',
+};
+
+const ACTIVE_CANCELLATION_STATUSES: CancellationStatus[] = [
+  CancellationStatus.PENDING,
+  CancellationStatus.IN_PROGRESS,
+  CancellationStatus.AWAITING_PROTOCOL,
+  CancellationStatus.AWAITING_PICKUP,
+];
+
+const CLOSED_COLLECTION_STATUSES: CollectionStatus[] = [
+  CollectionStatus.CLOSED,
+  CollectionStatus.RECOVERED,
+];
+
+@Injectable()
+export class DashboardPrismaRepository implements DashboardRepository {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async getSummary(): Promise<DashboardSummaryResponse> {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const todayStart = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+    );
+    const todayEnd = new Date(todayStart);
+    todayEnd.setDate(todayEnd.getDate() + 1);
+
+    const [
+      delinquentCustomers,
+      openAmountAggregate,
+      inCollection,
+      eligibleForCancellation,
+      recoveredMonthAggregate,
+      activePromises,
+      overduePromises,
+      cancellationsInProgress,
+      statusGroups,
+      casesWithoutAttempts,
+      slaBreachedCases,
+      awaitingProtocolCancellations,
+      promisesDueToday,
+      activeAgentsCount,
+      agentsWithActivityToday,
+    ] = await Promise.all([
+      this.prisma.customer.count({
+        where: {
+          OR: [
+            {
+              collectionCases: {
+                some: { daysOverdue: { gt: 0 } },
+              },
+            },
+            {
+              contracts: {
+                some: {
+                  invoices: {
+                    some: {
+                      status: {
+                        in: [InvoiceStatus.OPEN, InvoiceStatus.OVERDUE],
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+      }),
+      this.prisma.collectionCase.aggregate({
+        _sum: { outstandingAmount: true },
+      }),
+      this.prisma.collectionCase.count({
+        where: { status: CollectionStatus.IN_COLLECTION },
+      }),
+      this.prisma.collectionCase.count({
+        where: { status: CollectionStatus.ELIGIBLE_FOR_CANCELLATION },
+      }),
+      this.prisma.invoice.aggregate({
+        where: {
+          status: InvoiceStatus.PAID,
+          updatedAt: { gte: monthStart, lt: monthEnd },
+        },
+        _sum: { paidAmount: true },
+      }),
+      this.prisma.paymentPromise.count({
+        where: { status: PaymentPromiseStatus.ACTIVE },
+      }),
+      this.prisma.paymentPromise.count({
+        where: {
+          OR: [
+            {
+              status: PaymentPromiseStatus.ACTIVE,
+              promisedDate: { lt: now },
+            },
+            {
+              status: {
+                in: [PaymentPromiseStatus.BROKEN, PaymentPromiseStatus.EXPIRED],
+              },
+            },
+          ],
+        },
+      }),
+      this.prisma.cancellationProcess.count({
+        where: { status: { in: ACTIVE_CANCELLATION_STATUSES } },
+      }),
+      this.prisma.collectionCase.groupBy({
+        by: ['status'],
+        _count: { _all: true },
+      }),
+      this.prisma.collectionCase.count({
+        where: { collectionAttempts: { none: {} } },
+      }),
+      this.prisma.collectionCase.count({
+        where: {
+          slaDueAt: { lt: now },
+          status: {
+            notIn: [CollectionStatus.CLOSED, CollectionStatus.RECOVERED],
+          },
+        },
+      }),
+      this.prisma.cancellationProcess.count({
+        where: { status: CancellationStatus.AWAITING_PROTOCOL },
+      }),
+      this.prisma.paymentPromise.count({
+        where: {
+          status: PaymentPromiseStatus.ACTIVE,
+          promisedDate: { gte: todayStart, lt: todayEnd },
+        },
+      }),
+      this.prisma.user.count({
+        where: {
+          status: UserStatus.ACTIVE,
+          userRoles: {
+            some: {
+              role: { code: { in: ['COLLECTION_AGENT', 'CANCELLATION_AGENT'] } },
+            },
+          },
+        },
+      }),
+      this.prisma.collectionAttempt.groupBy({
+        by: ['performedByUserId'],
+        where: {
+          performedByUserId: { not: null },
+          attemptedAt: { gte: todayStart, lt: todayEnd },
+        },
+      }),
+    ]);
+
+    const inactiveAgents = Math.max(
+      activeAgentsCount - agentsWithActivityToday.length,
+      0,
+    );
+
+    const statusDistribution: DashboardStatusDistributionItem[] =
+      statusGroups.map((group) => ({
+        status: group.status,
+        label: STATUS_LABELS[group.status],
+        count: group._count._all,
+      }));
+
+    const recoveryTrend = await this.buildRecoveryTrend(monthStart, monthEnd);
+
+    const operationalAlerts: DashboardOperationalAlert[] = [
+      {
+        key: 'overduePromises',
+        title: 'Promessas vencidas',
+        description:
+          'Clientes com promessa descumprida aguardando reabordagem.',
+        count: overduePromises,
+      },
+      {
+        key: 'noContactAttempt',
+        title: 'Casos sem tentativa de contato',
+        description:
+          'Itens sem primeira acao registrada dentro da janela esperada.',
+        count: casesWithoutAttempts,
+      },
+      {
+        key: 'slaBreached',
+        title: 'Casos com SLA vencido',
+        description:
+          'Ocorrencias fora do prazo operacional definido pela supervisao.',
+        count: slaBreachedCases,
+      },
+      {
+        key: 'awaitingProtocol',
+        title: 'Cancelamentos aguardando protocolo',
+        description:
+          'Processos sem protocolo de retirada devidamente registrado.',
+        count: awaitingProtocolCancellations,
+      },
+      {
+        key: 'promisesDueToday',
+        title: 'Promessas vencendo hoje',
+        description:
+          'Acordos de pagamento com vencimento previsto para o dia de hoje.',
+        count: promisesDueToday,
+      },
+      {
+        key: 'inactiveAgents',
+        title: 'Agentes sem atividade hoje',
+        description:
+          'Agentes ativos sem nenhuma tentativa de contato registrada hoje.',
+        count: inactiveAgents,
+      },
+    ];
+
+    return {
+      metrics: {
+        delinquentCustomers,
+        openAmount: formatDecimal(openAmountAggregate._sum.outstandingAmount),
+        inCollection,
+        eligibleForCancellation,
+        recoveredMonth: formatDecimal(recoveredMonthAggregate._sum.paidAmount),
+        activePromises,
+        overduePromises,
+        cancellationsInProgress,
+      },
+      statusDistribution,
+      recoveryTrend,
+      operationalAlerts,
+    };
+  }
+
+  async getOperations(): Promise<DashboardOperationsResponse> {
+    const now = new Date();
+    const todayStart = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+    );
+    const tomorrowStart = new Date(todayStart);
+    tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+
+    const [
+      activeCases,
+      newCasesToday,
+      casesWithoutInteraction,
+      overdueSlaCases,
+      activePromises,
+      fulfilledPromises,
+      brokenPromises,
+      cancellationsInProgress,
+      cancellationsCompleted,
+      outstandingAmountAggregate,
+      promisedAmountAggregate,
+      recoveredAmountAggregate,
+      cancelledAmountAggregate,
+      pendingStepGroups,
+      completedProcesses,
+    ] = await Promise.all([
+      this.prisma.collectionCase.count({
+        where: { status: { notIn: CLOSED_COLLECTION_STATUSES } },
+      }),
+      this.prisma.collectionCase.count({
+        where: {
+          createdAt: { gte: todayStart, lt: tomorrowStart },
+        },
+      }),
+      this.prisma.collectionCase.count({
+        where: { collectionAttempts: { none: {} } },
+      }),
+      this.prisma.collectionCase.count({
+        where: {
+          slaDueAt: { lt: now },
+          status: { notIn: CLOSED_COLLECTION_STATUSES },
+        },
+      }),
+      this.prisma.paymentPromise.count({
+        where: { status: PaymentPromiseStatus.ACTIVE },
+      }),
+      this.prisma.paymentPromise.count({
+        where: { status: PaymentPromiseStatus.FULFILLED },
+      }),
+      this.prisma.paymentPromise.count({
+        where: { status: PaymentPromiseStatus.BROKEN },
+      }),
+      this.prisma.cancellationProcess.count({
+        where: { status: CancellationStatus.IN_PROGRESS },
+      }),
+      this.prisma.cancellationProcess.count({
+        where: { status: CancellationStatus.COMPLETED },
+      }),
+      this.prisma.collectionCase.aggregate({
+        _sum: { outstandingAmount: true },
+      }),
+      this.prisma.paymentPromise.aggregate({
+        where: { status: PaymentPromiseStatus.ACTIVE },
+        _sum: { promisedAmount: true },
+      }),
+      this.prisma.paymentPromise.aggregate({
+        where: { status: PaymentPromiseStatus.FULFILLED },
+        _sum: { promisedAmount: true },
+      }),
+      this.prisma.collectionCase.aggregate({
+        where: {
+          status: CollectionStatus.CLOSED,
+          cancellationProcesses: {
+            some: { status: CancellationStatus.COMPLETED },
+          },
+        },
+        _sum: { outstandingAmount: true },
+      }),
+      this.prisma.cancellationStep.groupBy({
+        by: ['name'],
+        where: { status: CancellationStepStatus.PENDING },
+        _count: { _all: true },
+        orderBy: { _count: { name: 'desc' } },
+        take: 1,
+      }),
+      this.prisma.cancellationProcess.findMany({
+        where: {
+          status: CancellationStatus.COMPLETED,
+          completedAt: { not: null },
+        },
+        select: {
+          createdAt: true,
+          completedAt: true,
+        },
+      }),
+    ]);
+
+    return {
+      collection: {
+        activeCases,
+        newCasesToday,
+        casesWithoutInteraction,
+        overdueSlaCases,
+      },
+      promises: {
+        activePromises,
+        fulfilledPromises,
+        brokenPromises,
+        fulfillmentRate: calculateFulfillmentRate(
+          fulfilledPromises,
+          brokenPromises,
+        ),
+      },
+      cancellations: {
+        inProgress: cancellationsInProgress,
+        completed: cancellationsCompleted,
+        averageCompletionDays:
+          calculateAverageCompletionDays(completedProcesses),
+        mostBlockedStep: resolveMostBlockedStep(pendingStepGroups),
+      },
+      financial: {
+        outstandingAmount: formatDecimal(
+          outstandingAmountAggregate._sum.outstandingAmount,
+        ),
+        promisedAmount: formatDecimal(
+          promisedAmountAggregate._sum.promisedAmount,
+        ),
+        recoveredAmount: formatDecimal(
+          recoveredAmountAggregate._sum.promisedAmount,
+        ),
+        cancelledAmount: formatDecimal(
+          cancelledAmountAggregate._sum.outstandingAmount,
+        ),
+      },
+    };
+  }
+
+  async getRecoveryRanking({
+    from,
+    to,
+  }: RecoveryRankingParams): Promise<DashboardRecoveryRankingResponse> {
+    const grouped = await this.prisma.collectionCase.groupBy({
+      by: ['assignedUserId'],
+      where: {
+        status: CollectionStatus.RECOVERED,
+        recoveredAt: { gte: from, lt: to },
+        assignedUserId: { not: null },
+      },
+      _sum: { outstandingAmount: true },
+      _count: { _all: true },
+    });
+
+    const userIds = grouped
+      .map((group) => group.assignedUserId)
+      .filter((id): id is string => id !== null);
+
+    const users =
+      userIds.length > 0
+        ? await this.prisma.user.findMany({
+            where: { id: { in: userIds } },
+            select: { id: true, name: true },
+          })
+        : [];
+
+    const nameById = new Map(users.map((user) => [user.id, user.name]));
+
+    const ranking: DashboardRecoveryRankingItem[] = grouped
+      .map((group) => ({
+        userId: group.assignedUserId as string,
+        name: nameById.get(group.assignedUserId as string) ?? 'Sem nome',
+        recoveredAmountValue: Number(
+          group._sum.outstandingAmount?.toString() ?? '0',
+        ),
+        recoveredCases: group._count._all,
+      }))
+      .sort((a, b) => b.recoveredAmountValue - a.recoveredAmountValue)
+      .map((item, index) => ({
+        rank: index + 1,
+        userId: item.userId,
+        name: item.name,
+        recoveredAmount: item.recoveredAmountValue.toFixed(2),
+        recoveredCases: item.recoveredCases,
+      }));
+
+    const totalRecoveredAmount = ranking.reduce(
+      (total, item) => total + Number(item.recoveredAmount),
+      0,
+    );
+    const totalRecoveredCases = ranking.reduce(
+      (total, item) => total + item.recoveredCases,
+      0,
+    );
+
+    return {
+      periodFrom: from.toISOString(),
+      periodTo: to.toISOString(),
+      totalRecoveredAmount: totalRecoveredAmount.toFixed(2),
+      totalRecoveredCases,
+      ranking,
+    };
+  }
+
+  private async buildRecoveryTrend(
+    monthStart: Date,
+    monthEnd: Date,
+  ): Promise<DashboardRecoveryTrendItem[]> {
+    const recoveredCases = await this.prisma.collectionCase.findMany({
+      where: {
+        status: CollectionStatus.RECOVERED,
+        updatedAt: { gte: monthStart, lt: monthEnd },
+      },
+      select: {
+        updatedAt: true,
+        outstandingAmount: true,
+      },
+    });
+
+    const trend: DashboardRecoveryTrendItem[] = [];
+
+    for (let dayIndex = 0; dayIndex < 7; dayIndex += 1) {
+      const dayStart = new Date(monthStart);
+      dayStart.setDate(monthStart.getDate() + dayIndex);
+      const dayEnd = new Date(dayStart);
+      dayEnd.setDate(dayEnd.getDate() + 1);
+
+      const dayCases = recoveredCases.filter(
+        (item) => item.updatedAt >= dayStart && item.updatedAt < dayEnd,
+      );
+
+      const recoveredAmount = dayCases.reduce(
+        (total, item) => total + Number(item.outstandingAmount.toString()),
+        0,
+      );
+
+      trend.push({
+        dayLabel: `Dia ${dayIndex + 1}`,
+        recoveredAmount: recoveredAmount.toFixed(2),
+        recoveredCases: dayCases.length,
+      });
+    }
+
+    return trend;
+  }
+}

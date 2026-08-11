@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+    branches: [staging, massivas-integracao]
+  pull_request:
+    branches: [staging, massivas-integracao]
+
+jobs:
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Security scan
+        run: npm run security:scan
+
+      - name: Tests
+        run: npm run test:run
+        env:
+          VITE_API_BASE_URL: http://localhost:4000
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_API_BASE_URL: http://localhost:4000
+
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - run: npm ci
+
+      - name: Prisma generate
+        run: npx prisma generate
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Security scan
+        run: npm run security:scan
+
+      - name: Tests
+        run: npm run test:run
+        env:
+          DATA_SOURCE_MODE: mock
+          PRISMA_AUTO_CONNECT: 'false'
+          JWT_SECRET: ci-test-secret-placeholder-not-production
+
+      - name: Build
+        run: npm run build

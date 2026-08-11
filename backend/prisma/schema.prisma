@@ -1,0 +1,431 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+  PENDING_ACTIVATION
+}
+
+enum ContractStatus {
+  ACTIVE
+  SUSPENDED
+  TERMINATED
+  CANCELLED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  PARTIALLY_PAID
+  OVERDUE
+  CANCELLED
+  WRITTEN_OFF
+}
+
+enum CollectionStatus {
+  WAITING_TRIAGE
+  IN_COLLECTION
+  AWAITING_PAYMENT
+  NO_RESPONSE
+  ELIGIBLE_FOR_CANCELLATION
+  CANCELLATION_IN_PROGRESS
+  CLOSED
+  RECOVERED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum AttemptChannel {
+  PHONE
+  EMAIL
+  SMS
+  WHATSAPP
+  LETTER
+  IN_PERSON
+  OTHER
+}
+
+enum AttemptResult {
+  CONTACTED
+  NO_ANSWER
+  VOICEMAIL
+  PROMISE_MADE
+  REFUSED
+  WRONG_NUMBER
+  CALLBACK_REQUESTED
+  OTHER
+}
+
+enum PaymentPromiseStatus {
+  ACTIVE
+  FULFILLED
+  BROKEN
+  CANCELLED
+  EXPIRED
+}
+
+enum CancellationStatus {
+  PENDING
+  IN_PROGRESS
+  AWAITING_PROTOCOL
+  AWAITING_PICKUP
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+enum CancellationStepStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  SKIPPED
+  FAILED
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  STATUS_CHANGE
+  LOGIN
+  LOGOUT
+  EXPORT
+  IMPORT
+  INTEGRATION
+}
+
+enum IntegrationEventStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  RETRYING
+  DISCARDED
+}
+
+model User {
+  id               String     @id @default(cuid())
+  email            String     @unique
+  name             String
+  status           UserStatus @default(ACTIVE)
+  lastLoginAt      DateTime?
+  refreshTokenHash String?
+  externalId       String?    @unique
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  userRoles               UserRole[]
+  assignedCollectionCases CollectionCase[]    @relation("CollectionCaseAssignee")
+  collectionAttempts      CollectionAttempt[] @relation("CollectionAttemptPerformer")
+  auditLogs               AuditLog[]
+  caseNotes               CaseNote[]          @relation("CaseNoteAuthor")
+  notifications           Notification[]
+
+  @@index([status])
+  @@index([name])
+  @@map("users")
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String
+  code        String   @unique
+  description String?
+  externalId  String?  @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userRoles UserRole[]
+
+  @@index([name])
+  @@map("roles")
+}
+
+model UserRole {
+  id         String   @id @default(cuid())
+  userId     String
+  roleId     String
+  assignedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@index([roleId])
+  @@map("user_roles")
+}
+
+model Customer {
+  id         String   @id @default(cuid())
+  name       String
+  document   String   @unique
+  email      String?
+  phone      String?
+  externalId String?  @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  contracts             Contract[]
+  collectionCases       CollectionCase[]
+  cancellationProcesses CancellationProcess[]
+
+  @@index([name])
+  @@index([email])
+  @@map("customers")
+}
+
+model Contract {
+  id           String         @id @default(cuid())
+  customerId   String
+  code         String         @unique
+  status       ContractStatus @default(ACTIVE)
+  startDate    DateTime
+  endDate      DateTime?
+  totalValue   Decimal?       @db.Decimal(15, 2)
+  monthlyValue Decimal?       @db.Decimal(15, 2)
+  externalId   String?        @unique
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  customer              Customer              @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  invoices              Invoice[]
+  collectionCases       CollectionCase[]
+  cancellationProcesses CancellationProcess[]
+
+  @@index([customerId])
+  @@index([status])
+  @@index([startDate])
+  @@map("contracts")
+}
+
+model Invoice {
+  id            String        @id @default(cuid())
+  contractId    String
+  invoiceNumber String?
+  status        InvoiceStatus @default(OPEN)
+  dueDate       DateTime
+  amount        Decimal       @db.Decimal(15, 2)
+  paidAmount    Decimal       @default(0) @db.Decimal(15, 2)
+  externalId    String?       @unique
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([contractId])
+  @@index([status])
+  @@index([dueDate])
+  @@map("invoices")
+}
+
+model CollectionCase {
+  id                String           @id @default(cuid())
+  contractId        String
+  customerId        String
+  assignedUserId    String?
+  status            CollectionStatus @default(WAITING_TRIAGE)
+  priority          Priority         @default(MEDIUM)
+  outstandingAmount Decimal          @db.Decimal(15, 2)
+  daysOverdue       Int              @default(0)
+  externalId        String?          @unique
+  slaDueAt          DateTime?
+  recoveredAt       DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  contract              Contract              @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  customer              Customer              @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  assignedUser          User?                 @relation("CollectionCaseAssignee", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  collectionAttempts    CollectionAttempt[]
+  paymentPromises       PaymentPromise[]
+  cancellationProcesses CancellationProcess[]
+  caseNotes             CaseNote[]
+
+  @@index([contractId])
+  @@index([customerId])
+  @@index([assignedUserId])
+  @@index([status])
+  @@index([priority])
+  @@index([daysOverdue])
+  @@index([slaDueAt])
+  @@index([recoveredAt])
+  @@map("collection_cases")
+}
+
+model CollectionAttempt {
+  id                String         @id @default(cuid())
+  collectionCaseId  String
+  performedByUserId String?
+  channel           AttemptChannel
+  result            AttemptResult
+  attemptedAt       DateTime
+  nextContactAt     DateTime?
+  notes             String?        @db.Text
+  externalId        String?        @unique
+  createdAt         DateTime       @default(now())
+
+  collectionCase CollectionCase @relation(fields: [collectionCaseId], references: [id], onDelete: Cascade)
+  performedBy    User?          @relation("CollectionAttemptPerformer", fields: [performedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([collectionCaseId])
+  @@index([performedByUserId])
+  @@index([attemptedAt])
+  @@index([nextContactAt])
+  @@index([channel])
+  @@index([result])
+  @@map("collection_attempts")
+}
+
+model CaseNote {
+  id               String   @id @default(cuid())
+  collectionCaseId String
+  authorId         String?
+  content          String   @db.Text
+  createdAt        DateTime @default(now())
+
+  collectionCase CollectionCase @relation(fields: [collectionCaseId], references: [id], onDelete: Cascade)
+  author         User?          @relation("CaseNoteAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([collectionCaseId])
+  @@index([authorId])
+  @@index([createdAt])
+  @@map("case_notes")
+}
+
+model PaymentPromise {
+  id               String               @id @default(cuid())
+  collectionCaseId String
+  status           PaymentPromiseStatus @default(ACTIVE)
+  promisedAmount   Decimal              @db.Decimal(15, 2)
+  promisedDate     DateTime
+  notes            String?              @db.Text
+  fulfilledAt      DateTime?
+  brokenAt         DateTime?
+  cancelledAt      DateTime?
+  externalId       String?              @unique
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  collectionCase CollectionCase @relation(fields: [collectionCaseId], references: [id], onDelete: Cascade)
+
+  @@index([collectionCaseId])
+  @@index([status])
+  @@index([promisedDate])
+  @@map("payment_promises")
+}
+
+model CancellationProcess {
+  id               String             @id @default(cuid())
+  collectionCaseId String?
+  contractId       String
+  customerId       String
+  status           CancellationStatus @default(PENDING)
+  externalId       String?            @unique
+  startedAt        DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  collectionCase CollectionCase?    @relation(fields: [collectionCaseId], references: [id], onDelete: SetNull)
+  contract       Contract           @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  customer       Customer           @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  steps          CancellationStep[]
+
+  @@index([collectionCaseId])
+  @@index([contractId])
+  @@index([customerId])
+  @@index([status])
+  @@map("cancellation_processes")
+}
+
+model CancellationStep {
+  id                    String                 @id @default(cuid())
+  cancellationProcessId String
+  name                  String
+  stepOrder             Int
+  status                CancellationStepStatus @default(PENDING)
+  completedAt           DateTime?
+  metadata              Json?
+  externalId            String?                @unique
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  cancellationProcess CancellationProcess @relation(fields: [cancellationProcessId], references: [id], onDelete: Cascade)
+
+  @@index([cancellationProcessId])
+  @@index([status])
+  @@index([stepOrder])
+  @@map("cancellation_steps")
+}
+
+model AuditLog {
+  id                String      @id @default(cuid())
+  entityType        String
+  entityId          String
+  action            AuditAction
+  performedByUserId String?
+  beforeSnapshot    Json?
+  afterSnapshot     Json?
+  metadata          Json?
+  createdAt         DateTime    @default(now())
+
+  performedBy User? @relation(fields: [performedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([performedByUserId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model IntegrationEvent {
+  id           String                 @id @default(cuid())
+  source       String
+  eventType    String
+  externalId   String?                @unique
+  status       IntegrationEventStatus @default(PENDING)
+  payload      Json?
+  errorMessage String?                @db.Text
+  processedAt  DateTime?
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+
+  @@index([source])
+  @@index([eventType])
+  @@index([status])
+  @@index([createdAt])
+  @@map("integration_events")
+}
+
+model Notification {
+  id         String    @id @default(cuid())
+  userId     String
+  type       String
+  title      String
+  body       String    @db.Text
+  entityType String?
+  entityId   String?
+  readAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([readAt])
+  @@index([createdAt])
+  @@map("notifications")
+}

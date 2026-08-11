@@ -1,0 +1,20 @@
+:root {
+  --background: 42 35% 93%;
+  --foreground: 0 0% 7%;
+  --card: 0 0% 100%;
+  --primary: 41 100% 50%;
+  --success: 142 72% 37%;
+  --warning: 26 90% 37%;
+  --danger: 0 72% 50%;
+  --neutral: 35 8% 46%;
+  --border: 39 22% 87%;
+  --muted: 42 20% 96%;
+
+  /* Tokens da tela de login — Design System Sebratel (LOGIN_SCREEN_SPEC) */
+  --login-surface: 60 5.9% 93.3%; /* #efefed */
+  --login-ink: 34.6 100% 5.1%; /* #1a0f00 */
+  --login-muted: 34 17.9% 40.6%; /* #7a6a55 */
+  --login-faint: 34.3 15.6% 55.9%; /* #a0917d */
+  --login-line: 37.5 23.5% 80%; /* #d8cfc0 */
+  --login-dark: 34.3 36.8% 3.7%; /* #0d0a06 */
+}
