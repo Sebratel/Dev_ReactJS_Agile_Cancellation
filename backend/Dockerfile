@@ -4,7 +4,7 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends python3 make g++ openssl ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --no-audit --no-fund || (cat /root/.npm/_logs/*-debug-0.log && exit 1)
 COPY . .
 RUN npx prisma generate
 RUN npm run build

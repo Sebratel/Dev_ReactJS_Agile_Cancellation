@@ -1,7 +1,7 @@
 FROM node:22-bookworm-slim AS builder
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --no-audit --no-fund || (cat /root/.npm/_logs/*-debug-0.log && exit 1)
 COPY . .
 ARG VITE_API_BASE_URL
 ARG VITE_APP_NAME
