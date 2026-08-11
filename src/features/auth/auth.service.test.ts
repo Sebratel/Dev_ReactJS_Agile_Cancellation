@@ -79,7 +79,7 @@ describe('auth.service', () => {
       timestamp: '2026-06-10T12:00:00.000Z',
     });
 
-    const session = await loginWithGoogle('mock:supervisor@ger.local');
+    const session = await loginWithGoogle(TEST_MOCK_GOOGLE_ID_TOKEN);
 
     window.localStorage.setItem(authStorageKey, JSON.stringify(session));
 

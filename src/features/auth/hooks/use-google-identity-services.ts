@@ -50,7 +50,7 @@ type UseGoogleIdentityServicesOptions = {
 /**
  * Carrega o Google Identity Services e renderiza o botao oficial "Entrar com
  * Google" dentro do elemento referenciado. So ativa quando VITE_GOOGLE_CLIENT_ID
- * esta configurado — sem isso, a tela de login usa o seletor de contas mock.
+ * esta configurado.
  */
 export function useGoogleIdentityServices({
   onCredential,
@@ -102,7 +102,7 @@ export function useGoogleIdentityServices({
       .catch(() => {
         if (!cancelled) {
           setLoadError(
-            'Não foi possível carregar o login do Google. Verifique sua conexão.',
+            'NÃ£o foi possÃ­vel carregar o login do Google. Verifique sua conexÃ£o.',
           );
         }
       });

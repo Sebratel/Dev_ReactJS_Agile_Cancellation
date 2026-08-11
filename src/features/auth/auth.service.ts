@@ -27,21 +27,6 @@ function toAuthSession(
 }
 
 export async function loginWithGoogle(idToken: string): Promise<AuthSession> {
-  if (import.meta.env.DEV && idToken.startsWith('mock:')) {
-    const email = idToken.slice(5);
-    const response = await httpClient.request<LoginApiResponse>({
-      path: '/auth/dev-login',
-      method: 'POST',
-      body: JSON.stringify({ email }),
-      skipAuth: true,
-      skipRefresh: true,
-    });
-    return toAuthSession(
-      { accessToken: response.data.accessToken, refreshToken: response.data.refreshToken },
-      response.data.user,
-    );
-  }
-
   const response = await httpClient.request<LoginApiResponse>({
     path: '/auth/google',
     method: 'POST',

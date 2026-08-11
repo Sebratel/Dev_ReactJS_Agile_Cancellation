@@ -1,12 +1,8 @@
 import { AlertCircle } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useAuth } from '@/features/auth/auth-context';
 import { useGoogleIdentityServices } from '@/features/auth/hooks/use-google-identity-services';
-import { MOCK_GOOGLE_ACCOUNTS } from '@/features/auth/mocks/mock-google-accounts';
-import { roleLabels } from '@/features/auth/auth.constants';
 
-// Marca oficial do Google ("G" colorido) — exigida pelas diretrizes de marca
-// do botao "Sign in with Google".
 function GoogleLogo() {
   return (
     <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
@@ -35,45 +31,8 @@ function GoogleLogo() {
   );
 }
 
-function DevEmailLogin({
-  onLogin,
-  isSubmitting,
-}: {
-  onLogin: (email: string) => void;
-  isSubmitting: boolean;
-}) {
-  const [email, setEmail] = useState('');
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const trimmed = email.trim();
-    if (trimmed) onLogin(trimmed);
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="flex gap-2 pt-1">
-      <input
-        type="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        placeholder="outro@sebratel.com.br"
-        disabled={isSubmitting}
-        className="min-w-0 flex-1 rounded-[10px] border border-login-line bg-white px-3 py-2 text-sm text-login-ink placeholder:text-login-muted focus:border-primary focus:outline-none disabled:opacity-60"
-      />
-      <button
-        type="submit"
-        disabled={isSubmitting || !email.trim()}
-        className="shrink-0 rounded-[10px] bg-primary px-3 py-2 text-xs font-bold text-login-ink transition-opacity disabled:opacity-50"
-      >
-        Entrar
-      </button>
-    </form>
-  );
-}
-
 export function LoginForm() {
-  const { loginWithGoogle, status, errorMessage, clearError } = useAuth();
-  const isSubmitting = status === 'loading';
+  const { loginWithGoogle, errorMessage, clearError } = useAuth();
 
   const { enabled, loadError, buttonContainerRef } = useGoogleIdentityServices(
     {
@@ -88,20 +47,10 @@ export function LoginForm() {
     return clearError;
   }, [clearError]);
 
-  function handleMockAccountClick(email: string) {
-    clearError();
-    void loginWithGoogle(`mock:${email}`).catch(() => undefined);
-  }
-
   return (
     <div className="flex w-full flex-col gap-3">
       {enabled ? (
         <div className="flex flex-col items-center gap-2">
-          {/* Botao real do Google renderizado por baixo, mas invisivel e
-              recebendo o clique de verdade — o conteudo dele roda num iframe
-              protegido contra clickjacking, entao nao da pra estiliza-lo
-              nem simular clique nele via JS. O botao visivel abaixo e so a
-              casca visual; o clique do usuario cai direto no botao real. */}
           <div className="relative flex h-14 w-full items-center justify-center gap-3 overflow-hidden rounded-2xl bg-primary text-sm font-bold text-login-ink shadow-[0_4px_18px_rgba(255,176,0,0.45),0_1px_4px_rgba(0,0,0,0.12)] transition-shadow duration-150 hover:shadow-[0_6px_22px_rgba(255,176,0,0.55),0_2px_6px_rgba(0,0,0,0.14)]">
             <span
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white"
@@ -122,29 +71,14 @@ export function LoginForm() {
           ) : null}
         </div>
       ) : (
-        <div className="flex flex-col gap-2">
-          <p className="text-center text-xs font-semibold uppercase tracking-[0.12em] text-login-faint">
-            Contas de teste (ambiente de desenvolvimento)
+        <div
+          className="rounded-xl border border-danger/30 bg-danger/10 px-3 py-2.5 text-center"
+          role="alert"
+        >
+          <p className="m-0 text-xs text-danger">
+            Login Google nao configurado. Defina VITE_GOOGLE_CLIENT_ID no
+            ambiente do frontend.
           </p>
-          {MOCK_GOOGLE_ACCOUNTS.map((account) => (
-            <button
-              key={account.email}
-              type="button"
-              disabled={isSubmitting}
-              onClick={() => { handleMockAccountClick(account.email); }}
-              className="flex w-full items-center justify-between gap-3 rounded-[10px] border border-login-line bg-white px-3 py-2.5 text-left text-sm transition-colors duration-150 hover:border-primary disabled:opacity-60"
-            >
-              <span>
-                <span className="block font-medium text-login-ink">{account.name}</span>
-                <span className="block text-xs text-login-muted">{account.email}</span>
-              </span>
-              <span className="shrink-0 rounded-full bg-login-surface px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-primary">
-                {roleLabels[account.role]}
-              </span>
-            </button>
-          ))}
-
-          <DevEmailLogin onLogin={handleMockAccountClick} isSubmitting={isSubmitting} />
         </div>
       )}
 
