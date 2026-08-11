@@ -57,7 +57,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
         VITE_APP_NAME: ${VITE_APP_NAME:-GER - Gestao de Cobranca e Cancelamento}
     restart: unless-stopped
     ports:
