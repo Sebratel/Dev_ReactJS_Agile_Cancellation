@@ -169,7 +169,7 @@ export default function CustomerDetailPage() {
                     <div
                       key={contract.id}
                       className={cn(
-                        'rounded-xl border border-border bg-background p-4',
+                        'rounded-lg border border-border/80 bg-background p-4 shadow-sm transition-shadow hover:shadow-card',
                         !isActive && 'opacity-75',
                       )}
                     >

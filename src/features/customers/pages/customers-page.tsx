@@ -1,7 +1,17 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Building2,
+  FileText,
+  WalletCards,
+} from 'lucide-react';
+import { MetricCard } from '@/components/data-display/metric-card';
 import { PageHeader } from '@/components/data-display/page-header';
+import { SectionCard } from '@/components/data-display/section-card';
 import { PageContainer } from '@/components/navigation/page-container';
 import { EmptyState } from '@/components/feedback/empty-state';
 import { ErrorState } from '@/components/feedback/error-state';
@@ -82,11 +92,23 @@ export default function CustomersPage() {
   const customersQuery = useCustomers(params);
 
   const items = customersQuery.data?.items ?? [];
+  const totalCustomers = customersQuery.data?.pagination.total ?? 0;
   const totalPages = Math.max(
     customersQuery.data?.pagination.totalPages ?? 1,
     1,
   );
   const hasSearch = debouncedSearch.trim().length > 0;
+  const pageOpenInvoices = items.reduce(
+    (sum, customer) => sum + customer.openInvoicesCount,
+    0,
+  );
+  const pageOverdueCustomers = items.filter(
+    (customer) => customer.overdueInvoicesCount > 0,
+  ).length;
+  const pageOutstandingAmount = items.reduce(
+    (sum, customer) => sum + Number(customer.totalOutstanding ?? 0),
+    0,
+  );
 
   const handleRetry = () => {
     void customersQuery.refetch();
@@ -109,7 +131,45 @@ export default function CustomersPage() {
         description="Carteira de clientes com posição de contratos e faturas em aberto."
       />
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard
+          title="Clientes encontrados"
+          value={formatInteger(totalCustomers)}
+          description="Resultado da consulta atual"
+          icon={Building2}
+          loading={customersQuery.isLoading}
+          emphasis="primary"
+        />
+        <MetricCard
+          title="Clientes com atraso"
+          value={formatInteger(pageOverdueCustomers)}
+          description="Na página carregada"
+          icon={AlertTriangle}
+          variant={pageOverdueCustomers > 0 ? 'danger' : 'success'}
+          loading={customersQuery.isLoading}
+        />
+        <MetricCard
+          title="Faturas em aberto"
+          value={formatInteger(pageOpenInvoices)}
+          description="Soma dos clientes exibidos"
+          icon={FileText}
+          loading={customersQuery.isLoading}
+        />
+        <MetricCard
+          title="Total em aberto"
+          value={formatCurrencyFromDecimalString(String(pageOutstandingAmount))}
+          description="Soma dos clientes exibidos"
+          icon={WalletCards}
+          variant="warning"
+          loading={customersQuery.isLoading}
+        />
+      </div>
+
+      <SectionCard
+        title="Filtros"
+        description="Localize rapidamente por dados cadastrais antes de abrir o histórico do cliente."
+        contentClassName="flex flex-wrap items-center gap-3"
+      >
         <Input
           type="search"
           className="min-w-[240px] flex-1 sm:max-w-sm"
@@ -121,7 +181,7 @@ export default function CustomersPage() {
           }}
           aria-label="Buscar clientes"
         />
-      </div>
+      </SectionCard>
 
       {customersQuery.isLoading ? <TableSkeleton rows={6} columns={5} /> : null}
 

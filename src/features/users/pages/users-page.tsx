@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
-import { UserPlus } from 'lucide-react';
+import { ShieldCheck, UserCheck, UserPlus, UsersRound } from 'lucide-react';
+import { MetricCard } from '@/components/data-display/metric-card';
 import { PageHeader } from '@/components/data-display/page-header';
+import { SectionCard } from '@/components/data-display/section-card';
 import { PageContainer } from '@/components/navigation/page-container';
 import { EmptyState } from '@/components/feedback/empty-state';
 import { ErrorState } from '@/components/feedback/error-state';
@@ -19,6 +21,7 @@ import {
   type UserResponse,
   type UserStatus,
 } from '@/features/users/types/users-api.types';
+import { formatInteger } from '@/utils/formatters';
 
 const PAGE_SIZE = 20;
 
@@ -44,8 +47,11 @@ export default function UsersPage() {
   const usersQuery = useUsers(params);
 
   const items = usersQuery.data?.items ?? [];
+  const totalUsers = usersQuery.data?.pagination.total ?? 0;
   const totalPages = Math.max(usersQuery.data?.pagination.totalPages ?? 1, 1);
   const hasActiveFilters = debouncedSearch.trim().length > 0 || status !== '';
+  const activeUsers = items.filter((user) => user.status === 'ACTIVE').length;
+  const adminUsers = items.filter((user) => user.roles.includes('ADMIN')).length;
 
   const handleRetry = () => {
     void usersQuery.refetch();
@@ -80,7 +86,37 @@ export default function UsersPage() {
         }
       />
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="grid gap-3 md:grid-cols-3">
+        <MetricCard
+          title="Usuários encontrados"
+          value={formatInteger(totalUsers)}
+          description="Resultado da consulta atual"
+          icon={UsersRound}
+          loading={usersQuery.isLoading}
+          emphasis="primary"
+        />
+        <MetricCard
+          title="Ativos nesta página"
+          value={formatInteger(activeUsers)}
+          description="Contas disponíveis para operação"
+          icon={UserCheck}
+          variant="success"
+          loading={usersQuery.isLoading}
+        />
+        <MetricCard
+          title="Administradores"
+          value={formatInteger(adminUsers)}
+          description="Na página carregada"
+          icon={ShieldCheck}
+          loading={usersQuery.isLoading}
+        />
+      </div>
+
+      <SectionCard
+        title="Filtros"
+        description="Encontre usuários por nome, e-mail ou status operacional."
+        contentClassName="flex flex-wrap items-center gap-3"
+      >
         <Input
           type="search"
           className="min-w-[220px] flex-1 sm:max-w-sm"
@@ -108,7 +144,7 @@ export default function UsersPage() {
             </option>
           ))}
         </Select>
-      </div>
+      </SectionCard>
 
       {usersQuery.isLoading ? <TableSkeleton rows={6} columns={6} /> : null}
 
