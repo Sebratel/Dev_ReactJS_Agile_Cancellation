@@ -46,7 +46,7 @@ function SidebarContent({ onNavigate }: SidebarContentProps) {
         <img
           src="/logo-circular-sebratel.png"
           alt="Sebratel"
-          className="h-9 w-9 shrink-0 rounded-lg object-cover shadow-[0_0_0_1px_hsl(var(--border))]"
+          className="h-9 w-9 shrink-0 rounded-lg object-cover"
           aria-hidden="true"
         />
         <div className="min-w-0">
