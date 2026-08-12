@@ -27,9 +27,14 @@ import {
   getPriorityVariant,
   getSlaPresentation,
 } from '@/features/collection-cases/utils/collection-case-labels';
+import {
+  getContractStatusLabel,
+  getContractStatusVariant,
+} from '@/features/customers/utils/customer-labels';
 import { InlineAssigneeSelect } from '@/features/supervision/components/inline-assignee-select';
 import { type UserResponse } from '@/features/users/types/users-api.types';
 import {
+  formatDatePtBR,
   formatCurrencyFromDecimalString,
   formatInteger,
 } from '@/utils/formatters';
@@ -144,7 +149,7 @@ export function CancellationsTable({
       contentClassName="p-0"
     >
       <TableContainer flush className="max-h-[70vh] overflow-y-auto">
-        <Table className="min-w-[960px]">
+        <Table className="min-w-[1160px]">
           <TableHead sticky>
             <tr>
               {canDistribute ? (
@@ -158,6 +163,8 @@ export function CancellationsTable({
               ) : null}
               <TableHeaderCell>Cliente</TableHeaderCell>
               <TableHeaderCell>Contrato</TableHeaderCell>
+              <TableHeaderCell align="center">Vencimento</TableHeaderCell>
+              <TableHeaderCell align="center">Status contrato</TableHeaderCell>
               {SORTABLE_COLUMNS.map((column) => (
                 <TableHeaderCell
                   key={column.key}
@@ -184,7 +191,7 @@ export function CancellationsTable({
                 </TableHeaderCell>
               ))}
               <TableHeaderCell>Responsável</TableHeaderCell>
-              <TableHeaderCell>Status</TableHeaderCell>
+              <TableHeaderCell>Status caso</TableHeaderCell>
               <TableHeaderCell align="center">Prioridade</TableHeaderCell>
               <TableHeaderCell>Ação</TableHeaderCell>
             </tr>
@@ -221,6 +228,19 @@ export function CancellationsTable({
                   </TableCell>
                   <TableCell className="text-neutral">
                     {item.contractCode}
+                  </TableCell>
+                  <TableCell align="center" className="text-neutral tabular-nums">
+                    {item.firstOverdueDate
+                      ? formatDatePtBR(item.firstOverdueDate)
+                      : 'Nao informado'}
+                  </TableCell>
+                  <TableCell align="center">
+                    <div className="flex justify-center">
+                      <StatusBadge
+                        label={getContractStatusLabel(item.contractStatus)}
+                        variant={getContractStatusVariant(item.contractStatus)}
+                      />
+                    </div>
                   </TableCell>
                   <TableCell align="center" className="tabular-nums">
                     {formatInteger(item.daysOverdue)}

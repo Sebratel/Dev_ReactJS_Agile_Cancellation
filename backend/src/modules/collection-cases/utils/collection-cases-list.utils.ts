@@ -209,7 +209,10 @@ function mapSortField(
 }
 
 function getFirstOverdueDate(record: MockCollectionCaseListRecord) {
-  return new Date(Date.now() - record.daysOverdue * 86_400_000).toISOString();
+  return (
+    record.firstOverdueDate ??
+    new Date(Date.now() - record.daysOverdue * 86_400_000).toISOString()
+  );
 }
 
 function matchesSlaStatus(
@@ -424,6 +427,8 @@ export function toListItemResponse(
     customerName: record.customerName,
     customerPhone: record.customerPhone,
     contractCode: record.contractCode,
+    contractStatus: record.contractStatus,
+    firstOverdueDate: record.firstOverdueDate,
     status: record.status,
     priority: record.priority,
     daysOverdue: record.daysOverdue,

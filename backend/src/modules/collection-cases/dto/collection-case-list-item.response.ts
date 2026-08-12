@@ -5,6 +5,8 @@ export type CollectionCaseListItemResponse = {
   customerName: string;
   customerPhone: string | null;
   contractCode: string;
+  contractStatus: string;
+  firstOverdueDate: string | null;
   status: string;
   priority: string;
   daysOverdue: number;

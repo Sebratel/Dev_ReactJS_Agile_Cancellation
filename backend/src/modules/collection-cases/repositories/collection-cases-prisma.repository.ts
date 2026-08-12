@@ -2,6 +2,7 @@ import {
   AuditAction,
   CancellationStatus,
   CollectionStatus,
+  InvoiceStatus,
   PaymentPromiseStatus,
   Prisma,
   UserStatus,
@@ -117,6 +118,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
     const skip = (normalized.page - 1) * normalized.limit;
     const where = buildCollectionCasesWhere(normalized);
     const orderBy = buildCollectionCasesOrderBy(normalized);
+    const now = new Date();
 
     const [records, total] = await Promise.all([
       this.prisma.collectionCase.findMany({
@@ -126,7 +128,27 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
         orderBy,
         include: {
           customer: { select: { name: true, phone: true } },
-          contract: { select: { code: true } },
+          contract: {
+            select: {
+              code: true,
+              status: true,
+              invoices: {
+                where: {
+                  dueDate: { lt: now },
+                  status: {
+                    in: [
+                      InvoiceStatus.OPEN,
+                      InvoiceStatus.PARTIALLY_PAID,
+                      InvoiceStatus.OVERDUE,
+                    ],
+                  },
+                },
+                orderBy: { dueDate: 'asc' },
+                take: 1,
+                select: { dueDate: true },
+              },
+            },
+          },
           assignedUser: { select: { id: true, name: true } },
         },
       }),
@@ -141,6 +163,9 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
         customerName: record.customer.name,
         customerPhone: record.customer.phone,
         contractCode: record.contract.code,
+        contractStatus: record.contract.status,
+        firstOverdueDate:
+          record.contract.invoices[0]?.dueDate.toISOString() ?? null,
         status: record.status,
         priority: record.priority,
         daysOverdue: record.daysOverdue,

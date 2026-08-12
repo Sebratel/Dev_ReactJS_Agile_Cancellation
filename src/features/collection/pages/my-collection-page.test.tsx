@@ -21,6 +21,8 @@ const page = {
       customerName: 'Construtora Horizonte',
       customerPhone: '(51) 99911-2233',
       contractCode: 'CTR-10428',
+      contractStatus: 'ACTIVE',
+      firstOverdueDate: '2026-06-28T00:00:00.000Z',
       status: 'IN_COLLECTION',
       priority: 'HIGH',
       daysOverdue: 45,
