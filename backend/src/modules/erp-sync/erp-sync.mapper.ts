@@ -22,6 +22,7 @@ export type ErpEligibleRow = {
   erp_contract_id: string;
   contract_external_id: string;
   contract_number: string;
+  erp_contract_status: string | null;
   contract_date: Date;
   contract_monthly_amount: string | null;
   plan_title: string | null;
@@ -90,6 +91,14 @@ function calculateDaysOverdue(titles: ErpEligibleRow[], now: Date): number {
   );
 }
 
+function mapContractStatus(status: string | null | undefined): ContractStatus {
+  if (status === 'Bloqueio Financeiro') {
+    return ContractStatus.SUSPENDED;
+  }
+
+  return ContractStatus.ACTIVE;
+}
+
 /**
  * Agrupa as linhas retornadas pela query de elegibilidade do ERP por
  * contrato e monta o payload no formato aceito por
@@ -140,7 +149,7 @@ export function mapErpRowsToIngestPayload(
       },
       contract: {
         code: first.contract_number,
-        status: ContractStatus.ACTIVE,
+        status: mapContractStatus(first.erp_contract_status),
         startDate: first.contract_date.toISOString(),
         monthlyValue:
           first.contract_monthly_amount !== null

@@ -60,6 +60,7 @@ SELECT
   c.id::text                AS erp_contract_id,
   c.public_id::text         AS contract_external_id,
   c.contract_number::text   AS contract_number,
+  c.v_status::text          AS erp_contract_status,
   c.date                     AS contract_date,
   c.amount                   AS contract_monthly_amount,
   ct.title                   AS plan_title,

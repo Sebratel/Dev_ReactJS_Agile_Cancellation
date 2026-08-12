@@ -74,6 +74,27 @@ const SORTABLE_COLUMNS: SortableColumn[] = [
 
 const CRITICAL_STATUSES = new Set(['NO_RESPONSE', 'ELIGIBLE_FOR_CANCELLATION']);
 
+function getMatrixReplyPresentation(item: CollectionCaseListItemResponse) {
+  if (item.matrixAwaitingReply) {
+    return {
+      label: 'Aguardando resposta',
+      variant: 'warning' as const,
+    };
+  }
+
+  if (item.matrixLastReplyAt) {
+    return {
+      label: 'Respondido',
+      variant: 'success' as const,
+    };
+  }
+
+  return {
+    label: 'Não acionado',
+    variant: 'neutral' as const,
+  };
+}
+
 function SortIndicator({
   active,
   direction,
@@ -153,7 +174,7 @@ export function SupervisionCasesTable({
       contentClassName="p-0"
     >
       <TableContainer flush className="max-h-[70vh] overflow-y-auto">
-        <Table className="min-w-[1160px]">
+        <Table className="min-w-[1320px]">
           <TableHead sticky>
             <tr>
               {canDistribute ? (
@@ -168,7 +189,7 @@ export function SupervisionCasesTable({
               <TableHeaderCell>Cliente</TableHeaderCell>
               <TableHeaderCell>Contrato</TableHeaderCell>
               <TableHeaderCell align="center">Vencimento</TableHeaderCell>
-              <TableHeaderCell align="center">Status contrato</TableHeaderCell>
+              <TableHeaderCell align="center">Situação contrato</TableHeaderCell>
               {SORTABLE_COLUMNS.map((column) => (
                 <TableHeaderCell
                   key={column.key}
@@ -195,6 +216,7 @@ export function SupervisionCasesTable({
                 </TableHeaderCell>
               ))}
               <TableHeaderCell>Responsável</TableHeaderCell>
+              <TableHeaderCell align="center">Resposta Matrix</TableHeaderCell>
               <TableHeaderCell>Status caso</TableHeaderCell>
               <TableHeaderCell align="center">Prioridade</TableHeaderCell>
               <TableHeaderCell>Ação</TableHeaderCell>
@@ -203,6 +225,7 @@ export function SupervisionCasesTable({
           <TableBody>
             {items.map((item) => {
               const sla = getSlaPresentation(item.slaDueAt);
+              const matrixReply = getMatrixReplyPresentation(item);
               const isSelected = selectedIds.has(item.id);
               const isCritical =
                 CRITICAL_STATUSES.has(item.status) ||
@@ -280,6 +303,14 @@ export function SupervisionCasesTable({
                     ) : (
                       item.assignedTo?.name ?? 'Não atribuído'
                     )}
+                  </TableCell>
+                  <TableCell align="center">
+                    <div className="flex justify-center">
+                      <StatusBadge
+                        label={matrixReply.label}
+                        variant={matrixReply.variant}
+                      />
+                    </div>
                   </TableCell>
                   <TableCell>
                     <StatusBadge

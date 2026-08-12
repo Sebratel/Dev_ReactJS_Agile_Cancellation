@@ -29,7 +29,7 @@ const CONTRACT_STATUS_VARIANTS: Record<string, StatusVariant> = {
 
 const CONTRACT_STATUS_LABELS: Record<string, string> = {
   ACTIVE: 'Ativo',
-  SUSPENDED: 'Suspenso',
+  SUSPENDED: 'Bloqueio Financeiro',
   TERMINATED: 'Encerrado',
   CANCELLED: 'Cancelado',
 };
