@@ -1,5 +1,4 @@
 import { useRef, useEffect } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { SectionCard } from '@/components/data-display/section-card';
 import { StatusBadge } from '@/components/data-display/status-badge';
@@ -60,18 +59,6 @@ type SupervisionCasesTableProps = {
   onToggleSelectAll: () => void;
 };
 
-type SortableColumn = {
-  key: CollectionCasesSortBy;
-  label: string;
-  numeric?: boolean;
-};
-
-const SORTABLE_COLUMNS: SortableColumn[] = [
-  { key: 'daysOverdue', label: 'Dias em atraso', numeric: true },
-  { key: 'totalOutstanding', label: 'Valor em aberto', numeric: true },
-  { key: 'slaDueAt', label: 'SLA' },
-];
-
 const CRITICAL_STATUSES = new Set(['NO_RESPONSE', 'ELIGIBLE_FOR_CANCELLATION']);
 
 function getMatrixReplyPresentation(item: CollectionCaseListItemResponse) {
@@ -93,24 +80,6 @@ function getMatrixReplyPresentation(item: CollectionCaseListItemResponse) {
     label: 'Não acionado',
     variant: 'neutral' as const,
   };
-}
-
-function SortIndicator({
-  active,
-  direction,
-}: {
-  active: boolean;
-  direction: CollectionCasesSortDirection;
-}) {
-  if (!active) {
-    return <ArrowUpDown className="ml-1 inline h-3.5 w-3.5 text-neutral" />;
-  }
-
-  return direction === 'asc' ? (
-    <ArrowUp className="ml-1 inline h-3.5 w-3.5" />
-  ) : (
-    <ArrowDown className="ml-1 inline h-3.5 w-3.5" />
-  );
 }
 
 function SelectAllCheckbox({
@@ -148,21 +117,28 @@ export function SupervisionCasesTable({
   canDistribute,
   page,
   totalPages,
-  sortBy,
-  sortDirection,
   onPageChange,
-  onSortChange,
   selectedIds,
   onToggleSelect,
   onToggleSelectAll,
 }: SupervisionCasesTableProps) {
-  const handleSort = (column: CollectionCasesSortBy) => {
-    if (sortBy === column) {
-      onSortChange(column, sortDirection === 'asc' ? 'desc' : 'asc');
-      return;
-    }
-    onSortChange(column, 'desc');
+  const lastPageChangeScrollY = useRef<number | null>(null);
+
+  const handlePageChange = (nextPage: number) => {
+    lastPageChangeScrollY.current = window.scrollY;
+    onPageChange(nextPage);
   };
+
+  useEffect(() => {
+    if (lastPageChangeScrollY.current === null) return;
+
+    window.requestAnimationFrame(() => {
+      if (lastPageChangeScrollY.current !== null) {
+        window.scrollTo({ top: lastPageChangeScrollY.current });
+        lastPageChangeScrollY.current = null;
+      }
+    });
+  }, [page]);
 
   const allSelected = items.length > 0 && items.every((i) => selectedIds.has(i.id));
   const someSelected = items.some((i) => selectedIds.has(i.id));
@@ -173,8 +149,18 @@ export function SupervisionCasesTable({
       description="Carteira supervisionada com leitura operacional por cliente, contrato e SLA."
       contentClassName="p-0"
     >
+      <div>
       <TableContainer flush className="max-h-[70vh] overflow-y-auto">
-        <Table className="min-w-[1320px]">
+        <Table className="min-w-[980px] table-fixed">
+          <colgroup>
+            {canDistribute ? <col className="w-10" /> : null}
+            <col className="w-[23%]" />
+            <col className="w-[17%]" />
+            <col className="w-[17%]" />
+            <col className="w-[18%]" />
+            <col className="w-[15%]" />
+            <col className="w-[10%]" />
+          </colgroup>
           <TableHead sticky>
             <tr>
               {canDistribute ? (
@@ -188,38 +174,10 @@ export function SupervisionCasesTable({
               ) : null}
               <TableHeaderCell>Cliente</TableHeaderCell>
               <TableHeaderCell>Contrato</TableHeaderCell>
-              <TableHeaderCell align="center">Vencimento</TableHeaderCell>
-              <TableHeaderCell align="center">Situação contrato</TableHeaderCell>
-              {SORTABLE_COLUMNS.map((column) => (
-                <TableHeaderCell
-                  key={column.key}
-                  align="center"
-                  aria-sort={
-                    sortBy === column.key
-                      ? sortDirection === 'asc'
-                        ? 'ascending'
-                        : 'descending'
-                      : 'none'
-                  }
-                >
-                  <button
-                    type="button"
-                    className="inline-flex items-center justify-center font-semibold uppercase tracking-[0.12em]"
-                    onClick={() => handleSort(column.key)}
-                  >
-                    {column.label}
-                    <SortIndicator
-                      active={sortBy === column.key}
-                      direction={sortDirection}
-                    />
-                  </button>
-                </TableHeaderCell>
-              ))}
+              <TableHeaderCell align="center">Financeiro</TableHeaderCell>
               <TableHeaderCell>Responsável</TableHeaderCell>
-              <TableHeaderCell align="center">Resposta Matrix</TableHeaderCell>
-              <TableHeaderCell>Status caso</TableHeaderCell>
-              <TableHeaderCell align="center">Prioridade</TableHeaderCell>
-              <TableHeaderCell>Ação</TableHeaderCell>
+              <TableHeaderCell align="center">Andamento</TableHeaderCell>
+              <TableHeaderCell align="right">Ação</TableHeaderCell>
             </tr>
           </TableHead>
           <TableBody>
@@ -265,30 +223,35 @@ export function SupervisionCasesTable({
                     </div>
                   </TableCell>
                   <TableCell className="text-neutral">
-                    {item.contractCode}
-                  </TableCell>
-                  <TableCell align="center" className="text-neutral tabular-nums">
-                    {item.firstOverdueDate
-                      ? formatDatePtBR(item.firstOverdueDate)
-                      : 'Nao informado'}
-                  </TableCell>
-                  <TableCell align="center">
-                    <div className="flex justify-center">
+                    <div className="space-y-1">
+                      <div className="font-medium text-foreground">
+                        {item.contractCode}
+                      </div>
+                      <div className="text-xs">
+                        Venc.{' '}
+                        <span className="tabular-nums">
+                          {item.firstOverdueDate
+                            ? formatDatePtBR(item.firstOverdueDate)
+                            : 'Não informado'}
+                        </span>
+                      </div>
                       <StatusBadge
                         label={getContractStatusLabel(item.contractStatus)}
                         variant={getContractStatusVariant(item.contractStatus)}
                       />
                     </div>
                   </TableCell>
-                  <TableCell align="center" className="tabular-nums">
-                    {formatInteger(item.daysOverdue)}
-                  </TableCell>
-                  <TableCell align="center" className="font-medium tabular-nums">
-                    {formatCurrencyFromDecimalString(item.outstandingAmount)}
-                  </TableCell>
                   <TableCell align="center">
-                    <div className="flex justify-center">
-                      <StatusBadge label={sla.label} variant={sla.variant} />
+                    <div className="space-y-1">
+                      <div className="font-semibold tabular-nums">
+                        {formatCurrencyFromDecimalString(item.outstandingAmount)}
+                      </div>
+                      <div className="text-xs text-neutral">
+                        {formatInteger(item.daysOverdue)} dias em atraso
+                      </div>
+                      <div className="flex justify-center">
+                        <StatusBadge label={sla.label} variant={sla.variant} />
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell className="text-neutral">
@@ -305,21 +268,15 @@ export function SupervisionCasesTable({
                     )}
                   </TableCell>
                   <TableCell align="center">
-                    <div className="flex justify-center">
+                    <div className="flex flex-col items-center gap-1">
+                      <StatusBadge
+                        label={getCollectionStatusLabel(item.status)}
+                        variant={getCollectionStatusVariant(item.status)}
+                      />
                       <StatusBadge
                         label={matrixReply.label}
                         variant={matrixReply.variant}
                       />
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge
-                      label={getCollectionStatusLabel(item.status)}
-                      variant={getCollectionStatusVariant(item.status)}
-                    />
-                  </TableCell>
-                  <TableCell align="center">
-                    <div className="flex justify-center">
                       <StatusBadge
                         label={getPriorityLabel(item.priority)}
                         variant={getPriorityVariant(item.priority)}
@@ -342,11 +299,12 @@ export function SupervisionCasesTable({
           </TableBody>
         </Table>
       </TableContainer>
+      </div>
 
       <Pagination
         page={page}
         totalPages={totalPages}
-        onPageChange={onPageChange}
+        onPageChange={handlePageChange}
         className="border-t border-border px-4 py-4 lg:px-6"
       />
     </SectionCard>
