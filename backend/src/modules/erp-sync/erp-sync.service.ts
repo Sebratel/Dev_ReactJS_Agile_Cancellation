@@ -21,6 +21,7 @@ import { WebhooksService } from '@/modules/webhooks/webhooks.service';
 import {
   ERP_SYNC_SOURCE,
   mapErpRowsToIngestPayload,
+  mapContractStatus,
   type ErpEligibleRow,
 } from '@/modules/erp-sync/erp-sync.mapper';
 
@@ -85,6 +86,7 @@ ORDER BY c.id, fr.expiration_date;
 const OPEN_TITLES_BY_CONTRACT_QUERY = `
 SELECT
   c.public_id::text AS contract_external_id,
+  c.v_status::text  AS erp_contract_status,
   fr.id::text       AS title_external_id,
   fr.title_amount,
   fr.balance        AS outstanding_amount,
@@ -108,6 +110,7 @@ ORDER BY c.public_id, fr.expiration_date;
 
 type ErpOpenTitleRow = {
   contract_external_id: string;
+  erp_contract_status: string | null;
   title_external_id: string;
   title_amount: string;
   outstanding_amount: string;
@@ -343,6 +346,8 @@ export class ErpSyncService {
 
         return {
           id: collectionCase.id,
+          contractId: collectionCase.contractId,
+          contractStatus: mapContractStatus(openTitles[0]?.erp_contract_status),
           outstandingAmount,
           daysOverdue,
         };
@@ -352,6 +357,8 @@ export class ErpSyncService {
           collectionCase,
         ): collectionCase is {
           id: string;
+          contractId: string;
+          contractStatus: ReturnType<typeof mapContractStatus>;
           outstandingAmount: number;
           daysOverdue: number;
         } => collectionCase !== null,
@@ -375,6 +382,14 @@ export class ErpSyncService {
 
     await this.prisma.$transaction(async (tx) => {
       for (const collectionCase of casesToRefresh) {
+        await tx.contract.update({
+          where: { id: collectionCase.contractId },
+          data: {
+            status: collectionCase.contractStatus,
+            updatedAt: now,
+          },
+        });
+
         await tx.collectionCase.update({
           where: { id: collectionCase.id },
           data: {
@@ -476,6 +491,7 @@ export class ErpSyncService {
           payload: {
             recoveredCases: casesToRecover.length,
             refreshedCases: casesToRefresh.length,
+            refreshedContracts: casesToRefresh.length,
             checkedCases: syncedCases.length,
             openTitles: openTitleRows.length,
             recoveredExternalIds: casesToRecover.map(

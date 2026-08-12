@@ -91,7 +91,9 @@ function calculateDaysOverdue(titles: ErpEligibleRow[], now: Date): number {
   );
 }
 
-function mapContractStatus(status: string | null | undefined): ContractStatus {
+export function mapContractStatus(
+  status: string | null | undefined,
+): ContractStatus {
   if (status === 'Bloqueio Financeiro') {
     return ContractStatus.SUSPENDED;
   }
