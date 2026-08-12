@@ -1,6 +1,18 @@
 import { WebhooksService } from '@/modules/webhooks/webhooks.service';
 import { WebhooksMockRepository } from '@/modules/webhooks/repositories/webhooks-mock.repository';
 import type { IngestCollectionCasesDto } from '@/modules/webhooks/dto/ingest-collection-cases.dto';
+import type { NotificationsService } from '@/modules/notifications/notifications.service';
+
+function createService(repository = new WebhooksMockRepository()) {
+  const notificationsService = {
+    notify: jest.fn().mockResolvedValue(undefined),
+  } as unknown as NotificationsService;
+
+  return {
+    service: new WebhooksService(repository, notificationsService),
+    notificationsService,
+  };
+}
 
 function buildPayload(
   overrides?: Partial<IngestCollectionCasesDto>,
@@ -41,7 +53,7 @@ describe('WebhooksService (mock)', () => {
   let service: WebhooksService;
 
   beforeEach(() => {
-    service = new WebhooksService(new WebhooksMockRepository());
+    service = createService().service;
   });
 
   it('ingere um lote e retorna o resumo', async () => {
@@ -59,7 +71,7 @@ describe('WebhooksService (mock)', () => {
 
   it('é idempotente: reenvio do mesmo caso é contabilizado como skipped', async () => {
     const repository = new WebhooksMockRepository();
-    service = new WebhooksService(repository);
+    service = createService(repository).service;
 
     await service.ingestCollectionCases(buildPayload());
     const second = await service.ingestCollectionCases(buildPayload());
@@ -90,5 +102,43 @@ describe('WebhooksService (mock)', () => {
     );
 
     expect(response.data.received).toBe(1);
+  });
+
+  it('registra retorno Matrix e notifica responsavel', async () => {
+    const { service, notificationsService } = createService();
+
+    const response = await service.recordMatrixReply({
+      codAtendimento: '5081836',
+      message: 'Cliente respondeu',
+      receivedAt: '2026-08-11T20:00:00.000Z',
+    });
+
+    expect(response.data.outcome).toBe('success');
+    expect(notificationsService.notify).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'usr_marina',
+        type: 'MATRIX_REPLY',
+        entityType: 'COLLECTION_CASE',
+      }),
+    );
+  });
+
+  it('nao duplica notificacao quando retorno Matrix ja foi processado', async () => {
+    const { service, notificationsService } = createService();
+
+    await service.recordMatrixReply({ codAtendimento: '5081836' });
+    const second = await service.recordMatrixReply({ codAtendimento: '5081836' });
+
+    expect(second.data.outcome).toBe('already_processed');
+    expect(notificationsService.notify).toHaveBeenCalledTimes(1);
+  });
+
+  it('retorna case_not_found quando retorno Matrix nao possui identificador', async () => {
+    const { service, notificationsService } = createService();
+
+    const response = await service.recordMatrixReply({});
+
+    expect(response.data.outcome).toBe('case_not_found');
+    expect(notificationsService.notify).not.toHaveBeenCalled();
   });
 });

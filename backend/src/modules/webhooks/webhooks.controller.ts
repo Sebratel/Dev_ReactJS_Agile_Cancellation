@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { Public } from '@/modules/auth/decorators/public.decorator';
 import { IngestCollectionCasesDto } from '@/modules/webhooks/dto/ingest-collection-cases.dto';
+import { MatrixReplyDto } from '@/modules/webhooks/dto/matrix-reply.dto';
 import { WebhookAuthGuard } from '@/modules/webhooks/guards/webhook-auth.guard';
 import { WebhooksService } from '@/modules/webhooks/webhooks.service';
 
@@ -21,5 +22,11 @@ export class WebhooksController {
   @HttpCode(HttpStatus.ACCEPTED)
   ingestCollectionCases(@Body() body: IngestCollectionCasesDto) {
     return this.webhooksService.ingestCollectionCases(body);
+  }
+
+  @Post('matrix-replies')
+  @HttpCode(HttpStatus.ACCEPTED)
+  recordMatrixReply(@Body() body: MatrixReplyDto) {
+    return this.webhooksService.recordMatrixReply(body);
   }
 }

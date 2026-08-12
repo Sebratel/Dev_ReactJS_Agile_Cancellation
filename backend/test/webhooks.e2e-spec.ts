@@ -9,6 +9,7 @@ import type { IngestCollectionCasesDto } from '@/modules/webhooks/dto/ingest-col
 const SECRET =
   process.env.N8N_WEBHOOK_SECRET ?? 'test-webhook-secret-1234567890';
 const ENDPOINT = '/webhooks/n8n/collection-cases';
+const MATRIX_REPLIES_ENDPOINT = '/webhooks/n8n/matrix-replies';
 
 function validPayload(): IngestCollectionCasesDto {
   return {
@@ -114,5 +115,31 @@ describe('Webhooks N8N (e2e)', () => {
       .set(WEBHOOK_SECRET_HEADER, SECRET)
       .send(payload)
       .expect(400);
+  });
+
+  it('aceita retorno Matrix com segredo correto (202)', async () => {
+    const response = await request(server())
+      .post(MATRIX_REPLIES_ENDPOINT)
+      .set(WEBHOOK_SECRET_HEADER, SECRET)
+      .send({
+        codAtendimento: '5081836',
+        codMensagem: '82498574',
+        message: 'Cliente respondeu',
+        receivedAt: '2026-08-11T20:00:00.000Z',
+      })
+      .expect(202);
+
+    const body = response.body as {
+      data: { outcome: string };
+    };
+
+    expect(['success', 'case_not_found']).toContain(body.data.outcome);
+  });
+
+  it('rejeita retorno Matrix sem segredo (401)', async () => {
+    await request(server())
+      .post(MATRIX_REPLIES_ENDPOINT)
+      .send({ codAtendimento: '5081836' })
+      .expect(401);
   });
 });
