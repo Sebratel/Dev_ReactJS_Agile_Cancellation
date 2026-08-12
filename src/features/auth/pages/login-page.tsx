@@ -113,7 +113,7 @@ export default function LoginPage() {
   return (
     <div className="flex h-screen w-screen overflow-hidden antialiased">
       {/* Painel esquerdo — imagem, overlays, texto e hexagonos (>= lg) */}
-      <div className="relative hidden flex-1 flex-col justify-end overflow-hidden bg-login-dark lg:flex">
+      <div className="relative hidden basis-[65%] flex-col justify-end overflow-hidden bg-login-dark lg:flex">
         <img
           src="/login-cover.png"
           alt=""
@@ -144,8 +144,8 @@ export default function LoginPage() {
           }}
         />
 
-        <div className="relative z-10 flex items-end justify-between gap-6 px-12 py-10">
-          <div>
+        <div className="relative z-10 flex items-end justify-between gap-8 px-11 pb-11">
+          <div className="min-w-0">
             <div className="mb-5 flex items-center gap-2">
               <img
                 src="/logo-circular-sebratel.png"
@@ -157,11 +157,11 @@ export default function LoginPage() {
                 }}
               />
               <span className="text-xs font-bold uppercase tracking-[0.18em] text-white/70">
-                SEBRATEL Cobrança
+                SEBRATEL - Gestão de Cobrança
               </span>
             </div>
 
-            <h1 className="m-0 text-[2.4rem] font-black leading-[1.15] tracking-tight text-white">
+            <h1 className="m-0 max-w-[460px] text-[2.35rem] font-black leading-[1.15] tracking-tight text-white">
               A conexão que
               <br />
               move <span className="text-primary">o que importa.</span>
@@ -206,9 +206,9 @@ export default function LoginPage() {
       />
 
       {/* Painel direito — superficie neumorphic clara */}
-      <div className="flex w-full shrink-0 flex-col overflow-y-auto bg-login-surface lg:w-[420px] xl:w-[460px]">
+      <div className="flex w-full shrink-0 flex-col overflow-y-auto bg-login-surface lg:basis-[35%]">
         <div className="flex flex-1 flex-col items-center justify-center px-8 py-12">
-          <div className="flex w-full max-w-[340px] flex-col items-center gap-6">
+          <div className="flex w-full max-w-[320px] flex-col items-center gap-6">
             {/* Badge — pill neumorphic inset */}
             <div className="flex w-full justify-center">
               <span
@@ -253,6 +253,21 @@ export default function LoginPage() {
             </div>
 
             <LoginForm />
+
+            <div className="flex w-full items-center gap-3">
+              <span className="h-px flex-1 bg-border" aria-hidden="true" />
+              <span className="text-[11px] font-bold lowercase text-login-faint">
+                ou
+              </span>
+              <span className="h-px flex-1 bg-border" aria-hidden="true" />
+            </div>
+
+            <a
+              href="mailto:suporte@sebratel.com.br"
+              className="text-sm font-bold text-primary transition-colors hover:text-primary/80"
+            >
+              Problemas para acessar?
+            </a>
           </div>
         </div>
 
