@@ -13,6 +13,7 @@ function buildRow(overrides: Partial<ErpEligibleRow> = {}): ErpEligibleRow {
     erp_contract_id: '285431',
     contract_external_id: 'daf0095c-90c7-31fd-69ec-0c59cb12820e',
     contract_number: '285431',
+    erp_contract_status: 'Normal',
     contract_date: new Date('2025-01-15T00:00:00.000Z'),
     contract_monthly_amount: '99.90',
     plan_title: 'PF - ANUAL - E-MAIL',
@@ -87,6 +88,14 @@ describe('mapErpRowsToIngestPayload', () => {
     const { payload } = mapErpRowsToIngestPayload(rows, now);
 
     expect(payload.events[0]?.case.priority).toBe('MEDIUM');
+  });
+
+  it('mapeia Bloqueio Financeiro do ERP para contrato suspenso', () => {
+    const rows = [buildRow({ erp_contract_status: 'Bloqueio Financeiro' })];
+
+    const { payload } = mapErpRowsToIngestPayload(rows, now);
+
+    expect(payload.events[0]?.contract.status).toBe('SUSPENDED');
   });
 
   it('separa contratos diferentes em eventos distintos', () => {
