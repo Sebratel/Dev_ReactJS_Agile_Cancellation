@@ -23,10 +23,10 @@ export function LoginForm() {
     <div className="flex w-full flex-col gap-3">
       {enabled ? (
         <div className="flex flex-col items-center gap-2">
-          <div className="flex min-h-14 w-full items-center justify-center rounded-2xl bg-primary p-1 shadow-[0_4px_18px_rgba(255,176,0,0.45),0_1px_4px_rgba(0,0,0,0.12)] transition-shadow duration-150 hover:shadow-[0_6px_22px_rgba(255,176,0,0.55),0_2px_6px_rgba(0,0,0,0.14)]">
+          <div className="flex min-h-14 w-full items-center justify-center rounded-2xl border border-white/80 bg-white/75 p-1.5 shadow-[6px_6px_16px_rgba(0,0,0,0.10),-5px_-5px_14px_rgba(255,255,255,0.95)] transition-shadow duration-150 hover:shadow-[8px_8px_20px_rgba(0,0,0,0.12),-5px_-5px_14px_rgba(255,255,255,0.95)]">
             <div
               ref={buttonContainerRef}
-              className="flex w-full justify-center"
+              className="flex w-full justify-center [&_iframe]:!mx-auto"
             />
           </div>
           {loadError ? (

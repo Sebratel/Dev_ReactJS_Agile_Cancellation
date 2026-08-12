@@ -93,7 +93,8 @@ export function useGoogleIdentityServices({
             size: 'large',
             shape: 'pill',
             text: 'signin_with',
-            width: 320,
+            logo_alignment: 'left',
+            width: 304,
           });
         }
 
