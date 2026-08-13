@@ -238,7 +238,7 @@ export function DashboardWelcomePanel({
         aria-hidden="true"
       />
 
-      <div className="relative grid gap-5 px-5 py-5 xl:grid-cols-[1.4fr_1fr]">
+      <div className="relative grid min-w-0 gap-5 px-4 py-4 sm:px-5 sm:py-5 2xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,1fr)]">
         <div className="min-w-0 space-y-5">
           <div>
             <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-foreground">
@@ -256,11 +256,11 @@ export function DashboardWelcomePanel({
             </p>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid min-w-0 gap-3 sm:grid-cols-2 2xl:grid-cols-4">
             {highlights.map((item) => (
               <div
                 key={item.label}
-                className="rounded-lg border border-border/70 bg-background/75 px-3 py-3"
+                className="min-w-0 rounded-lg border border-border/70 bg-background/75 px-3 py-3"
               >
                 <div className="flex items-start gap-2">
                   <span
@@ -288,8 +288,8 @@ export function DashboardWelcomePanel({
         </div>
 
         <div className="rounded-lg border border-border/70 bg-background/80 p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
+          <div className="flex min-w-0 items-center justify-between gap-3">
+            <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral">
                 {supervisorView ? 'O que fazer agora' : 'Seu foco agora'}
               </p>
@@ -321,7 +321,7 @@ export function DashboardWelcomePanel({
               <Link
                 key={item.label}
                 to={item.href}
-                className="group flex items-center gap-3 rounded-lg border border-border/70 bg-card px-3 py-3 transition-colors duration-150 hover:border-primary/40 hover:bg-primary/5"
+                className="group flex min-w-0 items-center gap-3 rounded-lg border border-border/70 bg-card px-3 py-3 transition-colors duration-150 hover:border-primary/40 hover:bg-primary/5"
               >
                 <span
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border text-sm font-bold ${getToneClasses(
@@ -338,7 +338,7 @@ export function DashboardWelcomePanel({
                     {item.description}
                   </span>
                 </span>
-                <span className="text-sm font-bold tabular-nums">
+                <span className="shrink-0 text-sm font-bold tabular-nums">
                   {item.value}
                 </span>
                 <ArrowRight

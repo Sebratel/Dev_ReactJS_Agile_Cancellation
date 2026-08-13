@@ -453,12 +453,12 @@ export function DashboardTriagePanel({
       }
       contentClassName="p-0"
     >
-      <div className="grid min-h-[430px] lg:grid-cols-[330px_1fr]">
+      <div className="grid min-h-[430px] min-w-0 2xl:grid-cols-[minmax(260px,310px)_minmax(0,1fr)]">
         <nav
-          className="border-b border-border bg-muted/25 p-3 lg:border-b-0 lg:border-r"
+          className="min-w-0 border-b border-border bg-muted/25 p-3 2xl:border-b-0 2xl:border-r"
           aria-label="Categorias da triagem"
         >
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+          <div className="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-1">
             {categories.map((category) => {
               const Icon = category.icon;
               const isActive = category.id === activeCategory.id;
@@ -470,7 +470,7 @@ export function DashboardTriagePanel({
                   type="button"
                   onClick={() => setActiveCategoryId(category.id)}
                   className={cn(
-                    'group relative overflow-hidden rounded-lg border px-3 py-3 text-left transition-all duration-200',
+                    'group relative min-w-0 overflow-hidden rounded-lg border px-3 py-3 text-left transition-all duration-200',
                     isActive
                       ? 'border-primary/45 bg-card shadow-card-hover'
                       : 'border-border/80 bg-background/70 hover:border-primary/30 hover:bg-card',
@@ -484,7 +484,7 @@ export function DashboardTriagePanel({
                     )}
                     aria-hidden="true"
                   />
-                  <span className="flex items-center gap-3">
+                  <span className="flex min-w-0 items-center gap-3">
                     <span
                       className={cn(
                         'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border',
@@ -494,10 +494,10 @@ export function DashboardTriagePanel({
                       <Icon className="h-5 w-5" aria-hidden="true" />
                     </span>
                     <span className="min-w-0">
-                      <span className="block text-sm font-bold">
+                      <span className="block truncate text-sm font-bold">
                         {category.title}
                       </span>
-                      <span className="block text-xs text-neutral">
+                      <span className="block truncate text-xs text-neutral">
                         {category.subtitle}
                       </span>
                     </span>
@@ -508,9 +508,9 @@ export function DashboardTriagePanel({
           </div>
         </nav>
 
-        <div className="space-y-5 p-5">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-            <div className="max-w-3xl">
+        <div className="min-w-0 space-y-5 p-4 sm:p-5">
+          <div className="flex min-w-0 flex-col gap-4 2xl:flex-row 2xl:items-start 2xl:justify-between">
+            <div className="min-w-0 max-w-3xl">
               <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-border bg-muted/50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-neutral">
                 <BarChart3 className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
                 Janela selecionada
@@ -527,7 +527,7 @@ export function DashboardTriagePanel({
               to={activeCategory.href}
               className={cn(
                 buttonVariants({ variant: 'primary' }),
-                'shrink-0 px-4 py-2 text-sm',
+                'w-full px-4 py-2 text-sm sm:w-auto 2xl:shrink-0',
               )}
             >
               {activeCategory.actionLabel}
@@ -535,11 +535,11 @@ export function DashboardTriagePanel({
             </Link>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid min-w-0 gap-3 md:grid-cols-3">
             {activeCategory.metrics.map((metric) => (
               <div
                 key={`${activeCategory.id}-${metric.label}`}
-                className="relative overflow-hidden rounded-lg border border-border/80 bg-background px-4 py-4"
+                className="relative min-w-0 overflow-hidden rounded-lg border border-border/80 bg-background px-4 py-4"
               >
                 <span
                   className={cn(
@@ -551,7 +551,7 @@ export function DashboardTriagePanel({
                 <p className="text-xs font-bold uppercase tracking-[0.12em] text-neutral">
                   {metric.label}
                 </p>
-                <p className="mt-2 text-2xl font-bold tabular-nums">
+                <p className="mt-2 break-words text-2xl font-bold tabular-nums">
                   {metric.value}
                 </p>
                 <p className="mt-1 text-sm text-neutral">{metric.helper}</p>
@@ -559,10 +559,10 @@ export function DashboardTriagePanel({
             ))}
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-[1fr_0.9fr]">
-            <div className="rounded-lg border border-border/80 bg-background p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
+          <div className="grid min-w-0 gap-4 2xl:grid-cols-[minmax(0,1fr)_minmax(300px,0.9fr)]">
+            <div className="min-w-0 rounded-lg border border-border/80 bg-background p-4">
+              <div className="flex min-w-0 items-center justify-between gap-3">
+                <div className="min-w-0">
                   <p className="text-sm font-bold">Leitura rápida</p>
                   <p className="text-sm text-neutral">
                     Sinais que ajudam a decidir o próximo clique.
@@ -584,7 +584,7 @@ export function DashboardTriagePanel({
                 {operationalSummary.slice(0, 3).map((item) => (
                   <div
                     key={item.label}
-                    className="flex items-center justify-between gap-3 rounded-lg bg-muted/45 px-3 py-2"
+                    className="flex min-w-0 items-center justify-between gap-3 rounded-lg bg-muted/45 px-3 py-2"
                   >
                     <span className="min-w-0">
                       <span className="block truncate text-sm font-medium">
@@ -594,7 +594,7 @@ export function DashboardTriagePanel({
                         {item.helperText}
                       </span>
                     </span>
-                    <span className="text-sm font-bold tabular-nums">
+                    <span className="shrink-0 text-sm font-bold tabular-nums">
                       {item.value}
                     </span>
                   </div>
@@ -602,7 +602,7 @@ export function DashboardTriagePanel({
               </div>
             </div>
 
-            <div className="rounded-lg border border-border/80 bg-background p-4">
+            <div className="min-w-0 rounded-lg border border-border/80 bg-background p-4">
               <p className="text-sm font-bold">
                 {topAlerts.length > 0 ? 'Alertas conectados' : 'Distribuição atual'}
               </p>
@@ -618,7 +618,7 @@ export function DashboardTriagePanel({
                       <Link
                         key={alert.key}
                         to={alert.supervisionHref ?? activeCategory.href}
-                        className="flex items-center justify-between gap-3 rounded-lg border border-border/70 px-3 py-2 transition-colors hover:border-primary/35 hover:bg-primary/5"
+                        className="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-border/70 px-3 py-2 transition-colors hover:border-primary/35 hover:bg-primary/5"
                       >
                         <span className="min-w-0">
                           <span className="block truncate text-sm font-medium">
@@ -637,9 +637,9 @@ export function DashboardTriagePanel({
                   : topStatus.map((item) => (
                       <div
                         key={item.label}
-                        className="flex items-center justify-between gap-3 rounded-lg bg-muted/45 px-3 py-2"
+                        className="flex min-w-0 items-center justify-between gap-3 rounded-lg bg-muted/45 px-3 py-2"
                       >
-                        <span className="truncate text-sm font-medium">
+                        <span className="min-w-0 truncate text-sm font-medium">
                           {item.label}
                         </span>
                         <StatusBadge

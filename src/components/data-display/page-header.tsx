@@ -13,9 +13,9 @@ export function PageHeader({
   children,
 }: PageHeaderProps) {
   return (
-    <header className="flex flex-col gap-3 border-b border-border/70 pb-4">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div className="space-y-1.5">
+    <header className="flex min-w-0 flex-col gap-3 border-b border-border/70 pb-4">
+      <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0 space-y-1.5">
           <div className="h-1 w-9 rounded-full bg-primary" aria-hidden="true" />
           <h1 className="text-[1.35rem] font-bold leading-tight tracking-tight">
             {title}

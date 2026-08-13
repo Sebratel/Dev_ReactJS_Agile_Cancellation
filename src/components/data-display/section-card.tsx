@@ -20,13 +20,13 @@ export function SectionCard({
   return (
     <section
       className={cn(
-        'rounded-lg border border-border/80 bg-card shadow-card animate-rise-in',
+        'min-w-0 rounded-lg border border-border/80 bg-card shadow-card animate-rise-in',
         className,
       )}
     >
       {(title || description || actions) && (
-        <header className="flex items-start justify-between gap-3 border-b border-border/80 px-4 py-3">
-          <div>
+        <header className="flex min-w-0 items-start justify-between gap-3 border-b border-border/80 px-4 py-3">
+          <div className="min-w-0">
             {title ? <h2 className="text-sm font-semibold">{title}</h2> : null}
             {description ? (
               <p className="mt-0.5 max-w-2xl text-xs leading-5 text-neutral">
@@ -37,7 +37,7 @@ export function SectionCard({
           {actions ? <div className="shrink-0">{actions}</div> : null}
         </header>
       )}
-      <div className={cn('p-4', contentClassName)}>{children}</div>
+      <div className={cn('min-w-0 p-4', contentClassName)}>{children}</div>
     </section>
   );
 }
