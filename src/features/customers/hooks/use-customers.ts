@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/services/api/query-keys';
 import {
   getCustomerById,
@@ -18,6 +18,7 @@ export function useCustomers(params: CustomersListParams) {
   return useQuery({
     queryKey: queryKeys.customers.list(queryParams),
     queryFn: () => getCustomers(queryParams),
+    placeholderData: keepPreviousData,
   });
 }
 

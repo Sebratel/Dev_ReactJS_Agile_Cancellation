@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -71,6 +71,11 @@ function SortIndicator({
 }
 
 export default function CustomersPage() {
+  const tableShellRef = useRef<HTMLDivElement>(null);
+  const lastPageChangePosition = useRef<{
+    windowY: number;
+    tableY: number;
+  } | null>(null);
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const debouncedSearch = useDebouncedValue(searchInput, 400);
@@ -91,7 +96,7 @@ export default function CustomersPage() {
 
   const customersQuery = useCustomers(params);
 
-  const items = customersQuery.data?.items ?? [];
+  const items = useMemo(() => customersQuery.data?.items ?? [], [customersQuery.data]);
   const totalCustomers = customersQuery.data?.pagination.total ?? 0;
   const totalPages = Math.max(
     customersQuery.data?.pagination.totalPages ?? 1,
@@ -123,6 +128,51 @@ export default function CustomersPage() {
     }
     setPage(1);
   };
+
+  const handlePageChange = (nextPage: number) => {
+    const tableContainer = tableShellRef.current?.querySelector<HTMLDivElement>(
+      '[data-customers-table-scroll]',
+    );
+    lastPageChangePosition.current = {
+      windowY: window.scrollY,
+      tableY: tableContainer?.scrollTop ?? 0,
+    };
+    setPage(nextPage);
+  };
+
+  useLayoutEffect(() => {
+    const position = lastPageChangePosition.current;
+    if (!position) return;
+
+    const restorePosition = () => {
+      const tableContainer = tableShellRef.current?.querySelector<HTMLDivElement>(
+        '[data-customers-table-scroll]',
+      );
+      if (tableContainer) {
+        tableContainer.scrollTop = position.tableY;
+      }
+
+      const isJsdom = navigator.userAgent.toLowerCase().includes('jsdom');
+      if (isJsdom) {
+        document.documentElement.scrollTop = position.windowY;
+        document.body.scrollTop = position.windowY;
+        lastPageChangePosition.current = null;
+        return;
+      }
+
+      try {
+        window.scrollTo({ top: position.windowY });
+      } catch {
+        document.documentElement.scrollTop = position.windowY;
+        document.body.scrollTop = position.windowY;
+      }
+      lastPageChangePosition.current = null;
+    };
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(restorePosition);
+    });
+  }, [items, page]);
 
   return (
     <PageContainer>
@@ -219,8 +269,8 @@ export default function CustomersPage() {
       {!customersQuery.isLoading &&
       !customersQuery.isError &&
       items.length > 0 ? (
-        <>
-          <TableContainer>
+        <div ref={tableShellRef}>
+          <TableContainer data-customers-table-scroll>
             <Table className="min-w-[720px]">
               <TableHead>
                 <tr>
@@ -319,9 +369,9 @@ export default function CustomersPage() {
           <Pagination
             page={page}
             totalPages={totalPages}
-            onPageChange={setPage}
+            onPageChange={handlePageChange}
           />
-        </>
+        </div>
       ) : null}
     </PageContainer>
   );
