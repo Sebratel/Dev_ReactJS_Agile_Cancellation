@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { DASHBOARD_REPOSITORY } from '@/common/data-source/data-source.constants';
 import { createApiResponse } from '@/common/responses/api-response';
+import type { AuthenticatedUser } from '@/modules/auth/types/authenticated-user.type';
 import type { DashboardRepository } from '@/modules/dashboard/repositories/dashboard.repository';
 import {
   resolveRecoveryRankingRange,
@@ -14,8 +15,13 @@ export class DashboardService {
     private readonly dashboardRepository: DashboardRepository,
   ) {}
 
-  async getSummary() {
-    const summary = await this.dashboardRepository.getSummary();
+  async getSummary(user: AuthenticatedUser) {
+    const canSeeFullPortfolio = user.roles.some(
+      (role) => role === 'ADMIN' || role === 'SUPERVISOR',
+    );
+    const summary = await this.dashboardRepository.getSummary(
+      canSeeFullPortfolio ? undefined : { assignedUserId: user.id },
+    );
 
     return createApiResponse(summary);
   }

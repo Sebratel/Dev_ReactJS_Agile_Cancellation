@@ -4,9 +4,12 @@ import type { DashboardSummaryResponse } from '@/modules/dashboard/dto/dashboard
 import type { RecoveryRankingRange } from '@/modules/dashboard/utils/dashboard-ranking.utils';
 
 export type RecoveryRankingParams = RecoveryRankingRange;
+export type DashboardSummaryParams = {
+  assignedUserId?: string;
+};
 
 export interface DashboardRepository {
-  getSummary(): Promise<DashboardSummaryResponse>;
+  getSummary(params?: DashboardSummaryParams): Promise<DashboardSummaryResponse>;
   getOperations(): Promise<DashboardOperationsResponse>;
   getRecoveryRanking(
     params: RecoveryRankingParams,

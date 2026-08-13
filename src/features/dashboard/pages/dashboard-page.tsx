@@ -58,13 +58,16 @@ function DashboardLoadingState() {
 
 export default function DashboardPage() {
   const { session } = useAuth();
+  const canSeeOperationView =
+    session?.user.roles.some((role) => role === 'ADMIN' || role === 'SUPERVISOR') ??
+    false;
   const dashboardQuery = useDashboardSummary();
   const criticalCasesQuery = useCollectionCases({
     page: 1,
     limit: 5,
     sortBy: 'daysOverdue',
     sortDirection: 'desc',
-  });
+  }, { enabled: canSeeOperationView });
 
   const metrics = useMemo(
     () =>
@@ -112,8 +115,11 @@ export default function DashboardPage() {
     [criticalCasesQuery.data],
   );
 
-  const isLoading = dashboardQuery.isLoading || criticalCasesQuery.isLoading;
-  const isError = dashboardQuery.isError || criticalCasesQuery.isError;
+  const isLoading =
+    dashboardQuery.isLoading ||
+    (canSeeOperationView && criticalCasesQuery.isLoading);
+  const isError =
+    dashboardQuery.isError || (canSeeOperationView && criticalCasesQuery.isError);
 
   const handleRetry = () => {
     void dashboardQuery.refetch();
@@ -124,18 +130,24 @@ export default function DashboardPage() {
     <PageContainer>
       <PageHeader
         title="Visão geral"
-        description="Painel operacional consolidado para leitura rápida da cobrança, recuperação e esteira de cancelamento."
+        description={
+          canSeeOperationView
+            ? 'Painel operacional consolidado para leitura rápida da cobrança, recuperação e esteira de cancelamento.'
+            : 'Painel individual para acompanhar sua rotina, prioridades e resultados do dia.'
+        }
         actions={
           <div className="flex flex-wrap gap-2">
-            <Link
-              to="/supervisao"
-              className={cn(
-                buttonVariants({ variant: 'secondary' }),
-                'px-3 py-1.5 text-xs',
-              )}
-            >
-              Ir para supervisão
-            </Link>
+            {canSeeOperationView ? (
+              <Link
+                to="/supervisao"
+                className={cn(
+                  buttonVariants({ variant: 'secondary' }),
+                  'px-3 py-1.5 text-xs',
+                )}
+              >
+                Ir para supervisão
+              </Link>
+            ) : null}
             <Button onClick={handleRetry} disabled={isLoading}>
               Atualizar indicadores
             </Button>
@@ -167,7 +179,7 @@ export default function DashboardPage() {
 
           <OperationalAlerts alerts={operationalAlerts} />
 
-          <DashboardOperationsSection />
+          {canSeeOperationView ? <DashboardOperationsSection /> : null}
 
           <OperationalSummary items={operationalSummary} />
 
@@ -180,18 +192,20 @@ export default function DashboardPage() {
             </Suspense>
           </section>
 
-          <RecoveryRankingPreview />
+          {canSeeOperationView ? <RecoveryRankingPreview /> : null}
 
-          {criticalCases.length > 0 ? (
-            <CriticalCasesTable cases={criticalCases} />
-          ) : (
-            <EmptyState
-              title="Nenhum caso crítico encontrado"
-              description="A API não retornou casos prioritários para exibição neste momento."
-              actionLabel="Atualizar"
-              onAction={handleRetry}
-            />
-          )}
+          {canSeeOperationView ? (
+            criticalCases.length > 0 ? (
+              <CriticalCasesTable cases={criticalCases} />
+            ) : (
+              <EmptyState
+                title="Nenhum caso crítico encontrado"
+                description="A API não retornou casos prioritários para exibição neste momento."
+                actionLabel="Atualizar"
+                onAction={handleRetry}
+              />
+            )
+          ) : null}
         </>
       ) : null}
     </PageContainer>

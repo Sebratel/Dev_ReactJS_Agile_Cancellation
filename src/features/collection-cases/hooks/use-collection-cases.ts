@@ -6,7 +6,14 @@ import {
 } from '@/features/collection-cases/services/collection-cases.service';
 import { type CollectionCasesListParams } from '@/features/collection-cases/types/collection-cases-api.types';
 
-export function useCollectionCases(params: CollectionCasesListParams) {
+type UseCollectionCasesOptions = {
+  enabled?: boolean;
+};
+
+export function useCollectionCases(
+  params: CollectionCasesListParams,
+  options: UseCollectionCasesOptions = {},
+) {
   const queryParams: CollectionCasesListParams = {
     page: params.page ?? 1,
     limit: params.limit ?? 10,
@@ -26,6 +33,7 @@ export function useCollectionCases(params: CollectionCasesListParams) {
   return useQuery({
     queryKey: queryKeys.collectionCases.list(queryParams),
     queryFn: () => getCollectionCases(queryParams),
+    enabled: options.enabled ?? true,
   });
 }
 

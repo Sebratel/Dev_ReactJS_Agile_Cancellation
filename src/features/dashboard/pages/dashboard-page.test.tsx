@@ -1,6 +1,6 @@
 import { type ReactNode } from 'react';
 import { screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DashboardPage from '@/features/dashboard/pages/dashboard-page';
 import { createMockSession } from '@/test/auth-test-utils';
 import {
@@ -41,6 +41,10 @@ import {
 } from '@/features/dashboard/services/dashboard.service';
 
 describe('DashboardPage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('renderiza KPIs principais, alertas e casos criticos com dados da API', async () => {
     vi.mocked(getDashboardSummary).mockResolvedValue(
       mockDashboardSummaryResponse,
@@ -62,8 +66,10 @@ describe('DashboardPage', () => {
     expect(screen.getByText('Dashboard operacional')).toBeInTheDocument();
     expect(await screen.findByText('Casos ativos')).toBeInTheDocument();
     expect(screen.getAllByText('Valor em aberto').length).toBeGreaterThan(0);
-    expect(screen.getByText('Em cobrança')).toBeInTheDocument();
-    expect(screen.getByText('Elegíveis para cancelamento')).toBeInTheDocument();
+    expect(screen.getAllByText('Em cobrança').length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText('Elegíveis para cancelamento').length,
+    ).toBeGreaterThan(0);
     expect(screen.getAllByText('R$ 184.750,42').length).toBeGreaterThan(0);
     expect(screen.getByText('Requer atenção')).toBeInTheDocument();
     expect(screen.getAllByText('Promessas vencidas').length).toBeGreaterThan(1);
@@ -85,4 +91,5 @@ describe('DashboardPage', () => {
       await screen.findByText('Não foi possível carregar o dashboard'),
     ).toBeInTheDocument();
   });
+
 });

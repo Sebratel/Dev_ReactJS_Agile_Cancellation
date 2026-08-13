@@ -1,5 +1,7 @@
 import { Controller, Get, Query } from '@nestjs/common';
+import { CurrentUser } from '@/modules/auth/decorators/current-user.decorator';
 import { Roles } from '@/modules/auth/decorators/roles.decorator';
+import type { AuthenticatedUser } from '@/modules/auth/types/authenticated-user.type';
 import { DashboardService } from '@/modules/dashboard/dashboard.service';
 import { DashboardRankingQueryDto } from '@/modules/dashboard/dto/dashboard-ranking-query.dto';
 
@@ -16,8 +18,8 @@ export class DashboardController {
     'FINANCE',
   )
   @Get('summary')
-  getSummary() {
-    return this.dashboardService.getSummary();
+  getSummary(@CurrentUser() user: AuthenticatedUser) {
+    return this.dashboardService.getSummary(user);
   }
 
   @Roles('ADMIN', 'SUPERVISOR')

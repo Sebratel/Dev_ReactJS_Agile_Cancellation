@@ -4,6 +4,7 @@ import {
   CollectionStatus,
   InvoiceStatus,
   PaymentPromiseStatus,
+  Prisma,
   UserStatus,
 } from '@prisma/client';
 import { Injectable } from '@nestjs/common';
@@ -21,6 +22,7 @@ import type {
   DashboardRecoveryRankingResponse,
 } from '@/modules/dashboard/dto/dashboard-ranking.response';
 import type {
+  DashboardSummaryParams,
   DashboardRepository,
   RecoveryRankingParams,
 } from '@/modules/dashboard/repositories/dashboard.repository';
@@ -57,7 +59,9 @@ const CLOSED_COLLECTION_STATUSES: CollectionStatus[] = [
 export class DashboardPrismaRepository implements DashboardRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getSummary(): Promise<DashboardSummaryResponse> {
+  async getSummary(
+    params: DashboardSummaryParams = {},
+  ): Promise<DashboardSummaryResponse> {
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
@@ -68,6 +72,16 @@ export class DashboardPrismaRepository implements DashboardRepository {
     );
     const todayEnd = new Date(todayStart);
     todayEnd.setDate(todayEnd.getDate() + 1);
+    const scopedCaseWhere: Prisma.CollectionCaseWhereInput =
+      params.assignedUserId ? { assignedUserId: params.assignedUserId } : {};
+    const scopedPromiseWhere: Prisma.PaymentPromiseWhereInput =
+      params.assignedUserId
+        ? { collectionCase: { assignedUserId: params.assignedUserId } }
+        : {};
+    const scopedCancellationWhere: Prisma.CancellationProcessWhereInput =
+      params.assignedUserId
+        ? { collectionCase: { assignedUserId: params.assignedUserId } }
+        : {};
 
     const [
       delinquentCustomers,
@@ -86,51 +100,70 @@ export class DashboardPrismaRepository implements DashboardRepository {
       activeAgentsCount,
       agentsWithActivityToday,
     ] = await Promise.all([
-      this.prisma.customer.count({
-        where: {
-          OR: [
-            {
-              collectionCases: {
-                some: { daysOverdue: { gt: 0 } },
-              },
-            },
-            {
-              contracts: {
-                some: {
-                  invoices: {
+      params.assignedUserId
+        ? this.countScopedDelinquentCustomers(scopedCaseWhere)
+        : this.prisma.customer.count({
+            where: {
+              OR: [
+                {
+                  collectionCases: {
+                    some: { daysOverdue: { gt: 0 } },
+                  },
+                },
+                {
+                  contracts: {
                     some: {
-                      status: {
-                        in: [InvoiceStatus.OPEN, InvoiceStatus.OVERDUE],
+                      invoices: {
+                        some: {
+                          status: {
+                            in: [InvoiceStatus.OPEN, InvoiceStatus.OVERDUE],
+                          },
+                        },
                       },
                     },
                   },
                 },
-              },
+              ],
             },
-          ],
-        },
-      }),
+          }),
       this.prisma.collectionCase.aggregate({
+        where: scopedCaseWhere,
         _sum: { outstandingAmount: true },
       }),
       this.prisma.collectionCase.count({
-        where: { status: CollectionStatus.IN_COLLECTION },
+        where: {
+          ...scopedCaseWhere,
+          status: CollectionStatus.IN_COLLECTION,
+        },
       }),
       this.prisma.collectionCase.count({
-        where: { status: CollectionStatus.ELIGIBLE_FOR_CANCELLATION },
-      }),
-      this.prisma.invoice.aggregate({
         where: {
-          status: InvoiceStatus.PAID,
-          updatedAt: { gte: monthStart, lt: monthEnd },
+          ...scopedCaseWhere,
+          status: CollectionStatus.ELIGIBLE_FOR_CANCELLATION,
         },
-        _sum: { paidAmount: true },
       }),
+      params.assignedUserId
+        ? this.prisma.collectionCase.aggregate({
+            where: {
+              ...scopedCaseWhere,
+              status: CollectionStatus.RECOVERED,
+              recoveredAt: { gte: monthStart, lt: monthEnd },
+            },
+            _sum: { outstandingAmount: true },
+          })
+        : this.prisma.invoice.aggregate({
+            where: {
+              status: InvoiceStatus.PAID,
+              updatedAt: { gte: monthStart, lt: monthEnd },
+            },
+            _sum: { paidAmount: true },
+          }),
       this.prisma.paymentPromise.count({
-        where: { status: PaymentPromiseStatus.ACTIVE },
+        where: { ...scopedPromiseWhere, status: PaymentPromiseStatus.ACTIVE },
       }),
       this.prisma.paymentPromise.count({
         where: {
+          ...scopedPromiseWhere,
           OR: [
             {
               status: PaymentPromiseStatus.ACTIVE,
@@ -145,17 +178,22 @@ export class DashboardPrismaRepository implements DashboardRepository {
         },
       }),
       this.prisma.cancellationProcess.count({
-        where: { status: { in: ACTIVE_CANCELLATION_STATUSES } },
+        where: {
+          ...scopedCancellationWhere,
+          status: { in: ACTIVE_CANCELLATION_STATUSES },
+        },
       }),
       this.prisma.collectionCase.groupBy({
         by: ['status'],
+        where: scopedCaseWhere,
         _count: { _all: true },
       }),
       this.prisma.collectionCase.count({
-        where: { collectionAttempts: { none: {} } },
+        where: { ...scopedCaseWhere, collectionAttempts: { none: {} } },
       }),
       this.prisma.collectionCase.count({
         where: {
+          ...scopedCaseWhere,
           slaDueAt: { lt: now },
           status: {
             notIn: [CollectionStatus.CLOSED, CollectionStatus.RECOVERED],
@@ -163,31 +201,41 @@ export class DashboardPrismaRepository implements DashboardRepository {
         },
       }),
       this.prisma.cancellationProcess.count({
-        where: { status: CancellationStatus.AWAITING_PROTOCOL },
+        where: {
+          ...scopedCancellationWhere,
+          status: CancellationStatus.AWAITING_PROTOCOL,
+        },
       }),
       this.prisma.paymentPromise.count({
         where: {
+          ...scopedPromiseWhere,
           status: PaymentPromiseStatus.ACTIVE,
           promisedDate: { gte: todayStart, lt: todayEnd },
         },
       }),
-      this.prisma.user.count({
-        where: {
-          status: UserStatus.ACTIVE,
-          userRoles: {
-            some: {
-              role: { code: { in: ['COLLECTION_AGENT', 'CANCELLATION_AGENT'] } },
+      params.assignedUserId
+        ? Promise.resolve(0)
+        : this.prisma.user.count({
+            where: {
+              status: UserStatus.ACTIVE,
+              userRoles: {
+                some: {
+                  role: {
+                    code: { in: ['COLLECTION_AGENT', 'CANCELLATION_AGENT'] },
+                  },
+                },
+              },
             },
-          },
-        },
-      }),
-      this.prisma.collectionAttempt.groupBy({
-        by: ['performedByUserId'],
-        where: {
-          performedByUserId: { not: null },
-          attemptedAt: { gte: todayStart, lt: todayEnd },
-        },
-      }),
+          }),
+      params.assignedUserId
+        ? Promise.resolve([])
+        : this.prisma.collectionAttempt.groupBy({
+            by: ['performedByUserId'],
+            where: {
+              performedByUserId: { not: null },
+              attemptedAt: { gte: todayStart, lt: todayEnd },
+            },
+          }),
     ]);
 
     const inactiveAgents = Math.max(
@@ -202,7 +250,16 @@ export class DashboardPrismaRepository implements DashboardRepository {
         count: group._count._all,
       }));
 
-    const recoveryTrend = await this.buildRecoveryTrend(monthStart, monthEnd);
+    const recoveryTrend = await this.buildRecoveryTrend(
+      monthStart,
+      monthEnd,
+      scopedCaseWhere,
+    );
+
+    const recoveredMonthSum = recoveredMonthAggregate._sum as {
+      outstandingAmount?: Prisma.Decimal | null;
+      paidAmount?: Prisma.Decimal | null;
+    };
 
     const operationalAlerts: DashboardOperationalAlert[] = [
       {
@@ -247,7 +304,7 @@ export class DashboardPrismaRepository implements DashboardRepository {
           'Agentes ativos sem nenhuma tentativa de contato registrada hoje.',
         count: inactiveAgents,
       },
-    ];
+    ].filter((alert) => !(params.assignedUserId && alert.key === 'inactiveAgents'));
 
     return {
       metrics: {
@@ -255,7 +312,9 @@ export class DashboardPrismaRepository implements DashboardRepository {
         openAmount: formatDecimal(openAmountAggregate._sum.outstandingAmount),
         inCollection,
         eligibleForCancellation,
-        recoveredMonth: formatDecimal(recoveredMonthAggregate._sum.paidAmount),
+        recoveredMonth: formatDecimal(
+          recoveredMonthSum.paidAmount ?? recoveredMonthSum.outstandingAmount,
+        ),
         activePromises,
         overduePromises,
         cancellationsInProgress,
@@ -472,9 +531,11 @@ export class DashboardPrismaRepository implements DashboardRepository {
   private async buildRecoveryTrend(
     monthStart: Date,
     monthEnd: Date,
+    caseWhere: Prisma.CollectionCaseWhereInput = {},
   ): Promise<DashboardRecoveryTrendItem[]> {
     const recoveredCases = await this.prisma.collectionCase.findMany({
       where: {
+        ...caseWhere,
         status: CollectionStatus.RECOVERED,
         updatedAt: { gte: monthStart, lt: monthEnd },
       },
@@ -509,5 +570,20 @@ export class DashboardPrismaRepository implements DashboardRepository {
     }
 
     return trend;
+  }
+
+  private async countScopedDelinquentCustomers(
+    caseWhere: Prisma.CollectionCaseWhereInput,
+  ) {
+    const customers = await this.prisma.collectionCase.findMany({
+      where: {
+        ...caseWhere,
+        daysOverdue: { gt: 0 },
+      },
+      distinct: ['customerId'],
+      select: { customerId: true },
+    });
+
+    return customers.length;
   }
 }
