@@ -11,8 +11,12 @@ describe('CollectionCasesPrismaRepository', () => {
         daysOverdue: 10,
         outstandingAmount: { toFixed: () => '100.00' },
         slaDueAt: null,
-        customer: { name: 'Cliente DB' },
-        contract: { code: 'CTR-DB-1' },
+        customer: { name: 'Cliente DB', phone: '51999999999' },
+        contract: {
+          code: 'CTR-DB-1',
+          status: 'Bloqueio Financeiro',
+          invoices: [{ dueDate: new Date('2026-07-10T00:00:00') }],
+        },
         assignedUser: { name: 'Operador DB' },
       },
     ]);
@@ -64,6 +68,8 @@ describe('CollectionCasesPrismaRepository', () => {
       daysOverdueMax: 120,
       totalOutstandingMin: 1000,
       totalOutstandingMax: 20000,
+      dueDateStart: '2026-07-01',
+      dueDateEnd: '2026-07-31',
       slaStatus: 'overdue',
       sortBy: 'createdAt',
       sortDirection: 'asc',
@@ -79,6 +85,13 @@ describe('CollectionCasesPrismaRepository', () => {
               priority: string;
               daysOverdue: { gte: number; lte: number };
               outstandingAmount: { gte: number; lte: number };
+              contract: {
+                invoices: {
+                  some: {
+                    dueDate: { lt: Date; gte: Date; lte: Date };
+                  };
+                };
+              };
             };
             orderBy: Array<Record<string, string>>;
           },
@@ -90,6 +103,13 @@ describe('CollectionCasesPrismaRepository', () => {
         priority: string;
         daysOverdue: { gte: number; lte: number };
         outstandingAmount: { gte: number; lte: number };
+        contract: {
+          invoices: {
+            some: {
+              dueDate: { lt: Date; gte: Date; lte: Date };
+            };
+          };
+        };
       };
       orderBy: Array<Record<string, string>>;
     };
@@ -101,6 +121,13 @@ describe('CollectionCasesPrismaRepository', () => {
       gte: 1000,
       lte: 20000,
     });
+    expect(findManyArgs.where.contract.invoices.some.dueDate).toEqual(
+      expect.objectContaining({
+        lt: expect.any(Date),
+        gte: new Date('2026-07-01T00:00:00'),
+        lte: new Date('2026-07-31T23:59:59.999'),
+      }),
+    );
     expect(findManyArgs.orderBy).toEqual([
       { createdAt: 'asc' },
       { daysOverdue: 'desc' },

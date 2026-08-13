@@ -69,8 +69,20 @@ function hasAdvancedFilters(filters: SupervisionFiltersState): boolean {
     filters.daysOverdueMin ||
     filters.daysOverdueMax ||
     filters.totalOutstandingMin ||
-    filters.totalOutstandingMax,
+    filters.totalOutstandingMax ||
+    filters.dueDateStart ||
+    filters.dueDateEnd,
   );
+}
+
+function formatDateInputLabel(value: string) {
+  const [year, month, day] = value.split('-');
+
+  if (!year || !month || !day) {
+    return value;
+  }
+
+  return `${day}/${month}/${year}`;
 }
 
 export function SupervisionFilters({
@@ -89,6 +101,8 @@ export function SupervisionFilters({
     filters.daysOverdueMax,
     filters.totalOutstandingMin,
     filters.totalOutstandingMax,
+    filters.dueDateStart,
+    filters.dueDateEnd,
   ].filter(Boolean).length;
 
   const [advancedOpen, setAdvancedOpen] = useState(() =>
@@ -188,6 +202,22 @@ export function SupervisionFilters({
       key: 'totalOutstandingMax',
       label: `Valor <= ${filters.totalOutstandingMax}`,
       onRemove: () => clearFilter({ totalOutstandingMax: '' }),
+    });
+  }
+
+  if (filters.dueDateStart) {
+    chips.push({
+      key: 'dueDateStart',
+      label: `Vencimento >= ${formatDateInputLabel(filters.dueDateStart)}`,
+      onRemove: () => clearFilter({ dueDateStart: '' }),
+    });
+  }
+
+  if (filters.dueDateEnd) {
+    chips.push({
+      key: 'dueDateEnd',
+      label: `Vencimento <= ${formatDateInputLabel(filters.dueDateEnd)}`,
+      onRemove: () => clearFilter({ dueDateEnd: '' }),
     });
   }
 
@@ -311,8 +341,6 @@ export function SupervisionFilters({
             </Select>
           </label>
 
-          <div aria-hidden="true" className="hidden xl:block" />
-
           <label className="space-y-1 text-sm">
             <span className={labelClassName}>Dias em atraso (min)</span>
             <Input
@@ -363,6 +391,28 @@ export function SupervisionFilters({
                   totalOutstandingMax: event.target.value,
                   page: 1,
                 })
+              }
+            />
+          </label>
+
+          <label className="space-y-1 text-sm">
+            <span className={labelClassName}>Vencimento inicial</span>
+            <Input
+              type="date"
+              value={filters.dueDateStart}
+              onChange={(event) =>
+                onFilterChange({ dueDateStart: event.target.value, page: 1 })
+              }
+            />
+          </label>
+
+          <label className="space-y-1 text-sm">
+            <span className={labelClassName}>Vencimento final</span>
+            <Input
+              type="date"
+              value={filters.dueDateEnd}
+              onChange={(event) =>
+                onFilterChange({ dueDateEnd: event.target.value, page: 1 })
               }
             />
           </label>

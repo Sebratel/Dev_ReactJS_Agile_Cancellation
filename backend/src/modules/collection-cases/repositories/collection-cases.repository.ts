@@ -176,6 +176,8 @@ export type CollectionCasesListParams = {
   daysOverdueMax?: number;
   totalOutstandingMin?: number;
   totalOutstandingMax?: number;
+  dueDateStart?: string;
+  dueDateEnd?: string;
   slaStatus?: CollectionCasesSlaStatus;
   createdToday?: boolean;
   interactionStatus?: CollectionCasesInteractionStatus;
@@ -239,6 +241,8 @@ export function mapQueryDtoToListParams(
     daysOverdueMax: query.daysOverdueMax,
     totalOutstandingMin: query.totalOutstandingMin,
     totalOutstandingMax: query.totalOutstandingMax,
+    dueDateStart: query.dueDateStart,
+    dueDateEnd: query.dueDateEnd,
     slaStatus: query.slaStatus,
     createdToday: query.createdToday,
     interactionStatus: query.interactionStatus,

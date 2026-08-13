@@ -1,5 +1,6 @@
 import {
   CollectionStatus,
+  InvoiceStatus,
   type PaymentPromiseStatus,
   type Priority,
   type Prisma,
@@ -14,6 +15,12 @@ import type {
 const FINALIZED_STATUSES: CollectionStatus[] = [
   CollectionStatus.CLOSED,
   CollectionStatus.RECOVERED,
+];
+
+const OPEN_INVOICE_STATUSES: InvoiceStatus[] = [
+  InvoiceStatus.OPEN,
+  InvoiceStatus.PARTIALLY_PAID,
+  InvoiceStatus.OVERDUE,
 ];
 
 export type MockCollectionCaseListRecord = CollectionCaseListItemResponse & {
@@ -43,6 +50,20 @@ function getEndOfDay(date: Date) {
   const end = new Date(date);
   end.setHours(23, 59, 59, 999);
   return end;
+}
+
+function parseDateInput(value: string | undefined) {
+  if (!value) {
+    return undefined;
+  }
+
+  const parsed = new Date(`${value}T00:00:00`);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return undefined;
+  }
+
+  return parsed;
 }
 
 export function normalizeListParams(
@@ -108,6 +129,24 @@ export function buildCollectionCasesWhere(
       ...(params.totalOutstandingMax !== undefined
         ? { lte: params.totalOutstandingMax }
         : {}),
+    };
+  }
+
+  const dueDateStart = parseDateInput(params.dueDateStart);
+  const dueDateEnd = parseDateInput(params.dueDateEnd);
+
+  if (dueDateStart || dueDateEnd) {
+    where.contract = {
+      invoices: {
+        some: {
+          status: { in: OPEN_INVOICE_STATUSES },
+          dueDate: {
+            lt: now,
+            ...(dueDateStart ? { gte: getStartOfDay(dueDateStart) } : {}),
+            ...(dueDateEnd ? { lte: getEndOfDay(dueDateEnd) } : {}),
+          },
+        },
+      },
     };
   }
 
@@ -313,6 +352,21 @@ export function filterMockCollectionCases(
       params.totalOutstandingMax !== undefined &&
       outstandingAmount > params.totalOutstandingMax
     ) {
+      return false;
+    }
+
+    const firstOverdueTime = new Date(getFirstOverdueDate(record)).getTime();
+    const dueDateStart = parseDateInput(params.dueDateStart);
+    const dueDateEnd = parseDateInput(params.dueDateEnd);
+
+    if (
+      dueDateStart &&
+      firstOverdueTime < getStartOfDay(dueDateStart).getTime()
+    ) {
+      return false;
+    }
+
+    if (dueDateEnd && firstOverdueTime > getEndOfDay(dueDateEnd).getTime()) {
       return false;
     }
 

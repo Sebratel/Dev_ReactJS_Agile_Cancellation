@@ -45,6 +45,8 @@ function buildCollectionCasesPath(params: CollectionCasesListParams) {
   appendParam(searchParams, 'daysOverdueMax', params.daysOverdueMax);
   appendParam(searchParams, 'totalOutstandingMin', params.totalOutstandingMin);
   appendParam(searchParams, 'totalOutstandingMax', params.totalOutstandingMax);
+  appendParam(searchParams, 'dueDateStart', params.dueDateStart);
+  appendParam(searchParams, 'dueDateEnd', params.dueDateEnd);
   appendParam(searchParams, 'slaStatus', params.slaStatus);
   if (params.createdToday) {
     searchParams.set('createdToday', 'true');

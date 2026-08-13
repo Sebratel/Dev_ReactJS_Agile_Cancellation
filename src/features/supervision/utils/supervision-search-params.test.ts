@@ -21,6 +21,8 @@ describe('supervision search params', () => {
       daysOverdueMax: '',
       totalOutstandingMin: '',
       totalOutstandingMax: '',
+      dueDateStart: '',
+      dueDateEnd: '',
       slaStatus: '',
       createdToday: '',
       interactionStatus: '',
@@ -48,6 +50,8 @@ describe('supervision search params', () => {
       ...EMPTY_SUPERVISION_FILTERS,
       status: 'NO_RESPONSE',
       search: 'Horizonte',
+      dueDateStart: '2026-07-01',
+      dueDateEnd: '2026-07-31',
       sortBy: 'totalOutstanding',
       sortDirection: 'desc',
       page: 3,
@@ -55,6 +59,8 @@ describe('supervision search params', () => {
 
     expect(params.get('status')).toBe('NO_RESPONSE');
     expect(params.get('search')).toBe('Horizonte');
+    expect(params.get('dueDateStart')).toBe('2026-07-01');
+    expect(params.get('dueDateEnd')).toBe('2026-07-31');
     expect(params.get('sortBy')).toBe('totalOutstanding');
     expect(params.get('sortDirection')).toBe('desc');
     expect(params.get('page')).toBe('3');
@@ -68,6 +74,8 @@ describe('supervision search params', () => {
           status: 'IN_COLLECTION',
           daysOverdueMin: '30',
           totalOutstandingMax: '15000',
+          dueDateStart: '2026-07-01',
+          dueDateEnd: '2026-07-31',
           slaStatus: 'overdue',
           sortBy: 'slaDueAt',
           sortDirection: 'asc',
@@ -82,6 +90,8 @@ describe('supervision search params', () => {
       search: 'cliente',
       daysOverdueMin: 30,
       totalOutstandingMax: 15000,
+      dueDateStart: '2026-07-01',
+      dueDateEnd: '2026-07-31',
       slaStatus: 'overdue',
       sortBy: 'slaDueAt',
       sortDirection: 'asc',
@@ -108,6 +118,12 @@ describe('supervision search params', () => {
         promiseStatus: 'ACTIVE',
       }),
     ).toBe(true);
+    expect(
+      hasActiveSupervisionFilters({
+        ...EMPTY_SUPERVISION_FILTERS,
+        dueDateStart: '2026-07-01',
+      }),
+    ).toBe(true);
   });
 
   it('limpa filtros novos ao serializar estado vazio', () => {
@@ -116,5 +132,7 @@ describe('supervision search params', () => {
     expect(params.get('createdToday')).toBeNull();
     expect(params.get('interactionStatus')).toBeNull();
     expect(params.get('promiseStatus')).toBeNull();
+    expect(params.get('dueDateStart')).toBeNull();
+    expect(params.get('dueDateEnd')).toBeNull();
   });
 });

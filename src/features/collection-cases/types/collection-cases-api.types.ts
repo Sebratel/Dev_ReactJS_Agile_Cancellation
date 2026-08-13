@@ -268,6 +268,8 @@ export type CollectionCasesListParams = {
   daysOverdueMax?: number;
   totalOutstandingMin?: number;
   totalOutstandingMax?: number;
+  dueDateStart?: string;
+  dueDateEnd?: string;
   slaStatus?: CollectionCasesSlaStatus;
   createdToday?: boolean;
   interactionStatus?: 'none';

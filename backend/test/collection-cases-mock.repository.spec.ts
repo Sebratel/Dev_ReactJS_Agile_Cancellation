@@ -110,6 +110,30 @@ describe('CollectionCasesMockRepository', () => {
     ).toBe(true);
   });
 
+  it('filtra por range de vencimento', async () => {
+    const result = await repository.listCases({
+      page: 1,
+      limit: 100,
+      dueDateStart: '2026-05-01',
+      dueDateEnd: '2026-05-31',
+    });
+
+    expect(result.items.length).toBeGreaterThan(0);
+    expect(
+      result.items.every((item) => {
+        const dueDate = item.firstOverdueDate
+          ? new Date(item.firstOverdueDate)
+          : null;
+
+        return (
+          dueDate !== null &&
+          dueDate >= new Date('2026-05-01T00:00:00') &&
+          dueDate <= new Date('2026-05-31T23:59:59.999')
+        );
+      }),
+    ).toBe(true);
+  });
+
   it('ordena corretamente por dias em atraso asc', async () => {
     const result = await repository.listCases({
       page: 1,

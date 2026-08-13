@@ -6,6 +6,7 @@ import {
 import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
+  IsDateString,
   IsEnum,
   IsIn,
   IsInt,
@@ -147,6 +148,14 @@ export class CollectionCasesQueryDto {
   @IsNumber()
   @Min(0)
   totalOutstandingMax?: number;
+
+  @IsOptional()
+  @IsDateString()
+  dueDateStart?: string;
+
+  @IsOptional()
+  @IsDateString()
+  dueDateEnd?: string;
 
   @IsOptional()
   @IsIn(COLLECTION_CASES_SLA_STATUS)
