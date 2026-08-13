@@ -8,5 +8,6 @@ export function useNotifications(params?: NotificationsListParams) {
   return useQuery({
     queryKey: queryKeys.notifications.list(queryParams),
     queryFn: () => getNotifications(queryParams),
+    refetchInterval: 30_000,
   });
 }

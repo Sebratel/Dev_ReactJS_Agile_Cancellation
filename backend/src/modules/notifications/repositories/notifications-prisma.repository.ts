@@ -49,6 +49,24 @@ export class NotificationsPrismaRepository implements NotificationsRepository {
     return mapNotification(notification);
   }
 
+  async listSupervisorUserIds(): Promise<string[]> {
+    const users = await this.prisma.user.findMany({
+      where: {
+        status: 'ACTIVE',
+        userRoles: {
+          some: {
+            role: {
+              code: { in: ['ADMIN', 'SUPERVISOR'] },
+            },
+          },
+        },
+      },
+      select: { id: true },
+    });
+
+    return users.map((user) => user.id);
+  }
+
   async list(params: ListNotificationsParams) {
     const { userId, unreadOnly, page, limit } = params;
     const skip = (page - 1) * limit;

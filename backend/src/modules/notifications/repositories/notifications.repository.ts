@@ -19,6 +19,7 @@ export type ListNotificationsParams = {
 
 export interface NotificationsRepository {
   create(params: CreateNotificationParams): Promise<NotificationResponse>;
+  listSupervisorUserIds(): Promise<string[]>;
   list(
     params: ListNotificationsParams,
   ): Promise<PaginatedResponse<NotificationResponse>>;

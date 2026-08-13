@@ -31,6 +31,21 @@ export class NotificationsService {
     await this.repository.create(params);
   }
 
+  async notifySupervisors(
+    params: Omit<CreateNotificationParams, 'userId'>,
+  ): Promise<void> {
+    const supervisorUserIds = await this.repository.listSupervisorUserIds();
+
+    await Promise.all(
+      supervisorUserIds.map((userId) =>
+        this.repository.create({
+          ...params,
+          userId,
+        }),
+      ),
+    );
+  }
+
   async list(userId: string, dto: ListNotificationsDto) {
     const result = await this.repository.list({
       userId,

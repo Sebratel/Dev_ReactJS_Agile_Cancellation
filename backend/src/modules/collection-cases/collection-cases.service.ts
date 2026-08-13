@@ -1,10 +1,11 @@
-import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import { COLLECTION_CASES_REPOSITORY } from '@/common/data-source/data-source.constants';
 import { AppException } from '@/common/exceptions/app.exception';
 import { createApiResponse } from '@/common/responses/api-response';
 import type { CreateCollectionAttemptDto } from '@/modules/collection-cases/dto/create-collection-attempt.dto';
 import type { CreatePaymentPromiseDto } from '@/modules/collection-cases/dto/create-payment-promise.dto';
 import type { UpdatePaymentPromiseStatusDto } from '@/modules/collection-cases/dto/update-payment-promise-status.dto';
+import type { PaymentPromiseResponse } from '@/modules/collection-cases/dto/payment-promise.response';
 import type { SendToCancellationDto } from '@/modules/collection-cases/dto/send-to-cancellation.dto';
 import type { RevertCancellationDto } from '@/modules/collection-cases/dto/revert-cancellation.dto';
 import type { AssignCaseDto } from '@/modules/collection-cases/dto/assign-case.dto';
@@ -48,6 +49,37 @@ function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
+function formatPromiseAmount(amount: string) {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(Number(amount));
+}
+
+function getPromiseNotificationCopy(action: PaymentPromiseStatusAction) {
+  if (action === 'FULFILLED') {
+    return {
+      type: 'PAYMENT_PROMISE_FULFILLED',
+      title: 'Promessa cumprida',
+      statusLabel: 'cumprida',
+    };
+  }
+
+  if (action === 'BROKEN') {
+    return {
+      type: 'PAYMENT_PROMISE_BROKEN',
+      title: 'Promessa descumprida',
+      statusLabel: 'descumprida',
+    };
+  }
+
+  return {
+    type: 'PAYMENT_PROMISE_CANCELLED',
+    title: 'Promessa cancelada',
+    statusLabel: 'cancelada',
+  };
+}
+
 function canAccessCaseDetails(
   user: AuthenticatedUser | undefined,
   assignedToId: string | null,
@@ -62,6 +94,8 @@ function canAccessCaseDetails(
 
 @Injectable()
 export class CollectionCasesService {
+  private readonly logger = new Logger(CollectionCasesService.name);
+
   constructor(
     @Inject(COLLECTION_CASES_REPOSITORY)
     private readonly collectionCasesRepository: CollectionCasesRepository,
@@ -308,7 +342,42 @@ export class CollectionCasesService {
       );
     }
 
+    await this.notifySupervisorsAboutPromiseStatus(action, result.promise);
+
     return createApiResponse(result.promise);
+  }
+
+  private async notifySupervisorsAboutPromiseStatus(
+    action: PaymentPromiseStatusAction,
+    promise: PaymentPromiseResponse,
+  ) {
+    const details = await this.collectionCasesRepository.getCaseById(
+      promise.collectionCaseId,
+    );
+    const copy = getPromiseNotificationCopy(action);
+    const customerName = details?.customer.name ?? 'Cliente';
+    const contractCode = details?.contract.code ?? 'contrato nao informado';
+    const assignedTo = details?.assignedTo?.name
+      ? ` Responsavel: ${details.assignedTo.name}.`
+      : '';
+
+    try {
+      await this.notificationsService.notifySupervisors({
+        type: copy.type,
+        title: `${copy.title}: ${customerName}`,
+        body: `Promessa ${copy.statusLabel} no valor de ${formatPromiseAmount(
+          promise.promisedAmount,
+        )} para o contrato ${contractCode}.${assignedTo}`,
+        entityType: 'collection_case',
+        entityId: promise.collectionCaseId,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Falha ao notificar supervisao sobre promessa ${promise.id}: ${getErrorMessage(
+          error,
+        )}`,
+      );
+    }
   }
 
   async sendToCancellation(

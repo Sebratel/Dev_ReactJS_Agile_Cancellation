@@ -1,13 +1,15 @@
-import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Bell, CheckCheck } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { BadgeCheck, Bell, BellRing, CheckCheck, TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNotifications } from '@/features/notifications/hooks/use-notifications';
 import { useUnreadNotificationsCount } from '@/features/notifications/hooks/use-unread-notifications-count';
 import { useMarkNotificationAsRead } from '@/features/notifications/hooks/use-mark-notification-read';
 import { useMarkAllNotificationsAsRead } from '@/features/notifications/hooks/use-mark-all-notifications-read';
 import { cn } from '@/lib/utils';
+import { toast } from '@/lib/toast';
 import { formatDateTimePtBR } from '@/utils/formatters';
+import type { NotificationResponse } from '@/features/notifications/types/notifications-api.types';
 
 function getEntityHref(entityType: string | null, entityId: string | null): string | null {
   if (!entityId) return null;
@@ -15,9 +17,34 @@ function getEntityHref(entityType: string | null, entityId: string | null): stri
   return null;
 }
 
+function isPromiseNotification(notification: NotificationResponse) {
+  return notification.type.startsWith('PAYMENT_PROMISE_');
+}
+
+function getPromiseNotificationTone(type: string) {
+  if (type === 'PAYMENT_PROMISE_FULFILLED') {
+    return {
+      icon: BadgeCheck,
+      label: 'Promessa cumprida',
+      className: 'border-success/30 bg-success/10 text-success',
+    };
+  }
+
+  return {
+    icon: TriangleAlert,
+    label:
+      type === 'PAYMENT_PROMISE_BROKEN'
+        ? 'Promessa descumprida'
+        : 'Promessa cancelada',
+    className: 'border-warning/30 bg-warning/10 text-warning',
+  };
+}
+
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
+  const latestPromiseNotificationId = useRef<string | null>(null);
 
   const unreadQuery = useUnreadNotificationsCount();
   const listQuery = useNotifications({ limit: 10 });
@@ -25,7 +52,44 @@ export function NotificationBell() {
   const markAllAsRead = useMarkAllNotificationsAsRead();
 
   const unreadCount = unreadQuery.data?.count ?? 0;
-  const notifications = listQuery.data?.items ?? [];
+  const notifications = useMemo(
+    () => listQuery.data?.items ?? [],
+    [listQuery.data],
+  );
+  const hasUnreadPromise = notifications.some(
+    (notification) => !notification.readAt && isPromiseNotification(notification),
+  );
+
+  useEffect(() => {
+    const latestPromiseNotification = notifications.find(
+      (notification) => !notification.readAt && isPromiseNotification(notification),
+    );
+
+    if (!latestPromiseNotification) return;
+
+    if (latestPromiseNotificationId.current === null) {
+      latestPromiseNotificationId.current = latestPromiseNotification.id;
+      return;
+    }
+
+    if (latestPromiseNotificationId.current !== latestPromiseNotification.id) {
+      latestPromiseNotificationId.current = latestPromiseNotification.id;
+      toast(latestPromiseNotification.title, {
+        description: latestPromiseNotification.body,
+        action: {
+          label: 'Abrir caso',
+          onClick: () => {
+            void navigate(
+              getEntityHref(
+                latestPromiseNotification.entityType,
+                latestPromiseNotification.entityId,
+              ) ?? '/promessas',
+            );
+          },
+        },
+      });
+    }
+  }, [navigate, notifications]);
 
   useEffect(() => {
     if (!open) return;
@@ -45,11 +109,19 @@ export function NotificationBell() {
       <Button
         variant="ghost"
         size="sm"
-        className="relative h-9 w-9 px-0"
+        className={cn(
+          'relative h-9 w-9 px-0',
+          hasUnreadPromise &&
+            'bg-warning/10 text-warning shadow-[0_0_0_4px_rgba(255,170,0,0.12)]',
+        )}
         onClick={() => setOpen((prev) => !prev)}
         aria-label="Notificações"
       >
-        <Bell className="h-5 w-5" />
+        {hasUnreadPromise ? (
+          <BellRing className="h-5 w-5 animate-pulse" />
+        ) : (
+          <Bell className="h-5 w-5" />
+        )}
         {unreadCount > 0 ? (
           <span className="absolute right-1 top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold leading-none text-white">
             {unreadCount > 9 ? '9+' : unreadCount}
@@ -84,16 +156,31 @@ export function NotificationBell() {
                 {notifications.map((notification) => {
                   const href = getEntityHref(notification.entityType, notification.entityId);
                   const isUnread = !notification.readAt;
+                  const isPromise = isPromiseNotification(notification);
+                  const promiseTone = isPromise
+                    ? getPromiseNotificationTone(notification.type)
+                    : null;
+                  const PromiseIcon = promiseTone?.icon;
 
                   const content = (
                     <div
                       className={cn(
                         'px-4 py-3 transition-colors hover:bg-muted/40',
                         isUnread && 'bg-primary/5',
+                        isUnread && isPromise && 'bg-warning/10',
                       )}
                     >
                       <div className="flex items-start gap-2">
-                        {isUnread ? (
+                        {PromiseIcon && promiseTone ? (
+                          <span
+                            className={cn(
+                              'mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border',
+                              promiseTone.className,
+                            )}
+                          >
+                            <PromiseIcon className="h-4 w-4" />
+                          </span>
+                        ) : isUnread ? (
                           <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
                         ) : (
                           <span className="mt-1.5 h-1.5 w-1.5 shrink-0" />
@@ -102,6 +189,16 @@ export function NotificationBell() {
                           <p className="text-sm font-medium text-foreground">
                             {notification.title}
                           </p>
+                          {promiseTone ? (
+                            <span
+                              className={cn(
+                                'mt-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em]',
+                                promiseTone.className,
+                              )}
+                            >
+                              {promiseTone.label}
+                            </span>
+                          ) : null}
                           <p className="mt-0.5 text-xs text-neutral">
                             {notification.body}
                           </p>

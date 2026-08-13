@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { createPaginatedResponse } from '@/common/pagination/paginated-response';
+import { MOCK_AUTH_USER_DEFINITIONS } from '@/modules/auth/mocks/mock-auth-users';
 import type { NotificationResponse } from '@/modules/notifications/dto/notification.response';
 import type {
   CreateNotificationParams,
@@ -21,7 +22,7 @@ export class NotificationsMockRepository implements NotificationsRepository {
     return created;
   }
 
-  async create(params: CreateNotificationParams): Promise<NotificationResponse> {
+  create(params: CreateNotificationParams): Promise<NotificationResponse> {
     this.sequence += 1;
     const notification: NotificationResponse = {
       id: `notif_${this.sequence}`,
@@ -37,10 +38,16 @@ export class NotificationsMockRepository implements NotificationsRepository {
     this.notifications.set(notification.id, notification);
     this.byUser(params.userId).unshift(notification.id);
 
-    return notification;
+    return Promise.resolve(notification);
   }
 
-  async list(params: ListNotificationsParams) {
+  listSupervisorUserIds(): Promise<string[]> {
+    return Promise.resolve(MOCK_AUTH_USER_DEFINITIONS.filter((user) =>
+      user.roleCodes.some((role) => role === 'ADMIN' || role === 'SUPERVISOR'),
+    ).map((user) => user.id));
+  }
+
+  list(params: ListNotificationsParams) {
     const all = this.byUser(params.userId)
       .map((id) => this.notifications.get(id))
       .filter((n): n is NotificationResponse => Boolean(n))
@@ -50,30 +57,32 @@ export class NotificationsMockRepository implements NotificationsRepository {
     const start = (params.page - 1) * params.limit;
     const items = all.slice(start, start + params.limit);
 
-    return createPaginatedResponse(items, params.page, params.limit, total);
+    return Promise.resolve(
+      createPaginatedResponse(items, params.page, params.limit, total),
+    );
   }
 
-  async countUnread(userId: string): Promise<number> {
-    return this.byUser(userId)
+  countUnread(userId: string): Promise<number> {
+    return Promise.resolve(this.byUser(userId)
       .map((id) => this.notifications.get(id))
       .filter((n): n is NotificationResponse => Boolean(n))
-      .filter((n) => !n.readAt).length;
+      .filter((n) => !n.readAt).length);
   }
 
-  async markAsRead(id: string, userId: string): Promise<NotificationResponse | null> {
+  markAsRead(id: string, userId: string): Promise<NotificationResponse | null> {
     if (!this.byUser(userId).includes(id)) {
-      return null;
+      return Promise.resolve(null);
     }
 
     const existing = this.notifications.get(id);
-    if (!existing) return null;
+    if (!existing) return Promise.resolve(null);
 
     const updated = { ...existing, readAt: existing.readAt ?? new Date().toISOString() };
     this.notifications.set(id, updated);
-    return updated;
+    return Promise.resolve(updated);
   }
 
-  async markAllAsRead(userId: string): Promise<number> {
+  markAllAsRead(userId: string): Promise<number> {
     let count = 0;
     for (const id of this.byUser(userId)) {
       const existing = this.notifications.get(id);
@@ -82,6 +91,6 @@ export class NotificationsMockRepository implements NotificationsRepository {
         count += 1;
       }
     }
-    return count;
+    return Promise.resolve(count);
   }
 }

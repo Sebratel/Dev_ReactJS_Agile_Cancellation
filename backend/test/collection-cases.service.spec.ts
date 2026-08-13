@@ -13,8 +13,11 @@ function createService(repository: CollectionCasesRepository) {
   const performedByResolver = {
     resolve: resolvePerformedBy,
   } as unknown as PerformedByResolverService;
+  const notify = jest.fn().mockResolvedValue(undefined);
+  const notifySupervisors = jest.fn().mockResolvedValue(undefined);
   const notificationsService = {
-    notify: jest.fn().mockResolvedValue(undefined),
+    notify,
+    notifySupervisors,
   } as unknown as NotificationsService;
   const matrixWhatsappContactService = {
     sendHsm: jest.fn(),
@@ -29,6 +32,10 @@ function createService(repository: CollectionCasesRepository) {
     ),
     resolvePerformedBy,
     matrixWhatsappContactService,
+    notificationMocks: {
+      notify,
+      notifySupervisors,
+    },
   };
 }
 
@@ -241,7 +248,7 @@ describe('CollectionCasesService', () => {
     });
     const { service, matrixWhatsappContactService } = createService(repository);
 
-    jest.mocked(matrixWhatsappContactService.sendHsm).mockResolvedValue({
+    jest.mocked(matrixWhatsappContactService).sendHsm.mockResolvedValue({
       provider: 'n8n',
       statusCode: 200,
       responseBody: {
@@ -427,7 +434,8 @@ describe('CollectionCasesService', () => {
       .mockResolvedValue({ outcome: 'success', promise });
     const repository = createRepository({ updatePromiseStatus });
 
-    const { service, resolvePerformedBy } = createService(repository);
+    const { service, resolvePerformedBy, notificationMocks } =
+      createService(repository);
     const response = await service.fulfillPromise(
       'case_0001',
       'prm_new',
@@ -444,6 +452,14 @@ describe('CollectionCasesService', () => {
       performedByUserId: 'usr_marina',
     });
     expect(response.data).toMatchObject({ status: 'FULFILLED' });
+    expect(notificationMocks.notifySupervisors).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'PAYMENT_PROMISE_FULFILLED',
+        title: 'Promessa cumprida: Cliente',
+        entityType: 'collection_case',
+        entityId: 'case_0001',
+      }),
+    );
   });
 
   it('retorna 409 ao tentar alterar promessa com transicao invalida', async () => {
