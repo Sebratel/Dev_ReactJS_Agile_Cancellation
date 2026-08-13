@@ -177,7 +177,7 @@ export function SupervisionCasesTable({
               <TableHeaderCell align="center">Financeiro</TableHeaderCell>
               <TableHeaderCell>Responsável</TableHeaderCell>
               <TableHeaderCell align="center">Andamento</TableHeaderCell>
-              <TableHeaderCell align="right">Ação</TableHeaderCell>
+              <TableHeaderCell align="center">Ação</TableHeaderCell>
             </tr>
           </TableHead>
           <TableBody>
@@ -283,11 +283,12 @@ export function SupervisionCasesTable({
                       />
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell align="center">
                     <Link
                       to={`/supervisao/${item.id}`}
                       className={cn(
                         buttonVariants({ variant: 'secondary', size: 'sm' }),
+                        'justify-center',
                       )}
                     >
                       Ver detalhes
