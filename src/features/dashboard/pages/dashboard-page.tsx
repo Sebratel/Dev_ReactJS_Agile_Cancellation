@@ -1,3 +1,4 @@
+import { ChevronDown } from 'lucide-react';
 import { lazy, Suspense, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { PageHeader } from '@/components/data-display/page-header';
@@ -53,6 +54,72 @@ function DashboardLoadingState() {
       <TableSkeleton rows={4} columns={2} />
       <DashboardChartFallback />
     </>
+  );
+}
+
+type DetailedAnalysisProps = {
+  canSeeOperationView: boolean;
+  criticalCases: ReturnType<typeof mapCollectionCaseToCriticalCase>[];
+  handleRetry: () => void;
+  metrics: ReturnType<typeof mapDashboardSummaryToMetrics>;
+  recoveryTrend: ReturnType<typeof mapDashboardSummaryToRecoveryTrend>;
+  statusDistribution: ReturnType<typeof mapDashboardSummaryToStatusDistribution>;
+};
+
+function DetailedAnalysis({
+  canSeeOperationView,
+  criticalCases,
+  handleRetry,
+  metrics,
+  recoveryTrend,
+  statusDistribution,
+}: DetailedAnalysisProps) {
+  return (
+    <details className="group rounded-lg border border-border/80 bg-card shadow-card">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4">
+        <div>
+          <p className="text-sm font-bold">Análise detalhada</p>
+          <p className="text-sm text-neutral">
+            KPIs completos, gráficos, ranking e casos críticos ficam aqui para
+            consulta, sem ocupar a primeira leitura do dia.
+          </p>
+        </div>
+        <ChevronDown
+          className="h-5 w-5 shrink-0 text-neutral transition-transform group-open:rotate-180"
+          aria-hidden="true"
+        />
+      </summary>
+
+      <div className="space-y-5 border-t border-border px-5 py-5">
+        <DashboardKpiGrid metrics={metrics} />
+
+        {canSeeOperationView ? <DashboardOperationsSection /> : null}
+
+        <section className="grid gap-5 2xl:grid-cols-2">
+          <Suspense fallback={<DashboardChartFallback />}>
+            <StatusDistributionChart data={statusDistribution} />
+          </Suspense>
+          <Suspense fallback={<DashboardChartFallback />}>
+            <RecoveryTrendChart data={recoveryTrend} />
+          </Suspense>
+        </section>
+
+        {canSeeOperationView ? <RecoveryRankingPreview /> : null}
+
+        {canSeeOperationView ? (
+          criticalCases.length > 0 ? (
+            <CriticalCasesTable cases={criticalCases} />
+          ) : (
+            <EmptyState
+              title="Nenhum caso crítico encontrado"
+              description="A API não retornou casos prioritários para exibição neste momento."
+              actionLabel="Atualizar"
+              onAction={handleRetry}
+            />
+          )
+        ) : null}
+      </div>
+    </details>
   );
 }
 
@@ -175,37 +242,23 @@ export default function DashboardPage() {
             />
           ) : null}
 
-          <DashboardKpiGrid metrics={metrics} />
-
-          <OperationalAlerts alerts={operationalAlerts} />
-
-          {canSeeOperationView ? <DashboardOperationsSection /> : null}
-
-          <OperationalSummary items={operationalSummary} />
-
-          <section className="grid gap-6 2xl:grid-cols-2">
-            <Suspense fallback={<DashboardChartFallback />}>
-              <StatusDistributionChart data={statusDistribution} />
-            </Suspense>
-            <Suspense fallback={<DashboardChartFallback />}>
-              <RecoveryTrendChart data={recoveryTrend} />
-            </Suspense>
+          <section className="grid gap-5 xl:grid-cols-[1.35fr_0.9fr]">
+            <OperationalAlerts
+              alerts={operationalAlerts}
+              maxItems={4}
+              compact
+            />
+            <OperationalSummary items={operationalSummary} compact />
           </section>
 
-          {canSeeOperationView ? <RecoveryRankingPreview /> : null}
-
-          {canSeeOperationView ? (
-            criticalCases.length > 0 ? (
-              <CriticalCasesTable cases={criticalCases} />
-            ) : (
-              <EmptyState
-                title="Nenhum caso crítico encontrado"
-                description="A API não retornou casos prioritários para exibição neste momento."
-                actionLabel="Atualizar"
-                onAction={handleRetry}
-              />
-            )
-          ) : null}
+          <DetailedAnalysis
+            canSeeOperationView={canSeeOperationView}
+            criticalCases={criticalCases}
+            handleRetry={handleRetry}
+            metrics={metrics}
+            recoveryTrend={recoveryTrend}
+            statusDistribution={statusDistribution}
+          />
         </>
       ) : null}
     </PageContainer>

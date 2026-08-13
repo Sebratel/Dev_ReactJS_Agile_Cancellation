@@ -8,9 +8,17 @@ import { formatInteger } from '@/utils/formatters';
 
 type OperationalAlertsProps = {
   alerts: OperationalAlert[];
+  maxItems?: number;
+  compact?: boolean;
 };
 
-export function OperationalAlerts({ alerts }: OperationalAlertsProps) {
+export function OperationalAlerts({
+  alerts,
+  maxItems,
+  compact = false,
+}: OperationalAlertsProps) {
+  const visibleAlerts = maxItems ? alerts.slice(0, maxItems) : alerts;
+
   return (
     <SectionCard
       title="Requer atenção"
@@ -18,14 +26,17 @@ export function OperationalAlerts({ alerts }: OperationalAlertsProps) {
       contentClassName="p-0"
     >
       <ul className="divide-y divide-border">
-        {alerts.map((alert) => {
+        {visibleAlerts.map((alert) => {
           const isDanger = alert.variant === 'danger';
           const Icon = isDanger ? AlertTriangle : BellRing;
 
           return (
             <li
               key={alert.key}
-              className="relative flex flex-col gap-3 px-6 py-4 transition-colors duration-150 hover:bg-muted/40 sm:flex-row sm:items-center sm:justify-between"
+              className={cn(
+                'relative flex flex-col gap-3 transition-colors duration-150 hover:bg-muted/40 sm:flex-row sm:items-center sm:justify-between',
+                compact ? 'px-4 py-3' : 'px-6 py-4',
+              )}
             >
               {isDanger ? (
                 <span
@@ -47,7 +58,12 @@ export function OperationalAlerts({ alerts }: OperationalAlertsProps) {
                 </span>
                 <div className="min-w-0">
                   <p className="text-sm font-semibold">{alert.title}</p>
-                  <p className="text-sm leading-6 text-neutral">
+                  <p
+                    className={cn(
+                      'text-sm text-neutral',
+                      compact ? 'line-clamp-1 leading-5' : 'leading-6',
+                    )}
+                  >
                     {alert.description}
                   </p>
                 </div>
@@ -71,6 +87,11 @@ export function OperationalAlerts({ alerts }: OperationalAlertsProps) {
           );
         })}
       </ul>
+      {maxItems && alerts.length > maxItems ? (
+        <div className="border-t border-border px-4 py-3 text-xs font-semibold text-neutral">
+          + {formatInteger(alerts.length - maxItems)} alertas na análise detalhada
+        </div>
+      ) : null}
     </SectionCard>
   );
 }
