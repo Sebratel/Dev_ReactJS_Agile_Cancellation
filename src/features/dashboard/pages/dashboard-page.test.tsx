@@ -3,11 +3,7 @@ import { screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DashboardPage from '@/features/dashboard/pages/dashboard-page';
 import { createMockSession } from '@/test/auth-test-utils';
-import {
-  createMockCollectionCasesPage,
-  mockDashboardOperationsResponse,
-  mockDashboardSummaryResponse,
-} from '@/test/fixtures/api-fixtures';
+import { mockDashboardSummaryResponse } from '@/test/fixtures/api-fixtures';
 import { renderWithProviders } from '@/test/test-utils';
 
 vi.mock('recharts', async () => {
@@ -45,38 +41,26 @@ describe('DashboardPage', () => {
     vi.clearAllMocks();
   });
 
-  it('renderiza KPIs principais, alertas e casos criticos com dados da API', async () => {
+  it('renderiza briefing e triagem operacional com dados da API', async () => {
     vi.mocked(getDashboardSummary).mockResolvedValue(
       mockDashboardSummaryResponse,
-    );
-    vi.mocked(getDashboardOperations).mockResolvedValue(
-      mockDashboardOperationsResponse,
-    );
-    vi.mocked(getCollectionCases).mockResolvedValue(
-      createMockCollectionCasesPage(1, 5),
     );
 
     renderWithProviders(<DashboardPage />, {
       session: createMockSession(),
     });
 
-    expect(
-      await screen.findByText('Clientes inadimplentes'),
-    ).toBeInTheDocument();
-    expect(screen.getByText('Dashboard operacional')).toBeInTheDocument();
-    expect(await screen.findByText('Casos ativos')).toBeInTheDocument();
-    expect(screen.getAllByText('Valor em aberto').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Em cobrança').length).toBeGreaterThan(0);
+    expect(await screen.findByText('Briefing da operação')).toBeInTheDocument();
+    expect(screen.getByText('Triagem operacional')).toBeInTheDocument();
+    expect(screen.getAllByText('Prioridades do dia').length).toBeGreaterThan(0);
+    expect(screen.getByText('Carteira da equipe')).toBeInTheDocument();
+    expect(screen.getByText('Janela selecionada')).toBeInTheDocument();
     expect(
       screen.getAllByText('Elegíveis para cancelamento').length,
     ).toBeGreaterThan(0);
     expect(screen.getAllByText('R$ 184.750,42').length).toBeGreaterThan(0);
-    expect(screen.getByText('Requer atenção')).toBeInTheDocument();
-    expect(screen.getAllByText('Promessas vencidas').length).toBeGreaterThan(1);
-    expect(screen.getByText('Casos críticos')).toBeInTheDocument();
-    expect(screen.getAllByText('Construtora Horizonte').length).toBeGreaterThan(
-      0,
-    );
+    expect(getDashboardOperations).not.toHaveBeenCalled();
+    expect(getCollectionCases).not.toHaveBeenCalled();
   });
 
   it('exibe estado de erro quando a API falha', async () => {
