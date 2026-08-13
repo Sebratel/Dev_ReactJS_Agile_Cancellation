@@ -28,7 +28,7 @@ export class DashboardController {
     return this.dashboardService.getOperations();
   }
 
-  @Roles('ADMIN', 'SUPERVISOR', 'COLLECTION_AGENT')
+  @Roles('ADMIN', 'SUPERVISOR')
   @Get('recovery-ranking')
   getRecoveryRanking(@Query() query: DashboardRankingQueryDto) {
     return this.dashboardService.getRecoveryRanking(query.period);

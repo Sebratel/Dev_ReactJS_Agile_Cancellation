@@ -140,11 +140,7 @@ export function createAppRouter() {
               ],
             },
             {
-              element: (
-                <RoleGuard
-                  allowedRoles={['ADMIN', 'SUPERVISOR', 'COLLECTION_AGENT']}
-                />
-              ),
+              element: <RoleGuard allowedRoles={['ADMIN', 'SUPERVISOR']} />,
               children: [
                 {
                   path: 'ranking',

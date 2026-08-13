@@ -108,7 +108,7 @@ export const appRoutes: AppRouteItem[] = [
     path: '/ranking',
     shortTitle: 'Ranking',
     icon: Trophy,
-    allowedRoles: ['ADMIN', 'SUPERVISOR', 'COLLECTION_AGENT'],
+    allowedRoles: ['ADMIN', 'SUPERVISOR'],
     ready: true,
     group: 'gestao',
   },

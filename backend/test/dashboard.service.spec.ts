@@ -7,6 +7,21 @@ import {
   mockDashboardOperations,
   mockDashboardSummary,
 } from '@/modules/dashboard/mocks/dashboard.mock';
+import type { AuthenticatedUser } from '@/modules/auth/types/authenticated-user.type';
+
+const supervisorUser: AuthenticatedUser = {
+  id: 'supervisor-1',
+  email: 'supervisor@ger.local',
+  name: 'Supervisor',
+  roles: ['SUPERVISOR'],
+};
+
+const collectionAgentUser: AuthenticatedUser = {
+  id: 'agent-1',
+  email: 'agent@ger.local',
+  name: 'Agente',
+  roles: ['COLLECTION_AGENT'],
+};
 
 describe('DashboardService', () => {
   it('usa contrato de repository', async () => {
@@ -20,11 +35,29 @@ describe('DashboardService', () => {
     };
 
     const service = new DashboardService(repository);
-    const response = await service.getSummary();
+    const response = await service.getSummary(supervisorUser);
 
-    expect(getSummary).toHaveBeenCalledTimes(1);
+    expect(getSummary).toHaveBeenCalledWith(undefined);
     expect(response.data.metrics.delinquentCustomers).toBe(128);
     expect(response.timestamp).toEqual(expect.any(String));
+  });
+
+  it('filtra resumo pela carteira do atendente', async () => {
+    const getSummary = jest.fn().mockResolvedValue(mockDashboardSummary);
+    const getOperations = jest.fn();
+    const getRecoveryRanking = jest.fn();
+    const repository: DashboardRepository = {
+      getSummary,
+      getOperations,
+      getRecoveryRanking,
+    };
+
+    const service = new DashboardService(repository);
+    await service.getSummary(collectionAgentUser);
+
+    expect(getSummary).toHaveBeenCalledWith({
+      assignedUserId: collectionAgentUser.id,
+    });
   });
 
   it('retorna operacoes via repository', async () => {

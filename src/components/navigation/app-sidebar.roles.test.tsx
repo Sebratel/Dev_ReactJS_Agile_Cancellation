@@ -24,6 +24,7 @@ const assertions: SidebarAssertion[] = [
       'Cobrança',
       'Promessas',
       'Cancelamentos',
+      'Ranking de recuperação',
       'Relatórios',
       'Auditoria',
       'Usuários',
@@ -40,6 +41,7 @@ const assertions: SidebarAssertion[] = [
       'Cobrança',
       'Promessas',
       'Cancelamentos',
+      'Ranking de recuperação',
       'Relatórios',
       'Auditoria',
     ],
@@ -48,17 +50,35 @@ const assertions: SidebarAssertion[] = [
   {
     role: 'COLLECTION_AGENT',
     visible: ['Visão geral', 'Minha cobrança'],
-    hidden: ['Supervisão', 'Cobrança', 'Promessas', 'Cancelamentos'],
+    hidden: [
+      'Supervisão',
+      'Cobrança',
+      'Promessas',
+      'Cancelamentos',
+      'Ranking de recuperação',
+    ],
   },
   {
     role: 'CANCELLATION_AGENT',
     visible: ['Visão geral', 'Cancelamentos'],
-    hidden: ['Minha cobrança', 'Cobrança', 'Supervisão'],
+    hidden: [
+      'Minha cobrança',
+      'Cobrança',
+      'Supervisão',
+      'Ranking de recuperação',
+    ],
   },
   {
     role: 'VIEWER',
     visible: ['Visão geral'],
-    hidden: ['Supervisão', 'Minha cobrança', 'Cobrança', 'Cancelamentos', 'Auditoria'],
+    hidden: [
+      'Supervisão',
+      'Minha cobrança',
+      'Cobrança',
+      'Cancelamentos',
+      'Auditoria',
+      'Ranking de recuperação',
+    ],
   },
 ];
 
