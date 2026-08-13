@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/services/api/query-keys';
 import {
   getCollectionCaseById,
@@ -34,6 +34,7 @@ export function useCollectionCases(
     queryKey: queryKeys.collectionCases.list(queryParams),
     queryFn: () => getCollectionCases(queryParams),
     enabled: options.enabled ?? true,
+    placeholderData: keepPreviousData,
   });
 }
 

@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useLayoutEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { SectionCard } from '@/components/data-display/section-card';
 import { StatusBadge } from '@/components/data-display/status-badge';
@@ -117,28 +117,71 @@ export function SupervisionCasesTable({
   canDistribute,
   page,
   totalPages,
+  sortBy,
+  sortDirection,
   onPageChange,
+  onSortChange,
   selectedIds,
   onToggleSelect,
   onToggleSelectAll,
 }: SupervisionCasesTableProps) {
-  const lastPageChangeScrollY = useRef<number | null>(null);
+  const tableShellRef = useRef<HTMLDivElement>(null);
+  const lastPageChangePosition = useRef<{
+    windowY: number;
+    tableY: number;
+  } | null>(null);
 
   const handlePageChange = (nextPage: number) => {
-    lastPageChangeScrollY.current = window.scrollY;
+    const tableContainer = tableShellRef.current?.querySelector<HTMLDivElement>(
+      '[data-supervision-table-scroll]',
+    );
+    lastPageChangePosition.current = {
+      windowY: window.scrollY,
+      tableY: tableContainer?.scrollTop ?? 0,
+    };
     onPageChange(nextPage);
   };
 
-  useEffect(() => {
-    if (lastPageChangeScrollY.current === null) return;
+  const handleDaysOverdueSort = () => {
+    onSortChange(
+      'daysOverdue',
+      sortBy === 'daysOverdue' && sortDirection === 'desc' ? 'asc' : 'desc',
+    );
+  };
+
+  useLayoutEffect(() => {
+    const position = lastPageChangePosition.current;
+    if (!position) return;
+
+    const restorePosition = () => {
+      const tableContainer = tableShellRef.current?.querySelector<HTMLDivElement>(
+        '[data-supervision-table-scroll]',
+      );
+      if (tableContainer) {
+        tableContainer.scrollTop = position.tableY;
+      }
+
+      const isJsdom = navigator.userAgent.toLowerCase().includes('jsdom');
+      if (isJsdom) {
+        document.documentElement.scrollTop = position.windowY;
+        document.body.scrollTop = position.windowY;
+        lastPageChangePosition.current = null;
+        return;
+      }
+
+      try {
+        window.scrollTo({ top: position.windowY });
+      } catch {
+        document.documentElement.scrollTop = position.windowY;
+        document.body.scrollTop = position.windowY;
+      }
+      lastPageChangePosition.current = null;
+    };
 
     window.requestAnimationFrame(() => {
-      if (lastPageChangeScrollY.current !== null) {
-        window.scrollTo({ top: lastPageChangeScrollY.current });
-        lastPageChangeScrollY.current = null;
-      }
+      window.requestAnimationFrame(restorePosition);
     });
-  }, [page]);
+  }, [items, page]);
 
   const allSelected = items.length > 0 && items.every((i) => selectedIds.has(i.id));
   const someSelected = items.some((i) => selectedIds.has(i.id));
@@ -149,8 +192,12 @@ export function SupervisionCasesTable({
       description="Carteira supervisionada com leitura operacional por cliente, contrato e SLA."
       contentClassName="p-0"
     >
-      <div>
-      <TableContainer flush className="max-h-[70vh] overflow-y-auto">
+      <div ref={tableShellRef}>
+      <TableContainer
+        flush
+        className="max-h-[70vh] overflow-y-auto"
+        data-supervision-table-scroll
+      >
         <Table className="min-w-[980px] table-fixed">
           <colgroup>
             {canDistribute ? <col className="w-10" /> : null}
@@ -174,7 +221,29 @@ export function SupervisionCasesTable({
               ) : null}
               <TableHeaderCell>Cliente</TableHeaderCell>
               <TableHeaderCell>Contrato</TableHeaderCell>
-              <TableHeaderCell align="center">Financeiro</TableHeaderCell>
+              <TableHeaderCell align="center">
+                <button
+                  type="button"
+                  onClick={handleDaysOverdueSort}
+                  className="inline-flex items-center justify-center gap-1 rounded px-1 py-0.5 text-[11px] font-bold uppercase tracking-[0.1em] text-neutral transition-colors hover:bg-primary/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                  aria-label={`Dias em atraso ${
+                    sortBy === 'daysOverdue'
+                      ? sortDirection === 'desc'
+                        ? 'ordenado decrescente'
+                        : 'ordenado crescente'
+                      : 'sem ordenação'
+                  }`}
+                >
+                  Financeiro
+                  <span aria-hidden="true">
+                    {sortBy === 'daysOverdue'
+                      ? sortDirection === 'desc'
+                        ? '↓'
+                        : '↑'
+                      : '↕'}
+                  </span>
+                </button>
+              </TableHeaderCell>
               <TableHeaderCell>Responsável</TableHeaderCell>
               <TableHeaderCell align="center">Andamento</TableHeaderCell>
               <TableHeaderCell align="center">Ação</TableHeaderCell>
