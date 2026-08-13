@@ -4,8 +4,7 @@ import {
   BadgeDollarSign,
   CheckCircle2,
   Clock3,
-  Headphones,
-  Radio,
+  Radar,
   Sparkles,
   Target,
   Users,
@@ -242,8 +241,11 @@ export function DashboardWelcomePanel({
         <div className="min-w-0 space-y-5">
           <div>
             <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-foreground">
-            <Sparkles className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-            {roleLabels[user.role]}
+              <Sparkles
+                className="h-3.5 w-3.5 text-primary"
+                aria-hidden="true"
+              />
+              {roleLabels[user.role]}
             </div>
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral">
               {tone.scopeLabel}
@@ -303,13 +305,13 @@ export function DashboardWelcomePanel({
                 aria-hidden="true"
               />
               {supervisorView ? (
-                <Radio
-                  className="absolute right-2 top-2 h-3.5 w-3.5 text-danger"
+                <AlertTriangle
+                  className="absolute right-1.5 top-1.5 h-3.5 w-3.5 text-danger"
                   aria-hidden="true"
                 />
               ) : null}
               {supervisorView ? (
-                <Headphones className="relative h-6 w-6" aria-hidden="true" />
+                <Radar className="relative h-6 w-6" aria-hidden="true" />
               ) : (
                 <Target className="relative h-6 w-6" aria-hidden="true" />
               )}
