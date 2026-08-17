@@ -69,9 +69,7 @@ function hasAdvancedFilters(filters: SupervisionFiltersState): boolean {
     filters.daysOverdueMin ||
     filters.daysOverdueMax ||
     filters.totalOutstandingMin ||
-    filters.totalOutstandingMax ||
-    filters.dueDateStart ||
-    filters.dueDateEnd,
+    filters.totalOutstandingMax,
   );
 }
 
@@ -101,8 +99,6 @@ export function SupervisionFilters({
     filters.daysOverdueMax,
     filters.totalOutstandingMin,
     filters.totalOutstandingMax,
-    filters.dueDateStart,
-    filters.dueDateEnd,
   ].filter(Boolean).length;
 
   const [advancedOpen, setAdvancedOpen] = useState(() =>
@@ -224,10 +220,10 @@ export function SupervisionFilters({
   return (
     <SectionCard
       title="Filtros"
-      description="Refine a carteira por status, prioridade, SLA e busca textual."
+      description="Refine a carteira por busca, vencimento, status, prioridade e SLA."
       contentClassName="space-y-3"
     >
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
         <label className="space-y-1 text-sm">
           <span className={labelClassName}>Busca</span>
           <div className="relative">
@@ -273,6 +269,28 @@ export function SupervisionFilters({
               </option>
             ))}
           </Select>
+        </label>
+
+        <label className="space-y-1 text-sm">
+          <span className={labelClassName}>Vencimento inicial</span>
+          <Input
+            type="date"
+            value={filters.dueDateStart}
+            onChange={(event) =>
+              onFilterChange({ dueDateStart: event.target.value, page: 1 })
+            }
+          />
+        </label>
+
+        <label className="space-y-1 text-sm">
+          <span className={labelClassName}>Vencimento final</span>
+          <Input
+            type="date"
+            value={filters.dueDateEnd}
+            onChange={(event) =>
+              onFilterChange({ dueDateEnd: event.target.value, page: 1 })
+            }
+          />
         </label>
 
         <label className="space-y-1 text-sm">
@@ -395,27 +413,6 @@ export function SupervisionFilters({
             />
           </label>
 
-          <label className="space-y-1 text-sm">
-            <span className={labelClassName}>Vencimento inicial</span>
-            <Input
-              type="date"
-              value={filters.dueDateStart}
-              onChange={(event) =>
-                onFilterChange({ dueDateStart: event.target.value, page: 1 })
-              }
-            />
-          </label>
-
-          <label className="space-y-1 text-sm">
-            <span className={labelClassName}>Vencimento final</span>
-            <Input
-              type="date"
-              value={filters.dueDateEnd}
-              onChange={(event) =>
-                onFilterChange({ dueDateEnd: event.target.value, page: 1 })
-              }
-            />
-          </label>
         </div>
       ) : null}
 
