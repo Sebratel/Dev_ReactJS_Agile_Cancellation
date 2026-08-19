@@ -117,6 +117,20 @@ enum IntegrationEventStatus {
   DISCARDED
 }
 
+enum BulkContactJobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+}
+
+enum BulkContactItemStatus {
+  PENDING
+  SENT
+  SKIPPED_STATUS
+  SKIPPED_PHONE
+  FAILED
+}
+
 model User {
   id               String     @id @default(cuid())
   email            String     @unique
@@ -418,6 +432,47 @@ model IntegrationEvent {
   @@index([status])
   @@index([createdAt])
   @@map("integration_events")
+}
+
+// Envio de HSM em lote: a requisicao so cria o job (rapido) e um worker
+// (WhatsappBulkContactWorkerService, via @nestjs/schedule) processa os itens
+// aos poucos em segundo plano — cada envio chama o mesmo webhook do n8n do
+// envio individual (ate 15s cada), entao centenas de itens nao cabem numa
+// unica requisicao HTTP sincrona. Sem fila dedicada (Redis/BullMQ) por
+// escolha do time — o proprio MariaDB atua como fila simples.
+model BulkContactJob {
+  id              String                @id @default(cuid())
+  status          BulkContactJobStatus  @default(PENDING)
+  totalCount      Int
+  sentCount       Int                   @default(0)
+  skippedCount    Int                   @default(0)
+  failedCount     Int                   @default(0)
+  createdByUserId String?
+  createdAt       DateTime              @default(now())
+  startedAt       DateTime?
+  finishedAt      DateTime?
+
+  items BulkContactJobItem[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("bulk_contact_jobs")
+}
+
+model BulkContactJobItem {
+  id               String                 @id @default(cuid())
+  jobId            String
+  collectionCaseId String
+  status           BulkContactItemStatus  @default(PENDING)
+  errorMessage     String?                @db.Text
+  processedAt      DateTime?
+  createdAt        DateTime               @default(now())
+
+  job BulkContactJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, collectionCaseId])
+  @@index([jobId, status])
+  @@map("bulk_contact_job_items")
 }
 
 model Notification {

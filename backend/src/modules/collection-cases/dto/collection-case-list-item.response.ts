@@ -7,6 +7,7 @@ export type CollectionCaseListItemResponse = {
   contractCode: string;
   contractStatus: string;
   firstOverdueDate: string | null;
+  secondOverdueDate: string | null;
   status: string;
   priority: string;
   daysOverdue: number;

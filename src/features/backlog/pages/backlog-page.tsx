@@ -274,6 +274,7 @@ export default function BacklogPage() {
       {canDistribute ? (
         <BulkActionBar
           selectedCount={selectedIds.size}
+          selectedCaseIds={Array.from(selectedIds)}
           agents={agents}
           workload={workloadQuery.data}
           onBulkAssign={(id) => { void handleBulkAssign(id); }}

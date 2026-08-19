@@ -34,7 +34,7 @@ import {
 import { InlineAssigneeSelect } from '@/features/supervision/components/inline-assignee-select';
 import { type UserResponse } from '@/features/users/types/users-api.types';
 import {
-  formatDatePtBR,
+  formatDateOnlyPtBR,
   formatCurrencyFromDecimalString,
   formatInteger,
 } from '@/utils/formatters';
@@ -297,11 +297,17 @@ export function SupervisionCasesTable({
                         {item.contractCode}
                       </div>
                       <div className="text-xs">
-                        Venc.{' '}
+                        1º venc.{' '}
                         <span className="tabular-nums">
-                          {item.firstOverdueDate
-                            ? formatDatePtBR(item.firstOverdueDate)
-                            : 'Não informado'}
+                          {formatDateOnlyPtBR(item.firstOverdueDate) ??
+                            'Não informado'}
+                        </span>
+                      </div>
+                      <div className="text-xs">
+                        2º venc.{' '}
+                        <span className="tabular-nums">
+                          {formatDateOnlyPtBR(item.secondOverdueDate) ??
+                            'Não informado'}
                         </span>
                       </div>
                       <StatusBadge

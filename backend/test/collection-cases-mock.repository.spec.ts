@@ -110,27 +110,50 @@ describe('CollectionCasesMockRepository', () => {
     ).toBe(true);
   });
 
-  it('filtra por range de vencimento', async () => {
+  it('filtra pela data exata do 1o vencimento', async () => {
+    const all = await repository.listCases({ page: 1, limit: 100 });
+    const sample = all.items.find((item) => item.firstOverdueDate);
+    const sampleDate = sample!.firstOverdueDate!.slice(0, 10);
+
     const result = await repository.listCases({
       page: 1,
       limit: 100,
-      dueDateStart: '2026-05-01',
-      dueDateEnd: '2026-05-31',
+      firstDueDate: sampleDate,
     });
 
     expect(result.items.length).toBeGreaterThan(0);
     expect(
-      result.items.every((item) => {
-        const dueDate = item.firstOverdueDate
-          ? new Date(item.firstOverdueDate)
-          : null;
+      result.items.every((item) => item.firstOverdueDate?.slice(0, 10) === sampleDate),
+    ).toBe(true);
+  });
 
-        return (
-          dueDate !== null &&
-          dueDate >= new Date('2026-05-01T00:00:00') &&
-          dueDate <= new Date('2026-05-31T23:59:59.999')
-        );
-      }),
+  it('filtra pela data exata do 2o vencimento', async () => {
+    const all = await repository.listCases({ page: 1, limit: 100 });
+    const sample = all.items.find((item) => item.secondOverdueDate);
+    const sampleDate = sample!.secondOverdueDate!.slice(0, 10);
+
+    const result = await repository.listCases({
+      page: 1,
+      limit: 100,
+      secondDueDate: sampleDate,
+    });
+
+    expect(result.items.length).toBeGreaterThan(0);
+    expect(
+      result.items.every((item) => item.secondOverdueDate?.slice(0, 10) === sampleDate),
+    ).toBe(true);
+  });
+
+  it('filtra por status do contrato', async () => {
+    const result = await repository.listCases({
+      page: 1,
+      limit: 100,
+      contractStatus: 'SUSPENDED',
+    });
+
+    expect(result.items.length).toBeGreaterThan(0);
+    expect(
+      result.items.every((item) => item.contractStatus === 'SUSPENDED'),
     ).toBe(true);
   });
 
@@ -392,5 +415,73 @@ describe('CollectionCasesMockRepository', () => {
     });
 
     expect(result.outcome).toBe('already_in_cancellation');
+  });
+
+  it('resume casos por data de 1o e 2o vencimento', async () => {
+    const summary = await repository.getOverdueDateSummary({
+      page: 1,
+      limit: 10,
+    });
+
+    expect(summary.firstDueDates.length).toBeGreaterThan(0);
+    expect(summary.secondDueDates.length).toBeGreaterThan(0);
+
+    // As contagens devem bater com o total de casos que tem aquela data
+    // exata como 1o vencimento, filtrando pelo mesmo criterio usado na tela.
+    const sample = summary.firstDueDates[0]!;
+    const matching = await repository.listCases({
+      page: 1,
+      limit: 100,
+      firstDueDate: sample.date,
+    });
+    expect(matching.pagination.total).toBe(sample.count);
+
+    // As datas retornadas sao sempre no formato YYYY-MM-DD.
+    expect(sample.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('resumo de vencimento respeita a data do outro campo ja selecionado', async () => {
+    const unfiltered = await repository.getOverdueDateSummary({
+      page: 1,
+      limit: 10,
+    });
+    const anySecondDate = unfiltered.secondDueDates[0]!.date;
+
+    const filtered = await repository.getOverdueDateSummary({
+      page: 1,
+      limit: 10,
+      secondDueDate: anySecondDate,
+    });
+
+    // A soma das contagens de 1o vencimento restringidas pelo 2o vencimento
+    // nao pode passar do total original para aquela mesma data.
+    for (const item of filtered.firstDueDates) {
+      const original = unfiltered.firstDueDates.find(
+        (entry) => entry.date === item.date,
+      );
+      expect(original).toBeDefined();
+      expect(item.count).toBeLessThanOrEqual(original!.count);
+    }
+  });
+
+  it('listCaseIds retorna todos os ids que batem com o filtro, sem paginacao', async () => {
+    const ids = await repository.listCaseIds({
+      page: 1,
+      limit: 10,
+      priority: 'HIGH',
+    });
+
+    // A tela de "supervisao" so devolve 10 por pagina; listCaseIds precisa
+    // trazer o total do grupo filtrado, usado pelo envio de HSM em lote por
+    // filtro.
+    const paginated = await repository.listCases({
+      page: 1,
+      limit: 100,
+      priority: 'HIGH',
+    });
+    expect(ids).toHaveLength(paginated.pagination.total);
+    expect(new Set(ids)).toEqual(
+      new Set(paginated.items.map((item) => item.id)),
+    );
   });
 });

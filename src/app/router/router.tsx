@@ -21,6 +21,7 @@ import {
   LazySettingsPage,
   LazySupervisionPage,
   LazyUsersPage,
+  LazyWhatsappBulkContactPage,
 } from '@/app/router/lazy-pages';
 import { RouteFallback } from '@/app/router/route-fallback';
 
@@ -65,6 +66,10 @@ export function createAppRouter() {
                 {
                   path: 'auditoria',
                   element: withRouteFallback(<LazyAuditoriaPage />),
+                },
+                {
+                  path: 'envio-hsm',
+                  element: withRouteFallback(<LazyWhatsappBulkContactPage />),
                 },
               ],
             },

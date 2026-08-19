@@ -121,6 +121,8 @@ describe('SupervisionPage', () => {
 
     await screen.findByText('Casos de cobrança');
 
+    await user.click(screen.getByRole('button', { name: /Mais filtros/i }));
+
     await user.selectOptions(
       screen.getByDisplayValue('Todos os status'),
       'IN_COLLECTION',

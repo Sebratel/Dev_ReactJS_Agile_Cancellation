@@ -68,8 +68,7 @@ describe('CollectionCasesPrismaRepository', () => {
       daysOverdueMax: 120,
       totalOutstandingMin: 1000,
       totalOutstandingMax: 20000,
-      dueDateStart: '2026-07-01',
-      dueDateEnd: '2026-07-31',
+      contractStatus: 'ACTIVE',
       slaStatus: 'overdue',
       sortBy: 'createdAt',
       sortDirection: 'asc',
@@ -85,13 +84,7 @@ describe('CollectionCasesPrismaRepository', () => {
               priority: string;
               daysOverdue: { gte: number; lte: number };
               outstandingAmount: { gte: number; lte: number };
-              contract: {
-                invoices: {
-                  some: {
-                    dueDate: { lt: Date; gte: Date; lte: Date };
-                  };
-                };
-              };
+              contract: { AND: Array<{ status?: string }> };
             };
             orderBy: Array<Record<string, string>>;
           },
@@ -103,13 +96,7 @@ describe('CollectionCasesPrismaRepository', () => {
         priority: string;
         daysOverdue: { gte: number; lte: number };
         outstandingAmount: { gte: number; lte: number };
-        contract: {
-          invoices: {
-            some: {
-              dueDate: { lt: Date; gte: Date; lte: Date };
-            };
-          };
-        };
+        contract: { AND: Array<{ status?: string }> };
       };
       orderBy: Array<Record<string, string>>;
     };
@@ -121,17 +108,176 @@ describe('CollectionCasesPrismaRepository', () => {
       gte: 1000,
       lte: 20000,
     });
-    expect(findManyArgs.where.contract.invoices.some.dueDate).toEqual(
-      expect.objectContaining({
-        lt: expect.any(Date),
-        gte: new Date('2026-07-01T00:00:00'),
-        lte: new Date('2026-07-31T23:59:59.999'),
-      }),
-    );
+    expect(findManyArgs.where.contract.AND).toContainEqual({
+      status: 'ACTIVE',
+    });
     expect(findManyArgs.orderBy).toEqual([
       { createdAt: 'asc' },
       { daysOverdue: 'desc' },
       { outstandingAmount: 'desc' },
     ]);
+  });
+
+  it('filtra por vencimento pelo rank das 2 faturas em aberto mais antigas do contrato', async () => {
+    // Regressao: o contrato "case_db_2" tem uma 3a fatura em aberto vencendo
+    // no mesmo dia buscado como "1o vencimento" (2026-06-01), mas ela nao e
+    // a mais antiga do contrato (2026-05-01 e). O caso NAO deve aparecer no
+    // resultado so porque "existe alguma fatura" naquele dia — so quando o
+    // dia buscado bate com a 1a/2a fatura mais antiga (as mesmas exibidas na
+    // tela como 1o/2o vencimento).
+    const findMany = jest
+      .fn()
+      .mockResolvedValueOnce([
+        {
+          id: 'case_db_1',
+          contract: {
+            invoices: [
+              { dueDate: new Date('2026-06-01T00:00:00.000Z') },
+              { dueDate: new Date('2026-07-01T00:00:00.000Z') },
+            ],
+          },
+        },
+        {
+          id: 'case_db_2',
+          contract: {
+            invoices: [
+              { dueDate: new Date('2026-05-01T00:00:00.000Z') },
+              { dueDate: new Date('2026-06-01T00:00:00.000Z') },
+              { dueDate: new Date('2026-07-05T00:00:00.000Z') },
+            ].slice(0, 2), // Prisma so traria as 2 mais antigas (take: 2)
+          },
+        },
+      ])
+      .mockResolvedValueOnce([]);
+    const count = jest.fn().mockResolvedValue(0);
+
+    const prisma = {
+      collectionCase: { findMany, count },
+    } as unknown as PrismaService;
+
+    const repository = new CollectionCasesPrismaRepository(prisma);
+
+    await repository.listCases({
+      page: 1,
+      limit: 10,
+      firstDueDate: '2026-06-01',
+      secondDueDate: '2026-07-01',
+    });
+
+    expect(findMany).toHaveBeenCalledTimes(2);
+
+    const secondCallArgs = findMany.mock.calls[1]?.[0] as {
+      where: { id: { in: string[] } };
+    };
+    expect(secondCallArgs.where.id).toEqual({ in: ['case_db_1'] });
+  });
+
+  it('resume casos por data de vencimento, respeitando o rank das 2 faturas mais antigas', async () => {
+    // case_db_1: 1o vencimento 2026-06-01, 2o vencimento 2026-07-01.
+    // case_db_2: sua fatura mais antiga vence 2026-06-01 tambem (mesmo dia do
+    // 1o vencimento de case_db_1), mas o 2o vencimento e diferente
+    // (2026-08-01) — cada contagem deve refletir isso corretamente.
+    const findMany = jest.fn().mockResolvedValue([
+      {
+        contract: {
+          invoices: [
+            { dueDate: new Date('2026-06-01T00:00:00.000Z') },
+            { dueDate: new Date('2026-07-01T00:00:00.000Z') },
+          ],
+        },
+      },
+      {
+        contract: {
+          invoices: [
+            { dueDate: new Date('2026-06-01T00:00:00.000Z') },
+            { dueDate: new Date('2026-08-01T00:00:00.000Z') },
+          ],
+        },
+      },
+    ]);
+
+    const prisma = {
+      collectionCase: { findMany },
+    } as unknown as PrismaService;
+
+    const repository = new CollectionCasesPrismaRepository(prisma);
+
+    const summary = await repository.getOverdueDateSummary({
+      page: 1,
+      limit: 10,
+    });
+
+    expect(summary.firstDueDates).toEqual([
+      { date: '2026-06-01', count: 2 },
+    ]);
+    expect(summary.secondDueDates).toEqual([
+      { date: '2026-07-01', count: 1 },
+      { date: '2026-08-01', count: 1 },
+    ]);
+
+    // Chama o Prisma so uma vez (busca os candidatos), sem a query paginada.
+    expect(findMany).toHaveBeenCalledTimes(1);
+  });
+
+  it('listCaseIds retorna todos os ids sem paginacao, sem chamar count', async () => {
+    const findMany = jest.fn().mockResolvedValue([
+      { id: 'case_db_1' },
+      { id: 'case_db_2' },
+    ]);
+    const count = jest.fn();
+    const prisma = {
+      collectionCase: { findMany, count },
+    } as unknown as PrismaService;
+
+    const repository = new CollectionCasesPrismaRepository(prisma);
+    const ids = await repository.listCaseIds({
+      page: 1,
+      limit: 10,
+      contractStatus: 'ACTIVE',
+    });
+
+    expect(ids).toEqual(['case_db_1', 'case_db_2']);
+    expect(count).not.toHaveBeenCalled();
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ select: { id: true } }),
+    );
+  });
+
+  it('listCaseIds respeita o filtro de vencimento pelo rank das faturas', async () => {
+    const findMany = jest
+      .fn()
+      .mockResolvedValueOnce([
+        {
+          id: 'case_db_1',
+          contract: {
+            invoices: [{ dueDate: new Date('2026-08-04T00:00:00.000Z') }],
+          },
+        },
+        {
+          id: 'case_db_2',
+          contract: {
+            invoices: [{ dueDate: new Date('2026-08-05T00:00:00.000Z') }],
+          },
+        },
+      ])
+      .mockResolvedValueOnce([{ id: 'case_db_1' }]);
+    const prisma = {
+      collectionCase: { findMany },
+    } as unknown as PrismaService;
+
+    const repository = new CollectionCasesPrismaRepository(prisma);
+    const ids = await repository.listCaseIds({
+      page: 1,
+      limit: 10,
+      firstDueDate: '2026-08-04',
+    });
+
+    expect(ids).toEqual(['case_db_1']);
+    expect(findMany).toHaveBeenCalledTimes(2);
+    expect(findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: { in: ['case_db_1'] } }),
+      }),
+    );
   });
 });

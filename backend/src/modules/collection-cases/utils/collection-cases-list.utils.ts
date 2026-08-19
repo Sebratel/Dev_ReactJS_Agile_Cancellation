@@ -1,5 +1,6 @@
 import {
   CollectionStatus,
+  type ContractStatus,
   InvoiceStatus,
   type PaymentPromiseStatus,
   type Priority,
@@ -17,7 +18,7 @@ const FINALIZED_STATUSES: CollectionStatus[] = [
   CollectionStatus.RECOVERED,
 ];
 
-const OPEN_INVOICE_STATUSES: InvoiceStatus[] = [
+export const OPEN_INVOICE_STATUSES: InvoiceStatus[] = [
   InvoiceStatus.OPEN,
   InvoiceStatus.PARTIALLY_PAID,
   InvoiceStatus.OVERDUE,
@@ -52,18 +53,88 @@ function getEndOfDay(date: Date) {
   return end;
 }
 
-function parseDateInput(value: string | undefined) {
+// As datas de vencimento das faturas sao gravadas como meia-noite UTC (dia
+// "puro", sem significado de horario). Os filtros de 1o/2o vencimento
+// precisam comparar o dia calendario em UTC — usar hora local do processo
+// aqui causaria um desvio de dia quando o servidor roda em fuso diferente do
+// horario de Brasilia (ex.: servidor em UTC exibe 20/10 no navegador em
+// UTC-3 como 19/10, e o filtro por "19/10" nao encontraria nada).
+function getStartOfDayUTC(date: Date) {
+  const start = new Date(date);
+  start.setUTCHours(0, 0, 0, 0);
+  return start;
+}
+
+function getEndOfDayUTC(date: Date) {
+  const end = new Date(date);
+  end.setUTCHours(23, 59, 59, 999);
+  return end;
+}
+
+export function parseDateInput(value: string | undefined) {
   if (!value) {
     return undefined;
   }
 
-  const parsed = new Date(`${value}T00:00:00`);
+  const parsed = new Date(`${value}T00:00:00.000Z`);
 
   if (Number.isNaN(parsed.getTime())) {
     return undefined;
   }
 
   return parsed;
+}
+
+/**
+ * Confere se as duas faturas em aberto mais antigas de um contrato (ja
+ * ordenadas ascendente por vencimento, limitadas as 2 primeiras — a mesma
+ * consulta usada para exibir firstOverdueDate/secondOverdueDate na tela)
+ * batem com os filtros de 1o/2o vencimento. Usada pelo repositorio Prisma
+ * para resolver o filtro por RANK (nao "existe alguma fatura", ver
+ * comentario em buildCollectionCasesWhere).
+ */
+export function matchesOverdueDateFilters(
+  oldestOpenInvoices: Array<{ dueDate: Date }>,
+  params: Pick<CollectionCasesListParams, 'firstDueDate' | 'secondDueDate'>,
+): boolean {
+  const firstDueDate = parseDateInput(params.firstDueDate);
+  const secondDueDate = parseDateInput(params.secondDueDate);
+
+  if (!firstDueDate && !secondDueDate) {
+    return true;
+  }
+
+  const [first, second] = oldestOpenInvoices;
+
+  if (firstDueDate) {
+    if (!first) {
+      return false;
+    }
+
+    const time = first.dueDate.getTime();
+    if (
+      time < getStartOfDayUTC(firstDueDate).getTime() ||
+      time > getEndOfDayUTC(firstDueDate).getTime()
+    ) {
+      return false;
+    }
+  }
+
+  if (secondDueDate) {
+    if (!second) {
+      return false;
+    }
+
+    const time = second.dueDate.getTime();
+    if (
+      time < getStartOfDayUTC(secondDueDate).getTime() ||
+      time > getEndOfDayUTC(secondDueDate).getTime()
+    ) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 export function normalizeListParams(
@@ -93,6 +164,14 @@ export function buildCollectionCasesWhere(
 
   if (params.assignedToId) {
     where.assignedUserId = params.assignedToId;
+  }
+
+  const contractConditions: Prisma.ContractWhereInput[] = [];
+
+  if (params.contractStatus) {
+    contractConditions.push({
+      status: params.contractStatus as ContractStatus,
+    });
   }
 
   if (params.search) {
@@ -132,22 +211,21 @@ export function buildCollectionCasesWhere(
     };
   }
 
-  const dueDateStart = parseDateInput(params.dueDateStart);
-  const dueDateEnd = parseDateInput(params.dueDateEnd);
+  // "1o vencimento" e "2o vencimento" NAO entram aqui como "existe alguma
+  // fatura em aberto vencendo nesse dia" — isso pareceria certo apenas
+  // enquanto o contrato tiver exatamente 2 faturas em aberto (a regra que
+  // dispara a entrada na esteira), mas nada impede um contrato acumular uma
+  // 3a fatura vencida enquanto o caso segue aberto (ver erp-sync.service.ts,
+  // a sincronizacao traz TODAS as faturas em aberto do contrato, nao so as
+  // 2 que dispararam o gatilho). Nesse cenario, "some" casaria com a 3a
+  // fatura mesmo que ela nao seja a 1a/2a exibida na tela — o caso apareceria
+  // no resultado com datas diferentes das buscadas. Por isso a comparacao
+  // pelo RANK (1a e 2a fatura em aberto mais antigas, a mesma logica usada
+  // para exibir firstOverdueDate/secondOverdueDate) e feita a parte, no
+  // repositorio Prisma, via resolveDueDateFilteredCaseIds — nao aqui.
 
-  if (dueDateStart || dueDateEnd) {
-    where.contract = {
-      invoices: {
-        some: {
-          status: { in: OPEN_INVOICE_STATUSES },
-          dueDate: {
-            lt: now,
-            ...(dueDateStart ? { gte: getStartOfDay(dueDateStart) } : {}),
-            ...(dueDateEnd ? { lte: getEndOfDay(dueDateEnd) } : {}),
-          },
-        },
-      },
-    };
+  if (contractConditions.length > 0) {
+    where.contract = { AND: contractConditions };
   }
 
   if (params.slaStatus) {
@@ -254,6 +332,17 @@ function getFirstOverdueDate(record: MockCollectionCaseListRecord) {
   );
 }
 
+/**
+ * Dados mock nao guardam a 2a fatura vencida individualmente. Como a regra de
+ * negocio e sempre duas faturas mensais em aberto vencidas, aproximamos a
+ * segunda data como 30 dias apos a primeira (o suficiente para os filtros de
+ * desenvolvimento; em modo `database` o valor vem direto das faturas reais).
+ */
+function getSecondOverdueDate(record: MockCollectionCaseListRecord) {
+  const first = new Date(getFirstOverdueDate(record));
+  return new Date(first.getTime() + 30 * 86_400_000).toISOString();
+}
+
 function matchesSlaStatus(
   record: MockCollectionCaseListRecord,
   slaStatus: CollectionCasesListParams['slaStatus'],
@@ -310,6 +399,10 @@ export function filterMockCollectionCases(
       return false;
     }
 
+    if (params.contractStatus && record.contractStatus !== params.contractStatus) {
+      return false;
+    }
+
     if (search) {
       const haystack = [
         record.customerName,
@@ -356,17 +449,23 @@ export function filterMockCollectionCases(
     }
 
     const firstOverdueTime = new Date(getFirstOverdueDate(record)).getTime();
-    const dueDateStart = parseDateInput(params.dueDateStart);
-    const dueDateEnd = parseDateInput(params.dueDateEnd);
+    const secondOverdueTime = new Date(getSecondOverdueDate(record)).getTime();
+    const firstDueDate = parseDateInput(params.firstDueDate);
+    const secondDueDate = parseDateInput(params.secondDueDate);
 
     if (
-      dueDateStart &&
-      firstOverdueTime < getStartOfDay(dueDateStart).getTime()
+      firstDueDate &&
+      (firstOverdueTime < getStartOfDayUTC(firstDueDate).getTime() ||
+        firstOverdueTime > getEndOfDayUTC(firstDueDate).getTime())
     ) {
       return false;
     }
 
-    if (dueDateEnd && firstOverdueTime > getEndOfDay(dueDateEnd).getTime()) {
+    if (
+      secondDueDate &&
+      (secondOverdueTime < getStartOfDayUTC(secondDueDate).getTime() ||
+        secondOverdueTime > getEndOfDayUTC(secondDueDate).getTime())
+    ) {
       return false;
     }
 
@@ -483,6 +582,9 @@ export function toListItemResponse(
     contractCode: record.contractCode,
     contractStatus: record.contractStatus,
     firstOverdueDate: record.firstOverdueDate,
+    secondOverdueDate: record.firstOverdueDate
+      ? getSecondOverdueDate(record)
+      : null,
     status: record.status,
     priority: record.priority,
     daysOverdue: record.daysOverdue,

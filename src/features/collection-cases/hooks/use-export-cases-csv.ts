@@ -19,6 +19,17 @@ export function useExportCasesCsv() {
         if (params.sortDirection) query.set('sortDirection', params.sortDirection);
       }
       if (params.assignedToId) query.set('assignedToId', params.assignedToId);
+      if (params.contractStatus) query.set('contractStatus', params.contractStatus);
+      if (params.daysOverdueMin !== undefined) query.set('daysOverdueMin', String(params.daysOverdueMin));
+      if (params.daysOverdueMax !== undefined) query.set('daysOverdueMax', String(params.daysOverdueMax));
+      if (params.totalOutstandingMin !== undefined) query.set('totalOutstandingMin', String(params.totalOutstandingMin));
+      if (params.totalOutstandingMax !== undefined) query.set('totalOutstandingMax', String(params.totalOutstandingMax));
+      if (params.firstDueDate) query.set('firstDueDate', params.firstDueDate);
+      if (params.secondDueDate) query.set('secondDueDate', params.secondDueDate);
+      if (params.slaStatus) query.set('slaStatus', params.slaStatus);
+      if (params.createdToday) query.set('createdToday', 'true');
+      if (params.interactionStatus) query.set('interactionStatus', params.interactionStatus);
+      if (params.promiseStatus) query.set('promiseStatus', params.promiseStatus);
 
       const qs = query.toString();
       const url = `${appEnv.apiBaseUrl}/collection-cases/export${qs ? `?${qs}` : ''}`;

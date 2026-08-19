@@ -26,6 +26,29 @@ export function formatDatePtBR(value: Date | string | number) {
   return dateFormatter.format(new Date(value));
 }
 
+// Datas "puras" (sem significado de horario, ex.: vencimento de fatura) sao
+// gravadas como meia-noite UTC. Formatar via `new Date(...)` + Intl usa o
+// fuso do navegador e pode exibir o dia anterior para quem esta em UTC-3
+// (ex.: 2025-10-20T00:00:00.000Z vira "19/10/2025" em Brasilia) — um desvio
+// que quebra a busca por data exata, ja que o filtro compara o dia em UTC.
+// Aqui extraimos o dia calendario direto da string ISO, sem conversao de
+// fuso, garantindo que o que o supervisor ve e o que ele pode filtrar sejam
+// o mesmo dia.
+export function formatDateOnlyPtBR(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+
+  if (!match) {
+    return formatDatePtBR(value);
+  }
+
+  const [, year, month, day] = match;
+  return `${day}/${month}/${year}`;
+}
+
 export function formatDateTimePtBR(value: Date | string | number) {
   return dateTimeFormatter.format(new Date(value));
 }

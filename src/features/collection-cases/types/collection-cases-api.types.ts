@@ -26,6 +26,7 @@ export type CollectionCaseListItemResponse = {
   contractCode: string;
   contractStatus: string;
   firstOverdueDate: string | null;
+  secondOverdueDate: string | null;
   status: string;
   priority: string;
   daysOverdue: number;
@@ -257,19 +258,44 @@ export type AutoDistributeResponse = {
   agents: number;
 };
 
+export type BulkContactWhatsAppJobStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED';
+
+export type BulkContactWhatsAppJobResponse = {
+  id: string;
+  status: BulkContactWhatsAppJobStatus;
+  totalCount: number;
+  sentCount: number;
+  skippedCount: number;
+  failedCount: number;
+  createdAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+};
+
+export type OverdueDateSummaryItem = {
+  date: string;
+  count: number;
+};
+
+export type OverdueDateSummaryResponse = {
+  firstDueDates: OverdueDateSummaryItem[];
+  secondDueDates: OverdueDateSummaryItem[];
+};
+
 export type CollectionCasesListParams = {
   page?: number;
   limit?: number;
   status?: string;
   priority?: string;
   assignedToId?: string;
+  contractStatus?: string;
   search?: string;
   daysOverdueMin?: number;
   daysOverdueMax?: number;
   totalOutstandingMin?: number;
   totalOutstandingMax?: number;
-  dueDateStart?: string;
-  dueDateEnd?: string;
+  firstDueDate?: string;
+  secondDueDate?: string;
   slaStatus?: CollectionCasesSlaStatus;
   createdToday?: boolean;
   interactionStatus?: 'none';

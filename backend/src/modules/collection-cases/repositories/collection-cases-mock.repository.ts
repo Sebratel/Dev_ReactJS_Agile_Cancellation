@@ -50,6 +50,7 @@ import type {
   UpdatePaymentPromiseStatusResult,
 } from '@/modules/collection-cases/repositories/collection-cases.repository';
 import type { CancellationProcessResponse } from '@/modules/collection-cases/dto/cancellation-process.response';
+import type { OverdueDateSummaryResponse } from '@/modules/collection-cases/dto/overdue-date-summary.response';
 import {
   filterMockCollectionCases,
   normalizeListParams,
@@ -79,6 +80,58 @@ export class CollectionCasesMockRepository implements CollectionCasesRepository 
         sorted.length,
       ),
     );
+  }
+
+  listCaseIds(params: CollectionCasesListParams): Promise<string[]> {
+    const normalized = normalizeListParams(params);
+    const filtered = filterMockCollectionCases(
+      mockCollectionCaseListRecords,
+      normalized,
+    );
+
+    return Promise.resolve(filtered.map((record) => record.id));
+  }
+
+  getOverdueDateSummary(
+    params: CollectionCasesListParams,
+  ): Promise<OverdueDateSummaryResponse> {
+    const normalized = normalizeListParams(params);
+
+    // Cada lista respeita os demais filtros + a data do OUTRO campo, mas
+    // ignora o proprio campo que esta sendo enumerado (mesma logica do
+    // repositorio Prisma — ver comentario la).
+    const candidatesForFirst = filterMockCollectionCases(
+      mockCollectionCaseListRecords,
+      { ...normalized, firstDueDate: undefined },
+    );
+    const candidatesForSecond = filterMockCollectionCases(
+      mockCollectionCaseListRecords,
+      { ...normalized, secondDueDate: undefined },
+    );
+
+    const firstCounts = new Map<string, number>();
+    for (const record of candidatesForFirst) {
+      if (!record.firstOverdueDate) continue;
+      const key = record.firstOverdueDate.slice(0, 10);
+      firstCounts.set(key, (firstCounts.get(key) ?? 0) + 1);
+    }
+
+    const secondCounts = new Map<string, number>();
+    for (const record of candidatesForSecond) {
+      if (!record.secondOverdueDate) continue;
+      const key = record.secondOverdueDate.slice(0, 10);
+      secondCounts.set(key, (secondCounts.get(key) ?? 0) + 1);
+    }
+
+    const toSortedItems = (counts: Map<string, number>) =>
+      Array.from(counts.entries())
+        .map(([date, count]) => ({ date, count }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+    return Promise.resolve({
+      firstDueDates: toSortedItems(firstCounts),
+      secondDueDates: toSortedItems(secondCounts),
+    });
   }
 
   getCaseById(id: string) {

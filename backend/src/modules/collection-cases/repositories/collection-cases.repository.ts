@@ -6,6 +6,7 @@ import type { CollectionCaseDetailsResponse } from '@/modules/collection-cases/d
 import type { CancellationProcessResponse } from '@/modules/collection-cases/dto/cancellation-process.response';
 import type { CollectionCaseTimelineResponse } from '@/modules/collection-cases/dto/collection-case-timeline.response';
 import type { CollectionCaseListItemResponse } from '@/modules/collection-cases/dto/collection-case-list-item.response';
+import type { OverdueDateSummaryResponse } from '@/modules/collection-cases/dto/overdue-date-summary.response';
 import type { CollectionCasesQueryDto } from '@/modules/collection-cases/dto/collection-cases-query.dto';
 import {
   type CollectionCasesInteractionStatus,
@@ -171,13 +172,14 @@ export type CollectionCasesListParams = {
   status?: string;
   priority?: string;
   assignedToId?: string;
+  contractStatus?: string;
   search?: string;
   daysOverdueMin?: number;
   daysOverdueMax?: number;
   totalOutstandingMin?: number;
   totalOutstandingMax?: number;
-  dueDateStart?: string;
-  dueDateEnd?: string;
+  firstDueDate?: string;
+  secondDueDate?: string;
   slaStatus?: CollectionCasesSlaStatus;
   createdToday?: boolean;
   interactionStatus?: CollectionCasesInteractionStatus;
@@ -190,6 +192,14 @@ export interface CollectionCasesRepository {
   listCases(
     params: CollectionCasesListParams,
   ): Promise<PaginatedResponse<CollectionCaseListItemResponse>>;
+
+  // Todos os ids que batem com os filtros, sem paginacao — usado pelo envio
+  // de HSM em lote "por filtro" (grupo customizado, sem marcar caso a caso).
+  listCaseIds(params: CollectionCasesListParams): Promise<string[]>;
+
+  getOverdueDateSummary(
+    params: CollectionCasesListParams,
+  ): Promise<OverdueDateSummaryResponse>;
 
   getCaseById(id: string): Promise<CollectionCaseDetailsResponse | null>;
 
@@ -236,13 +246,14 @@ export function mapQueryDtoToListParams(
     status: query.status,
     priority: query.priority,
     assignedToId: query.assignedToId,
+    contractStatus: query.contractStatus,
     search: query.search,
     daysOverdueMin: query.daysOverdueMin,
     daysOverdueMax: query.daysOverdueMax,
     totalOutstandingMin: query.totalOutstandingMin,
     totalOutstandingMax: query.totalOutstandingMax,
-    dueDateStart: query.dueDateStart,
-    dueDateEnd: query.dueDateEnd,
+    firstDueDate: query.firstDueDate,
+    secondDueDate: query.secondDueDate,
     slaStatus: query.slaStatus,
     createdToday: query.createdToday,
     interactionStatus: query.interactionStatus,

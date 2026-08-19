@@ -14,20 +14,17 @@ export function useCollectionCases(
   params: CollectionCasesListParams,
   options: UseCollectionCasesOptions = {},
 ) {
+  // Espalha todos os params recebidos (em vez de listar campo a campo) para
+  // que um filtro novo adicionado a CollectionCasesListParams chegue aqui
+  // automaticamente. A lista manual anterior ja tinha ficado desatualizada
+  // por duas vezes — faltavam contractStatus, firstDueDate, secondDueDate,
+  // createdToday, interactionStatus e promiseStatus, que por isso nunca
+  // chegavam a API: o filtro parecia nao fazer nada, sempre retornando o
+  // mesmo resultado padrao (ordenado por dias em atraso).
   const queryParams: CollectionCasesListParams = {
+    ...params,
     page: params.page ?? 1,
     limit: params.limit ?? 10,
-    status: params.status,
-    priority: params.priority,
-    assignedToId: params.assignedToId,
-    search: params.search,
-    daysOverdueMin: params.daysOverdueMin,
-    daysOverdueMax: params.daysOverdueMax,
-    totalOutstandingMin: params.totalOutstandingMin,
-    totalOutstandingMax: params.totalOutstandingMax,
-    slaStatus: params.slaStatus,
-    sortBy: params.sortBy,
-    sortDirection: params.sortDirection,
   };
 
   return useQuery({

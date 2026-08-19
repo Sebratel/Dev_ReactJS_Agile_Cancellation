@@ -1,5 +1,6 @@
 import {
   CollectionStatus,
+  ContractStatus,
   PaymentPromiseStatus,
   Priority,
 } from '@prisma/client';
@@ -114,6 +115,10 @@ export class CollectionCasesQueryDto {
   assignedToId?: string;
 
   @IsOptional()
+  @IsEnum(ContractStatus)
+  contractStatus?: ContractStatus;
+
+  @IsOptional()
   @IsString()
   @Transform(({ value }: { value: unknown }) => {
     if (typeof value !== 'string') {
@@ -151,11 +156,11 @@ export class CollectionCasesQueryDto {
 
   @IsOptional()
   @IsDateString()
-  dueDateStart?: string;
+  firstDueDate?: string;
 
   @IsOptional()
   @IsDateString()
-  dueDateEnd?: string;
+  secondDueDate?: string;
 
   @IsOptional()
   @IsIn(COLLECTION_CASES_SLA_STATUS)

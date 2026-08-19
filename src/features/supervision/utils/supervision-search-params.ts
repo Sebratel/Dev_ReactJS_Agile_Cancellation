@@ -12,12 +12,13 @@ export type SupervisionFiltersState = {
   status: string;
   priority: string;
   search: string;
+  contractStatus: string;
   daysOverdueMin: string;
   daysOverdueMax: string;
   totalOutstandingMin: string;
   totalOutstandingMax: string;
-  dueDateStart: string;
-  dueDateEnd: string;
+  firstDueDate: string;
+  secondDueDate: string;
   slaStatus: string;
   createdToday: string;
   interactionStatus: string;
@@ -31,12 +32,13 @@ export const EMPTY_SUPERVISION_FILTERS: SupervisionFiltersState = {
   status: '',
   priority: '',
   search: '',
+  contractStatus: '',
   daysOverdueMin: '',
   daysOverdueMax: '',
   totalOutstandingMin: '',
   totalOutstandingMax: '',
-  dueDateStart: '',
-  dueDateEnd: '',
+  firstDueDate: '',
+  secondDueDate: '',
   slaStatus: '',
   createdToday: '',
   interactionStatus: '',
@@ -102,6 +104,10 @@ function isInteractionStatus(value: string | null) {
   return value === 'none';
 }
 
+function isContractStatus(value: string | null) {
+  return value === 'ACTIVE' || value === 'SUSPENDED';
+}
+
 function isPromiseStatus(
   value: string | null,
 ): value is CollectionCasesPromiseStatus {
@@ -124,12 +130,13 @@ export function parseSupervisionSearchParams(
     status: searchParams.get('status') ?? '',
     priority: searchParams.get('priority') ?? '',
     search: searchParams.get('search') ?? '',
+    contractStatus: searchParams.get('contractStatus') ?? '',
     daysOverdueMin: searchParams.get('daysOverdueMin') ?? '',
     daysOverdueMax: searchParams.get('daysOverdueMax') ?? '',
     totalOutstandingMin: searchParams.get('totalOutstandingMin') ?? '',
     totalOutstandingMax: searchParams.get('totalOutstandingMax') ?? '',
-    dueDateStart: searchParams.get('dueDateStart') ?? '',
-    dueDateEnd: searchParams.get('dueDateEnd') ?? '',
+    firstDueDate: searchParams.get('firstDueDate') ?? '',
+    secondDueDate: searchParams.get('secondDueDate') ?? '',
     slaStatus: searchParams.get('slaStatus') ?? '',
     createdToday: searchParams.get('createdToday') ?? '',
     interactionStatus: searchParams.get('interactionStatus') ?? '',
@@ -159,6 +166,10 @@ export function supervisionFiltersToSearchParams(
     params.set('search', filters.search.trim());
   }
 
+  if (filters.contractStatus) {
+    params.set('contractStatus', filters.contractStatus);
+  }
+
   if (filters.daysOverdueMin) {
     params.set('daysOverdueMin', filters.daysOverdueMin);
   }
@@ -175,12 +186,12 @@ export function supervisionFiltersToSearchParams(
     params.set('totalOutstandingMax', filters.totalOutstandingMax);
   }
 
-  if (filters.dueDateStart) {
-    params.set('dueDateStart', filters.dueDateStart);
+  if (filters.firstDueDate) {
+    params.set('firstDueDate', filters.firstDueDate);
   }
 
-  if (filters.dueDateEnd) {
-    params.set('dueDateEnd', filters.dueDateEnd);
+  if (filters.secondDueDate) {
+    params.set('secondDueDate', filters.secondDueDate);
   }
 
   if (filters.slaStatus) {
@@ -221,12 +232,15 @@ export function supervisionFiltersToListParams(
     status: filters.status || undefined,
     priority: filters.priority || undefined,
     search: searchValue.trim() || undefined,
+    contractStatus: isContractStatus(filters.contractStatus)
+      ? filters.contractStatus
+      : undefined,
     daysOverdueMin: parsePositiveInt(filters.daysOverdueMin),
     daysOverdueMax: parsePositiveInt(filters.daysOverdueMax),
     totalOutstandingMin: parseOptionalNumber(filters.totalOutstandingMin),
     totalOutstandingMax: parseOptionalNumber(filters.totalOutstandingMax),
-    dueDateStart: filters.dueDateStart.trim() || undefined,
-    dueDateEnd: filters.dueDateEnd.trim() || undefined,
+    firstDueDate: filters.firstDueDate.trim() || undefined,
+    secondDueDate: filters.secondDueDate.trim() || undefined,
     slaStatus: isSlaStatus(filters.slaStatus) ? filters.slaStatus : undefined,
     createdToday: filters.createdToday === 'true' ? true : undefined,
     interactionStatus: isInteractionStatus(filters.interactionStatus)
@@ -245,12 +259,13 @@ export function hasActiveSupervisionFilters(filters: SupervisionFiltersState) {
     filters.status.length > 0 ||
     filters.priority.length > 0 ||
     filters.search.trim().length > 0 ||
+    filters.contractStatus.length > 0 ||
     filters.daysOverdueMin.length > 0 ||
     filters.daysOverdueMax.length > 0 ||
     filters.totalOutstandingMin.length > 0 ||
     filters.totalOutstandingMax.length > 0 ||
-    filters.dueDateStart.length > 0 ||
-    filters.dueDateEnd.length > 0 ||
+    filters.firstDueDate.length > 0 ||
+    filters.secondDueDate.length > 0 ||
     filters.slaStatus.length > 0 ||
     filters.createdToday.length > 0 ||
     filters.interactionStatus.length > 0 ||

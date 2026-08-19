@@ -44,6 +44,8 @@ function createRepository(
 ): CollectionCasesRepository {
   return {
     listCases: jest.fn(),
+    listCaseIds: jest.fn(),
+    getOverdueDateSummary: jest.fn(),
     getCaseById: jest.fn(),
     getCaseTimeline: jest.fn(),
     createAttempt: jest.fn(),
@@ -71,6 +73,24 @@ describe('CollectionCasesService', () => {
 
     expect(listCases).toHaveBeenCalledWith({ page: 1, limit: 10 });
     expect(response.data.pagination.total).toBe(0);
+  });
+
+  it('usa contrato de repository para resumo de vencimentos', async () => {
+    const summary = {
+      firstDueDates: [{ date: '2026-08-04', count: 12 }],
+      secondDueDates: [{ date: '2026-09-04', count: 12 }],
+    };
+    const getOverdueDateSummary = jest.fn().mockResolvedValue(summary);
+    const repository = createRepository({ getOverdueDateSummary });
+
+    const { service } = createService(repository);
+    const response = await service.getOverdueDateSummary({
+      page: 1,
+      limit: 10,
+    });
+
+    expect(getOverdueDateSummary).toHaveBeenCalledWith({ page: 1, limit: 10 });
+    expect(response.data).toEqual(summary);
   });
 
   it('retorna 404 quando repository nao encontra caso', async () => {

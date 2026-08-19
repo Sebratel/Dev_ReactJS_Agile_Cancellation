@@ -9,7 +9,12 @@ import {
   getCollectionStatusLabel,
   getPriorityLabel,
 } from '@/features/collection-cases/utils/collection-case-labels';
-import { type SupervisionFiltersState } from '@/features/supervision/utils/supervision-search-params';
+import { OverdueDateCountPicker } from '@/features/collection-cases/components/overdue-date-count-picker';
+import { getContractStatusLabel } from '@/features/customers/utils/customer-labels';
+import {
+  supervisionFiltersToListParams,
+  type SupervisionFiltersState,
+} from '@/features/supervision/utils/supervision-search-params';
 
 const STATUS_OPTIONS = [
   'WAITING_TRIAGE',
@@ -20,6 +25,8 @@ const STATUS_OPTIONS = [
   'CANCELLATION_IN_PROGRESS',
   'CLOSED',
 ] as const;
+
+const CONTRACT_STATUS_OPTIONS = ['ACTIVE', 'SUSPENDED'] as const;
 
 const PROMISE_STATUS_OPTIONS = [
   { value: 'ACTIVE', label: 'Promessa ativa' },
@@ -63,6 +70,9 @@ type ActiveFilterChip = {
 
 function hasAdvancedFilters(filters: SupervisionFiltersState): boolean {
   return Boolean(
+    filters.status ||
+    filters.priority ||
+    filters.slaStatus ||
     filters.createdToday ||
     filters.interactionStatus ||
     filters.promiseStatus ||
@@ -92,6 +102,9 @@ export function SupervisionFilters({
   hasActiveFilters,
 }: SupervisionFiltersProps) {
   const advancedCount = [
+    filters.status,
+    filters.priority,
+    filters.slaStatus,
     filters.createdToday,
     filters.interactionStatus,
     filters.promiseStatus,
@@ -109,15 +122,48 @@ export function SupervisionFilters({
     onFilterChange({ ...changes, page: 1 });
   };
 
+  // Params usados so pelo popover "casos por data" — reflete os demais
+  // filtros ativos (inclusive a data do outro campo de vencimento), para que
+  // a contagem exibida bata com o que o supervisor realmente veria na
+  // tabela ao escolher aquela data.
+  const overdueDateSummaryParams = supervisionFiltersToListParams(
+    filters,
+    filters.search,
+  );
+
   const chips: ActiveFilterChip[] = [];
 
   if (filters.search.trim()) {
     chips.push({
       key: 'search',
-      label: `Busca: "${filters.search.trim()}"`,
+      label: `Cliente: "${filters.search.trim()}"`,
       onRemove: () => {
         onSearchInputChange('');
       },
+    });
+  }
+
+  if (filters.firstDueDate) {
+    chips.push({
+      key: 'firstDueDate',
+      label: `1o vencimento: ${formatDateInputLabel(filters.firstDueDate)}`,
+      onRemove: () => clearFilter({ firstDueDate: '' }),
+    });
+  }
+
+  if (filters.secondDueDate) {
+    chips.push({
+      key: 'secondDueDate',
+      label: `2o vencimento: ${formatDateInputLabel(filters.secondDueDate)}`,
+      onRemove: () => clearFilter({ secondDueDate: '' }),
+    });
+  }
+
+  if (filters.contractStatus) {
+    chips.push({
+      key: 'contractStatus',
+      label: `Contrato: ${getContractStatusLabel(filters.contractStatus)}`,
+      onRemove: () => clearFilter({ contractStatus: '' }),
     });
   }
 
@@ -201,31 +247,15 @@ export function SupervisionFilters({
     });
   }
 
-  if (filters.dueDateStart) {
-    chips.push({
-      key: 'dueDateStart',
-      label: `Vencimento >= ${formatDateInputLabel(filters.dueDateStart)}`,
-      onRemove: () => clearFilter({ dueDateStart: '' }),
-    });
-  }
-
-  if (filters.dueDateEnd) {
-    chips.push({
-      key: 'dueDateEnd',
-      label: `Vencimento <= ${formatDateInputLabel(filters.dueDateEnd)}`,
-      onRemove: () => clearFilter({ dueDateEnd: '' }),
-    });
-  }
-
   return (
     <SectionCard
       title="Filtros"
-      description="Refine a carteira por busca, vencimento, status, prioridade e SLA."
+      description="Busque pelo cliente, pela data exata de cada vencimento em aberto e pelo status do contrato. Os demais critérios ficam em 'Mais filtros'."
       contentClassName="space-y-3"
     >
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <label className="space-y-1 text-sm">
-          <span className={labelClassName}>Busca</span>
+          <span className={labelClassName}>Cliente</span>
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-neutral" />
             <Input
@@ -238,73 +268,61 @@ export function SupervisionFilters({
         </label>
 
         <label className="space-y-1 text-sm">
-          <span className={labelClassName}>Status</span>
+          <span className={labelClassName}>1o vencimento</span>
+          <div className="flex gap-1.5">
+            <Input
+              type="date"
+              value={filters.firstDueDate}
+              onChange={(event) =>
+                onFilterChange({ firstDueDate: event.target.value, page: 1 })
+              }
+            />
+            <OverdueDateCountPicker
+              field="first"
+              label="1o vencimento"
+              listParams={overdueDateSummaryParams}
+              selectedDate={filters.firstDueDate}
+              onSelectDate={(date) =>
+                onFilterChange({ firstDueDate: date, page: 1 })
+              }
+            />
+          </div>
+        </label>
+
+        <label className="space-y-1 text-sm">
+          <span className={labelClassName}>2o vencimento</span>
+          <div className="flex gap-1.5">
+            <Input
+              type="date"
+              value={filters.secondDueDate}
+              onChange={(event) =>
+                onFilterChange({ secondDueDate: event.target.value, page: 1 })
+              }
+            />
+            <OverdueDateCountPicker
+              field="second"
+              label="2o vencimento"
+              listParams={overdueDateSummaryParams}
+              selectedDate={filters.secondDueDate}
+              onSelectDate={(date) =>
+                onFilterChange({ secondDueDate: date, page: 1 })
+              }
+            />
+          </div>
+        </label>
+
+        <label className="space-y-1 text-sm">
+          <span className={labelClassName}>Status do contrato</span>
           <Select
-            value={filters.status}
+            value={filters.contractStatus}
             onChange={(event) =>
-              onFilterChange({ status: event.target.value, page: 1 })
+              onFilterChange({ contractStatus: event.target.value, page: 1 })
             }
           >
-            <option value="">Todos os status</option>
-            {STATUS_OPTIONS.map((status) => (
+            <option value="">Todos os contratos</option>
+            {CONTRACT_STATUS_OPTIONS.map((status) => (
               <option key={status} value={status}>
-                {getCollectionStatusLabel(status)}
-              </option>
-            ))}
-          </Select>
-        </label>
-
-        <label className="space-y-1 text-sm">
-          <span className={labelClassName}>Prioridade</span>
-          <Select
-            value={filters.priority}
-            onChange={(event) =>
-              onFilterChange({ priority: event.target.value, page: 1 })
-            }
-          >
-            <option value="">Todas as prioridades</option>
-            {PRIORITY_OPTIONS.map((priority) => (
-              <option key={priority} value={priority}>
-                {getPriorityLabel(priority)}
-              </option>
-            ))}
-          </Select>
-        </label>
-
-        <label className="space-y-1 text-sm">
-          <span className={labelClassName}>Vencimento inicial</span>
-          <Input
-            type="date"
-            value={filters.dueDateStart}
-            onChange={(event) =>
-              onFilterChange({ dueDateStart: event.target.value, page: 1 })
-            }
-          />
-        </label>
-
-        <label className="space-y-1 text-sm">
-          <span className={labelClassName}>Vencimento final</span>
-          <Input
-            type="date"
-            value={filters.dueDateEnd}
-            onChange={(event) =>
-              onFilterChange({ dueDateEnd: event.target.value, page: 1 })
-            }
-          />
-        </label>
-
-        <label className="space-y-1 text-sm">
-          <span className={labelClassName}>SLA</span>
-          <Select
-            value={filters.slaStatus}
-            onChange={(event) =>
-              onFilterChange({ slaStatus: event.target.value, page: 1 })
-            }
-          >
-            <option value="">Todos os SLAs</option>
-            {SLA_STATUS_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
+                {getContractStatusLabel(status)}
               </option>
             ))}
           </Select>
@@ -313,6 +331,57 @@ export function SupervisionFilters({
 
       {advancedOpen ? (
         <div className="grid gap-3 border-t border-border pt-3 md:grid-cols-2 xl:grid-cols-4">
+          <label className="space-y-1 text-sm">
+            <span className={labelClassName}>Status do caso</span>
+            <Select
+              value={filters.status}
+              onChange={(event) =>
+                onFilterChange({ status: event.target.value, page: 1 })
+              }
+            >
+              <option value="">Todos os status</option>
+              {STATUS_OPTIONS.map((status) => (
+                <option key={status} value={status}>
+                  {getCollectionStatusLabel(status)}
+                </option>
+              ))}
+            </Select>
+          </label>
+
+          <label className="space-y-1 text-sm">
+            <span className={labelClassName}>Prioridade</span>
+            <Select
+              value={filters.priority}
+              onChange={(event) =>
+                onFilterChange({ priority: event.target.value, page: 1 })
+              }
+            >
+              <option value="">Todas as prioridades</option>
+              {PRIORITY_OPTIONS.map((priority) => (
+                <option key={priority} value={priority}>
+                  {getPriorityLabel(priority)}
+                </option>
+              ))}
+            </Select>
+          </label>
+
+          <label className="space-y-1 text-sm">
+            <span className={labelClassName}>SLA</span>
+            <Select
+              value={filters.slaStatus}
+              onChange={(event) =>
+                onFilterChange({ slaStatus: event.target.value, page: 1 })
+              }
+            >
+              <option value="">Todos os SLAs</option>
+              {SLA_STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+          </label>
+
           <label className="space-y-1 text-sm">
             <span className={labelClassName}>Criados hoje</span>
             <Select
@@ -412,7 +481,6 @@ export function SupervisionFilters({
               }
             />
           </label>
-
         </div>
       ) : null}
 

@@ -60,6 +60,9 @@ function buildListRecord(index: number): MockCollectionCaseListRecord {
   const firstOverdueDate = new Date(
     Date.now() - (90 + (index % 60)) * 86_400_000,
   ).toISOString();
+  const secondOverdueDate = new Date(
+    new Date(firstOverdueDate).getTime() + 30 * 86_400_000,
+  ).toISOString();
   const paymentPromiseStatuses: Array<
     'ACTIVE' | 'FULFILLED' | 'BROKEN' | 'CANCELLED' | 'EXPIRED'
   > = [];
@@ -83,6 +86,7 @@ function buildListRecord(index: number): MockCollectionCaseListRecord {
     contractCode: `CTR-${contractNumber}`,
     contractStatus: index % 7 === 0 ? 'SUSPENDED' : 'ACTIVE',
     firstOverdueDate,
+    secondOverdueDate,
     status: STATUSES[index % STATUSES.length]!,
     priority: PRIORITIES[index % PRIORITIES.length]!,
     daysOverdue: 90 + (index % 60),
@@ -121,6 +125,7 @@ export function createMockCollectionCaseListItems(
     contractCode: record.contractCode,
     contractStatus: record.contractStatus,
     firstOverdueDate: record.firstOverdueDate,
+    secondOverdueDate: record.secondOverdueDate,
     status: record.status,
     priority: record.priority,
     daysOverdue: record.daysOverdue,

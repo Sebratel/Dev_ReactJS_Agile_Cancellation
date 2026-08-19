@@ -24,6 +24,23 @@ import { PerformedByResolverService } from '@/modules/collection-cases/services/
 import { MatrixWhatsappContactService } from '@/modules/collection-cases/services/matrix-whatsapp-contact.service';
 import { NotificationsService } from '@/modules/notifications/notifications.service';
 
+export type WhatsAppContactAttemptOutcome =
+  | { outcome: 'case_not_found' }
+  | { outcome: 'status_not_allowed'; status: string }
+  | { outcome: 'no_phone' }
+  | { outcome: 'failed'; error: Error }
+  | {
+      outcome: 'sent';
+      result: {
+        attemptId: string;
+        provider: string;
+        statusCode: number;
+        codAtendimento: string | null;
+        codMensagem: string | null;
+        awaitingReply: boolean;
+      };
+    };
+
 const CONTACT_ALLOWED_STATUSES = new Set([
   'WAITING_TRIAGE',
   'IN_COLLECTION',
@@ -110,6 +127,19 @@ export class CollectionCasesService {
     return createApiResponse(paginated);
   }
 
+  // Usado pelo envio de HSM em lote "por filtro" (whatsapp-bulk-contact) —
+  // resolve o grupo customizado sem exigir selecao caso a caso.
+  listCaseIds(params: CollectionCasesListParams): Promise<string[]> {
+    return this.collectionCasesRepository.listCaseIds(params);
+  }
+
+  async getOverdueDateSummary(params: CollectionCasesListParams) {
+    const summary =
+      await this.collectionCasesRepository.getOverdueDateSummary(params);
+
+    return createApiResponse(summary);
+  }
+
   async getCaseById(id: string, user?: AuthenticatedUser) {
     const details = await this.collectionCasesRepository.getCaseById(id);
 
@@ -165,30 +195,63 @@ export class CollectionCasesService {
   }
 
   async contactCustomerByWhatsApp(caseId: string, performedByUserId: string) {
-    const resolvedPerformerId =
-      this.performedByResolver.resolve(performedByUserId);
-    const context =
-      await this.collectionCasesRepository.getContactContext(caseId);
+    const outcome = await this.attemptWhatsAppContact(
+      caseId,
+      performedByUserId,
+    );
 
-    if (!context) {
+    if (outcome.outcome === 'case_not_found') {
       throw new AppException(
         `Caso de cobranÃ§a ${caseId} nÃ£o encontrado.`,
         HttpStatus.NOT_FOUND,
       );
     }
 
-    if (!CONTACT_ALLOWED_STATUSES.has(context.status)) {
+    if (outcome.outcome === 'status_not_allowed') {
       throw new AppException(
-        `Caso de cobranÃ§a ${caseId} nÃ£o permite contato a partir do status ${context.status}.`,
+        `Caso de cobranÃ§a ${caseId} nÃ£o permite contato a partir do status ${outcome.status}.`,
         HttpStatus.CONFLICT,
       );
     }
 
-    if (!hasUsablePhone(context.customer.phone)) {
+    if (outcome.outcome === 'no_phone') {
       throw new AppException(
         'Cliente sem telefone valido para contato via WhatsApp.',
         HttpStatus.UNPROCESSABLE_ENTITY,
       );
+    }
+
+    if (outcome.outcome === 'failed') {
+      throw outcome.error;
+    }
+
+    return createApiResponse(outcome.result);
+  }
+
+  // Nucleo compartilhado entre o envio individual (acima) e o envio em lote
+  // (WhatsappBulkContactWorkerService, no modulo whatsapp-bulk-contact) — ao
+  // inves de lancar excecao no primeiro caso invalido/com falha (o que faria
+  // sentido para um unico caso, mas interromperia um lote inteiro), retorna
+  // um resultado tipado para cada situacao, e quem chama decide o que fazer.
+  async attemptWhatsAppContact(
+    caseId: string,
+    performedByUserId: string,
+  ): Promise<WhatsAppContactAttemptOutcome> {
+    const resolvedPerformerId =
+      this.performedByResolver.resolve(performedByUserId);
+    const context =
+      await this.collectionCasesRepository.getContactContext(caseId);
+
+    if (!context) {
+      return { outcome: 'case_not_found' };
+    }
+
+    if (!CONTACT_ALLOWED_STATUSES.has(context.status)) {
+      return { outcome: 'status_not_allowed', status: context.status };
+    }
+
+    if (!hasUsablePhone(context.customer.phone)) {
+      return { outcome: 'no_phone' };
     }
 
     const payload = {
@@ -217,7 +280,10 @@ export class CollectionCasesService {
         errorMessage: getErrorMessage(error),
       });
 
-      throw error;
+      return {
+        outcome: 'failed',
+        error: error instanceof Error ? error : new Error(String(error)),
+      };
     }
 
     const recorded =
@@ -239,14 +305,17 @@ export class CollectionCasesService {
         matrixMessageCode: providerResult.codMensagem,
       });
 
-    return createApiResponse({
-      attemptId: recorded.attemptId,
-      provider: providerResult.provider,
-      statusCode: providerResult.statusCode,
-      codAtendimento: recorded.matrixAttendanceCode,
-      codMensagem: recorded.matrixMessageCode,
-      awaitingReply: Boolean(recorded.matrixAttendanceCode),
-    });
+    return {
+      outcome: 'sent',
+      result: {
+        attemptId: recorded.attemptId,
+        provider: providerResult.provider,
+        statusCode: providerResult.statusCode,
+        codAtendimento: recorded.matrixAttendanceCode,
+        codMensagem: recorded.matrixMessageCode,
+        awaitingReply: Boolean(recorded.matrixAttendanceCode),
+      },
+    };
   }
 
   async createPromise(

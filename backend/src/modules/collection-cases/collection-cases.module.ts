@@ -15,5 +15,6 @@ import { NotificationsModule } from '@/modules/notifications/notifications.modul
     PerformedByResolverService,
     collectionCasesRepositoryProvider,
   ],
+  exports: [CollectionCasesService],
 })
 export class CollectionCasesModule {}

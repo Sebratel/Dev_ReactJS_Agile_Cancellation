@@ -49,3 +49,7 @@ export const LazySettingsPage = lazy(
 export const LazyRankingPage = lazy(
   async () => import('@/features/ranking/pages/ranking-page'),
 );
+export const LazyWhatsappBulkContactPage = lazy(
+  async () =>
+    import('@/features/whatsapp-bulk-contact/pages/whatsapp-bulk-contact-page'),
+);

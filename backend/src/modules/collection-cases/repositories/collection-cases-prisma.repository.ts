@@ -17,8 +17,12 @@ import type { CollectionCaseListItemResponse } from '@/modules/collection-cases/
 import {
   buildCollectionCasesOrderBy,
   buildCollectionCasesWhere,
+  matchesOverdueDateFilters,
   normalizeListParams,
+  OPEN_INVOICE_STATUSES,
 } from '@/modules/collection-cases/utils/collection-cases-list.utils';
+import type { OverdueDateSummaryResponse } from '@/modules/collection-cases/dto/overdue-date-summary.response';
+import { BULK_CONTACT_MAX_CASES } from '@/common/constants/bulk-contact.constants';
 import type { CollectionAttemptResponse } from '@/modules/collection-cases/dto/collection-attempt.response';
 import type { CancellationProcessResponse } from '@/modules/collection-cases/dto/cancellation-process.response';
 import type { PaymentPromiseResponse } from '@/modules/collection-cases/dto/payment-promise.response';
@@ -120,6 +124,20 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
     const orderBy = buildCollectionCasesOrderBy(normalized);
     const now = new Date();
 
+    const dueDateFilteredIds = await this.resolveDueDateFilteredIds(
+      where,
+      normalized,
+      now,
+    );
+
+    if (dueDateFilteredIds !== null) {
+      if (dueDateFilteredIds.length === 0) {
+        return createPaginatedResponse([], normalized.page, normalized.limit, 0);
+      }
+
+      where.id = { in: dueDateFilteredIds };
+    }
+
     const [records, total] = await Promise.all([
       this.prisma.collectionCase.findMany({
         where,
@@ -144,7 +162,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
                   },
                 },
                 orderBy: { dueDate: 'asc' },
-                take: 1,
+                take: 2,
                 select: { dueDate: true },
               },
             },
@@ -166,6 +184,8 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
         contractStatus: record.contract.status,
         firstOverdueDate:
           record.contract.invoices[0]?.dueDate.toISOString() ?? null,
+        secondOverdueDate:
+          record.contract.invoices[1]?.dueDate.toISOString() ?? null,
         status: record.status,
         priority: record.priority,
         daysOverdue: record.daysOverdue,
@@ -187,6 +207,155 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
       normalized.limit,
       total,
     );
+  }
+
+  // "1o vencimento"/"2o vencimento" tem que bater com a 1a/2a fatura em
+  // aberto mais antiga do contrato — as mesmas exibidas na tela — nao com
+  // "qualquer fatura em aberto vencendo naquele dia" (um contrato pode
+  // acumular uma 3a fatura vencida sem ainda ter sido cancelado; ver
+  // comentario em buildCollectionCasesWhere). Como Prisma nao filtra por
+  // posicao dentro de uma relacao, resolvemos isso buscando os IDs
+  // candidatos e comparando em JS. Retorna null quando nenhum filtro de
+  // vencimento foi pedido (nao restringe nada); retorna a lista de ids (pode
+  // ser vazia) quando algum filtro foi pedido.
+  private async resolveDueDateFilteredIds(
+    where: Prisma.CollectionCaseWhereInput,
+    normalized: CollectionCasesListParams,
+    now: Date,
+  ): Promise<string[] | null> {
+    if (!normalized.firstDueDate && !normalized.secondDueDate) {
+      return null;
+    }
+
+    const candidates = await this.prisma.collectionCase.findMany({
+      where,
+      select: {
+        id: true,
+        contract: {
+          select: {
+            invoices: {
+              where: {
+                dueDate: { lt: now },
+                status: { in: OPEN_INVOICE_STATUSES },
+              },
+              orderBy: { dueDate: 'asc' },
+              take: 2,
+              select: { dueDate: true },
+            },
+          },
+        },
+      },
+    });
+
+    return candidates
+      .filter((candidate) =>
+        matchesOverdueDateFilters(candidate.contract.invoices, normalized),
+      )
+      .map((candidate) => candidate.id);
+  }
+
+  // Retorna TODOS os ids de casos que batem com os filtros (sem paginacao) —
+  // usado pelo envio de HSM em lote "por filtro" (o supervisor customiza o
+  // grupo via filtro, sem marcar caso por caso). Limitado por seguranca a
+  // BULK_CONTACT_MAX_CASES.
+  async listCaseIds(params: CollectionCasesListParams): Promise<string[]> {
+    const normalized = normalizeListParams(params);
+    const where = buildCollectionCasesWhere(normalized);
+    const now = new Date();
+
+    const dueDateFilteredIds = await this.resolveDueDateFilteredIds(
+      where,
+      normalized,
+      now,
+    );
+
+    if (dueDateFilteredIds !== null) {
+      if (dueDateFilteredIds.length === 0) return [];
+      where.id = { in: dueDateFilteredIds };
+    }
+
+    const records = await this.prisma.collectionCase.findMany({
+      where,
+      select: { id: true },
+      take: BULK_CONTACT_MAX_CASES,
+    });
+
+    return records.map((record) => record.id);
+  }
+
+  // Para o popover "quantos casos por data" ao lado dos campos de vencimento
+  // (evita o supervisor ter que ir tentando data por data). Cada lista
+  // respeita os demais filtros ativos e a data do OUTRO campo (ex.: ao
+  // enumerar as opcoes de 1o vencimento, se o 2o vencimento ja estiver
+  // preenchido, so contam os casos que tambem batem com ele) — mas nunca o
+  // proprio campo que esta sendo enumerado, senao so a data ja escolhida
+  // apareceria na lista.
+  async getOverdueDateSummary(
+    params: CollectionCasesListParams,
+  ): Promise<OverdueDateSummaryResponse> {
+    const normalized = normalizeListParams(params);
+    const now = new Date();
+    const baseWhere = buildCollectionCasesWhere(
+      { ...normalized, firstDueDate: undefined, secondDueDate: undefined },
+      now,
+    );
+
+    const candidates = await this.prisma.collectionCase.findMany({
+      where: baseWhere,
+      select: {
+        contract: {
+          select: {
+            invoices: {
+              where: {
+                dueDate: { lt: now },
+                status: { in: OPEN_INVOICE_STATUSES },
+              },
+              orderBy: { dueDate: 'asc' },
+              take: 2,
+              select: { dueDate: true },
+            },
+          },
+        },
+      },
+    });
+
+    const firstCounts = new Map<string, number>();
+    const secondCounts = new Map<string, number>();
+
+    for (const candidate of candidates) {
+      const invoices = candidate.contract.invoices;
+      const [first, second] = invoices;
+
+      if (
+        first &&
+        matchesOverdueDateFilters(invoices, {
+          secondDueDate: normalized.secondDueDate,
+        })
+      ) {
+        const key = first.dueDate.toISOString().slice(0, 10);
+        firstCounts.set(key, (firstCounts.get(key) ?? 0) + 1);
+      }
+
+      if (
+        second &&
+        matchesOverdueDateFilters(invoices, {
+          firstDueDate: normalized.firstDueDate,
+        })
+      ) {
+        const key = second.dueDate.toISOString().slice(0, 10);
+        secondCounts.set(key, (secondCounts.get(key) ?? 0) + 1);
+      }
+    }
+
+    const toSortedItems = (counts: Map<string, number>) =>
+      Array.from(counts.entries())
+        .map(([date, count]) => ({ date, count }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+    return {
+      firstDueDates: toSortedItems(firstCounts),
+      secondDueDates: toSortedItems(secondCounts),
+    };
   }
 
   async getCaseById(id: string) {

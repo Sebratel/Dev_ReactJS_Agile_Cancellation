@@ -47,6 +47,7 @@ import {
 import { ApiError } from '@/services/api/api-error';
 import {
   formatCurrencyFromDecimalString,
+  formatDateOnlyPtBR,
   formatDatePtBR,
   formatDateTimePtBR,
   formatInteger,
@@ -475,7 +476,7 @@ export default function CollectionCaseDetailPage() {
                               {invoice.invoiceNumber ?? invoice.id}
                             </td>
                             <td className={tableCellClassName}>
-                              {formatDatePtBR(invoice.dueDate)}
+                              {formatDateOnlyPtBR(invoice.dueDate)}
                             </td>
                             <td className={tableCellClassName}>
                               {formatCurrencyFromDecimalString(invoice.amount)}

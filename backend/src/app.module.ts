@@ -27,6 +27,7 @@ import { PaymentPromisesModule } from '@/modules/payment-promises/payment-promis
 import { RolesModule } from '@/modules/roles/roles.module';
 import { UsersModule } from '@/modules/users/users.module';
 import { WebhooksModule } from '@/modules/webhooks/webhooks.module';
+import { WhatsappBulkContactModule } from '@/modules/whatsapp-bulk-contact/whatsapp-bulk-contact.module';
 
 const cwd = process.cwd();
 const rootEnvPath =
@@ -62,6 +63,7 @@ const legacyBackendEnvPath =
     ContractsModule,
     InvoicesModule,
     CollectionCasesModule,
+    WhatsappBulkContactModule,
     CollectionAttemptsModule,
     CaseNotesModule,
     NotificationsModule,

@@ -32,6 +32,12 @@ export const queryKeys = {
       ['collection-cases', 'timeline', caseId] as const,
     notes: (caseId: string) =>
       ['collection-cases', 'notes', caseId] as const,
+    overdueDateSummary: (params: CollectionCasesListParams) =>
+      ['collection-cases', 'overdue-date-summary', params] as const,
+    bulkContactWhatsAppJob: (jobId: string) =>
+      ['collection-cases', 'bulk-contact-whatsapp-job', jobId] as const,
+    bulkContactWhatsAppJobsList: (page: number) =>
+      ['collection-cases', 'bulk-contact-whatsapp-jobs', page] as const,
   },
   auditoria: {
     list: (params: AuditLogsListParams) =>

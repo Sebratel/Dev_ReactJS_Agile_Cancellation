@@ -12,8 +12,10 @@ import {
   type CancellationProcessResponse,
   type ContactCustomerWhatsAppResponse,
   type CollectionCaseListItemResponse,
+  type BulkContactWhatsAppJobResponse,
   type CollectionCasesListParams,
   type CreateCollectionAttemptPayload,
+  type OverdueDateSummaryResponse,
   type CreatePaymentPromisePayload,
   type PaymentPromiseResponse,
   type RevertCancellationPayload,
@@ -33,20 +35,21 @@ function appendParam(
   searchParams.set(key, String(value));
 }
 
-function buildCollectionCasesPath(params: CollectionCasesListParams) {
+function buildCollectionCasesSearchParams(params: CollectionCasesListParams) {
   const searchParams = new URLSearchParams();
   appendParam(searchParams, 'page', params.page ?? 1);
   appendParam(searchParams, 'limit', params.limit ?? 10);
   appendParam(searchParams, 'status', params.status);
   appendParam(searchParams, 'priority', params.priority);
   appendParam(searchParams, 'assignedToId', params.assignedToId);
+  appendParam(searchParams, 'contractStatus', params.contractStatus);
   appendParam(searchParams, 'search', params.search);
   appendParam(searchParams, 'daysOverdueMin', params.daysOverdueMin);
   appendParam(searchParams, 'daysOverdueMax', params.daysOverdueMax);
   appendParam(searchParams, 'totalOutstandingMin', params.totalOutstandingMin);
   appendParam(searchParams, 'totalOutstandingMax', params.totalOutstandingMax);
-  appendParam(searchParams, 'dueDateStart', params.dueDateStart);
-  appendParam(searchParams, 'dueDateEnd', params.dueDateEnd);
+  appendParam(searchParams, 'firstDueDate', params.firstDueDate);
+  appendParam(searchParams, 'secondDueDate', params.secondDueDate);
   appendParam(searchParams, 'slaStatus', params.slaStatus);
   if (params.createdToday) {
     searchParams.set('createdToday', 'true');
@@ -56,7 +59,11 @@ function buildCollectionCasesPath(params: CollectionCasesListParams) {
   appendParam(searchParams, 'sortBy', params.sortBy);
   appendParam(searchParams, 'sortDirection', params.sortDirection);
 
-  return `/collection-cases?${searchParams.toString()}`;
+  return searchParams;
+}
+
+function buildCollectionCasesPath(params: CollectionCasesListParams) {
+  return `/collection-cases?${buildCollectionCasesSearchParams(params).toString()}`;
 }
 
 export async function getCollectionCases(
@@ -66,6 +73,24 @@ export async function getCollectionCases(
     PaginatedResponse<CollectionCaseListItemResponse>
   >({
     path: buildCollectionCasesPath(params),
+  });
+
+  return response.data;
+}
+
+export async function getOverdueDateSummary(
+  params: CollectionCasesListParams = {},
+) {
+  const searchParams = buildCollectionCasesSearchParams(params);
+  // Contagem por data e independente de paginacao/ordenacao — nao faz
+  // sentido repassar essas duas ao popover.
+  searchParams.delete('page');
+  searchParams.delete('limit');
+  searchParams.delete('sortBy');
+  searchParams.delete('sortDirection');
+
+  const response = await httpClient.request<OverdueDateSummaryResponse>({
+    path: `/collection-cases/overdue-dates-summary?${searchParams.toString()}`,
   });
 
   return response.data;
@@ -206,6 +231,51 @@ export async function bulkAssignCases(payload: BulkAssignCasesPayload) {
     path: '/collection-cases/bulk-assign',
     method: 'POST',
     body: JSON.stringify(payload),
+  });
+  return response.data;
+}
+
+export async function createBulkContactWhatsAppJob(caseIds: string[]) {
+  const response = await httpClient.request<BulkContactWhatsAppJobResponse>({
+    path: '/bulk-contact-whatsapp',
+    method: 'POST',
+    body: JSON.stringify({ caseIds }),
+  });
+  return response.data;
+}
+
+export async function getBulkContactWhatsAppJob(jobId: string) {
+  const response = await httpClient.request<BulkContactWhatsAppJobResponse>({
+    path: `/bulk-contact-whatsapp/${jobId}`,
+  });
+  return response.data;
+}
+
+// Tela dedicada de envio em lote: em vez de uma lista de ids ja marcada,
+// manda os mesmos filtros da Supervisao e o backend resolve o grupo inteiro.
+export async function createBulkContactWhatsAppJobByFilter(
+  filters: CollectionCasesListParams,
+) {
+  const response = await httpClient.request<BulkContactWhatsAppJobResponse>({
+    path: '/bulk-contact-whatsapp/by-filter',
+    method: 'POST',
+    body: JSON.stringify(filters),
+  });
+  return response.data;
+}
+
+export async function listBulkContactWhatsAppJobs(params: {
+  page: number;
+  limit: number;
+}) {
+  const searchParams = new URLSearchParams();
+  appendParam(searchParams, 'page', params.page);
+  appendParam(searchParams, 'limit', params.limit);
+
+  const response = await httpClient.request<
+    PaginatedResponse<BulkContactWhatsAppJobResponse>
+  >({
+    path: `/bulk-contact-whatsapp?${searchParams.toString()}`,
   });
   return response.data;
 }

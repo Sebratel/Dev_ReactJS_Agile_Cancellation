@@ -41,6 +41,17 @@ export class CollectionCasesController {
     );
   }
 
+  @Roles('ADMIN', 'SUPERVISOR', 'COLLECTION_AGENT', 'CANCELLATION_AGENT')
+  @Get('overdue-dates-summary')
+  getOverdueDateSummary(
+    @Query() query: CollectionCasesQueryDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.collectionCasesService.getOverdueDateSummary(
+      restrictToOwnCasesIfAgent(mapQueryDtoToListParams(query), user),
+    );
+  }
+
   @Roles('COLLECTION_AGENT', 'SUPERVISOR', 'ADMIN')
   @Post(':id/attempts')
   createAttempt(
