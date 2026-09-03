@@ -156,9 +156,22 @@ describe('Audit logs (e2e)', () => {
 
   it('filtro por actorId funciona', async () => {
     const httpServer = app.getHttpServer() as Parameters<typeof request>[0];
-    await seedAttemptAuditLog(httpServer);
 
+    // PerformedByResolverService converte IDs de usuarios mock para null (evita
+    // violacao de FK no banco real), entao seeds via HTTP sempre geram logs com
+    // performedByUserId=null. Empurramos o log diretamente no array mock para
+    // testar o filtro sem depender do resolver.
     const actorId = 'user-admin';
+    mockAuditLogs.push({
+      entityType: 'COLLECTION_CASE',
+      entityId: 'case_0001',
+      action: 'CREATE',
+      performedByUserId: actorId,
+      beforeSnapshot: null,
+      afterSnapshot: { id: 'att_filter_test' },
+      metadata: { attemptId: 'att_filter_test' },
+    });
+
     const response = await api(httpServer, adminToken)
       .get(`/audit-logs?actorId=${actorId}`)
       .expect(200);

@@ -1149,7 +1149,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
   }: AutoDistributeCasesParams): Promise<AutoDistributeCasesResult> {
     const cases = await this.prisma.collectionCase.findMany({
       where: {
-        status: { in: statuses as any[] },
+        status: { in: statuses as CollectionStatus[] },
         assignedUserId: null,
       },
       select: { id: true },
