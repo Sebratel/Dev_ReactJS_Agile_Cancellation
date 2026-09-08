@@ -184,6 +184,25 @@ export type CollectionCaseTimelineResponse = {
   events: CollectionCaseTimelineEvent[];
 };
 
+export type CollectionCasePortfolioAgentSummary = {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+};
+
+export type CollectionCasePortfolioSummary = {
+  agent: CollectionCasePortfolioAgentSummary | null;
+  totalActive: number;
+  slaOverdue: number;
+  awaitingReply: number;
+  noManualInteraction: number;
+  totalOutstanding: string;
+};
+
+export type CollectionCasePortfoliosResponse = {
+  portfolios: CollectionCasePortfolioSummary[];
+};
+
 export type SendToCancellationPayload = {
   reason: string;
   notes?: string;

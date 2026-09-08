@@ -52,6 +52,13 @@ export class CollectionCasesController {
     );
   }
 
+  // Painel de carteiras da supervisao: resumo agregado por atendente.
+  @Roles('ADMIN', 'SUPERVISOR')
+  @Get('portfolios')
+  getPortfolios() {
+    return this.collectionCasesService.getPortfolios();
+  }
+
   @Roles('COLLECTION_AGENT', 'SUPERVISOR', 'ADMIN')
   @Post(':id/attempts')
   createAttempt(

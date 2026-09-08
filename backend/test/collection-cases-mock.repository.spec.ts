@@ -11,6 +11,42 @@ describe('CollectionCasesMockRepository', () => {
     resetMockCollectionCases();
   });
 
+  it('getPortfolios agrupa por atendente com indicadores', async () => {
+    const { portfolios } = await repository.getPortfolios();
+
+    expect(portfolios.length).toBeGreaterThan(0);
+
+    // Cada carteira soma pelo menos 1 caso ativo e expoe todos os indicadores.
+    for (const portfolio of portfolios) {
+      expect(portfolio.totalActive).toBeGreaterThan(0);
+      expect(portfolio.slaOverdue).toBeLessThanOrEqual(portfolio.totalActive);
+      expect(portfolio.awaitingReply).toBeLessThanOrEqual(
+        portfolio.totalActive,
+      );
+      expect(portfolio.noManualInteraction).toBeLessThanOrEqual(
+        portfolio.totalActive,
+      );
+      expect(portfolio.totalOutstanding).toMatch(/^\d+\.\d{2}$/);
+    }
+  });
+
+  it('getPortfolios inclui a carteira sem responsavel (agent null)', async () => {
+    const { portfolios } = await repository.getPortfolios();
+
+    // Os mocks tem casos sem atendente atribuido (index % 5 === 0).
+    expect(portfolios.some((portfolio) => portfolio.agent === null)).toBe(true);
+  });
+
+  it('getPortfolios filtra por assignedToId=unassigned na listagem', async () => {
+    const result = await repository.listCases({
+      page: 1,
+      limit: 100,
+      assignedToId: 'unassigned',
+    });
+
+    expect(result.items.length).toBeGreaterThan(0);
+  });
+
   it('pagina corretamente', async () => {
     const result = await repository.listCases({ page: 2, limit: 10 });
 

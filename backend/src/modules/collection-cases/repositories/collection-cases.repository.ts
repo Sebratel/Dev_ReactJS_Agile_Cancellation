@@ -7,6 +7,7 @@ import type { CancellationProcessResponse } from '@/modules/collection-cases/dto
 import type { CollectionCaseTimelineResponse } from '@/modules/collection-cases/dto/collection-case-timeline.response';
 import type { CollectionCaseListItemResponse } from '@/modules/collection-cases/dto/collection-case-list-item.response';
 import type { OverdueDateSummaryResponse } from '@/modules/collection-cases/dto/overdue-date-summary.response';
+import type { CollectionCasePortfoliosResponse } from '@/modules/collection-cases/dto/collection-case-portfolio.response';
 import type { CollectionCasesQueryDto } from '@/modules/collection-cases/dto/collection-cases-query.dto';
 import {
   type CollectionCasesInteractionStatus,
@@ -201,6 +202,11 @@ export interface CollectionCasesRepository {
   getOverdueDateSummary(
     params: CollectionCasesListParams,
   ): Promise<OverdueDateSummaryResponse>;
+
+  // Resumo por carteira de atendente: contagens de casos ativos, SLA vencido,
+  // aguardando resposta, sem interacao manual e valor em aberto — usado pelo
+  // painel de carteiras da supervisao.
+  getPortfolios(): Promise<CollectionCasePortfoliosResponse>;
 
   getCaseById(id: string): Promise<CollectionCaseDetailsResponse | null>;
 

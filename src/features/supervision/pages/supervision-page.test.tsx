@@ -12,6 +12,7 @@ vi.mock(
   () => ({
     getCollectionCases: vi.fn(),
     getCollectionCaseById: vi.fn(),
+    getCollectionCasePortfolios: vi.fn().mockResolvedValue({ portfolios: [] }),
     bulkAssignCases: vi.fn().mockResolvedValue({ assigned: 0, skipped: 0 }),
     autoDistribute: vi.fn().mockResolvedValue({ distributed: 0, agents: 0 }),
   }),
@@ -40,7 +41,7 @@ function LocationDisplay() {
   return <div data-testid="location-search">{location.search}</div>;
 }
 
-function renderSupervision(initialRoute = '/supervisao') {
+async function renderSupervision(initialRoute = '/supervisao') {
   renderWithProviders(
     <Routes>
       <Route
@@ -66,6 +67,11 @@ function renderSupervision(initialRoute = '/supervisao') {
       }),
     },
   );
+
+  // A pagina abre no painel de Carteiras; os testes abaixo exercitam a Lista,
+  // entao alternamos para ela apos montar.
+  const user = userEvent.setup();
+  await user.click(await screen.findByRole('button', { name: 'Lista' }));
 }
 
 describe('SupervisionPage', () => {
@@ -79,8 +85,39 @@ describe('SupervisionPage', () => {
     vi.useRealTimers();
   });
 
+  it('abre no painel de Carteiras e alterna para a Lista', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <Routes>
+        <Route path="/supervisao" element={<SupervisionPage />} />
+      </Routes>,
+      {
+        route: '/supervisao',
+        session: createMockSession({
+          user: {
+            id: 'supervisor',
+            name: 'Supervisor SEBRATEL',
+            email: 'supervisor@ger.local',
+            roles: ['SUPERVISOR'],
+            role: 'SUPERVISOR',
+          },
+        }),
+      },
+    );
+
+    // Landing view = Carteiras (a lista ainda nao aparece).
+    expect(
+      await screen.findByText('Carteiras por atendente'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Casos de cobrança')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Lista' }));
+
+    expect(await screen.findByText('Casos de cobrança')).toBeInTheDocument();
+  });
+
   it('le filtros da URL', async () => {
-    renderSupervision('/supervisao?status=NO_RESPONSE&search=Horizonte');
+    await renderSupervision('/supervisao?status=NO_RESPONSE&search=Horizonte');
 
     expect(await screen.findByText('Casos de cobrança')).toBeInTheDocument();
 
@@ -96,7 +133,7 @@ describe('SupervisionPage', () => {
 
   it('alterar busca atualiza URL', async () => {
     const user = userEvent.setup();
-    renderSupervision('/supervisao');
+    await renderSupervision('/supervisao');
 
     await screen.findByText('Casos de cobrança');
 
@@ -117,7 +154,7 @@ describe('SupervisionPage', () => {
 
   it('alterar status atualiza query params', async () => {
     const user = userEvent.setup();
-    renderSupervision('/supervisao');
+    await renderSupervision('/supervisao');
 
     await screen.findByText('Casos de cobrança');
 
@@ -141,7 +178,7 @@ describe('SupervisionPage', () => {
 
   it('limpar filtros remove query params', async () => {
     const user = userEvent.setup();
-    renderSupervision('/supervisao?status=NO_RESPONSE&search=Horizonte');
+    await renderSupervision('/supervisao?status=NO_RESPONSE&search=Horizonte');
 
     await screen.findByText('Limpar filtros');
     await user.click(screen.getByRole('button', { name: 'Limpar filtros' }));
@@ -159,7 +196,7 @@ describe('SupervisionPage', () => {
       ),
     );
 
-    renderSupervision('/supervisao?status=NO_RESPONSE');
+    await renderSupervision('/supervisao?status=NO_RESPONSE');
 
     await screen.findByText('Casos de cobrança');
     await user.click(await screen.findByRole('button', { name: 'Próxima' }));
@@ -180,7 +217,7 @@ describe('SupervisionPage', () => {
 
   it('ordenacao atualiza query params', async () => {
     const user = userEvent.setup();
-    renderSupervision('/supervisao');
+    await renderSupervision('/supervisao');
 
     await screen.findByText('Casos de cobrança');
     await user.click(screen.getByRole('button', { name: /Dias em atraso/i }));
@@ -198,7 +235,7 @@ describe('SupervisionPage', () => {
       pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
     });
 
-    renderSupervision('/supervisao?status=NO_RESPONSE');
+    await renderSupervision('/supervisao?status=NO_RESPONSE');
 
     expect(
       await screen.findByText('Nenhum caso encontrado'),
@@ -213,7 +250,7 @@ describe('SupervisionPage', () => {
   it('erro mostra ErrorState com retry', async () => {
     vi.mocked(getCollectionCases).mockRejectedValue(new Error('offline'));
 
-    renderSupervision('/supervisao');
+    await renderSupervision('/supervisao');
 
     expect(
       await screen.findByText('Não foi possível carregar os casos'),
@@ -224,7 +261,7 @@ describe('SupervisionPage', () => {
   });
 
   it('restaura filtros operacionais da URL', async () => {
-    renderSupervision(
+    await renderSupervision(
       '/supervisao?slaStatus=overdue&interactionStatus=none&promiseStatus=ACTIVE&createdToday=true',
     );
 
@@ -246,7 +283,7 @@ describe('SupervisionPage', () => {
 
   it('limpar filtros remove filtros operacionais da URL', async () => {
     const user = userEvent.setup();
-    renderSupervision(
+    await renderSupervision(
       '/supervisao?interactionStatus=none&promiseStatus=ACTIVE&createdToday=true',
     );
 

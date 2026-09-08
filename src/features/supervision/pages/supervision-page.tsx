@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Download, RefreshCw, Shuffle } from 'lucide-react';
+import {
+  Download,
+  LayoutGrid,
+  List,
+  RefreshCw,
+  Shuffle,
+  X,
+} from 'lucide-react';
 import { BulkActionBar } from '@/components/data-display/bulk-action-bar';
 import { PageHeader } from '@/components/data-display/page-header';
 import { PageContainer } from '@/components/navigation/page-container';
@@ -14,7 +21,9 @@ import { useBulkAssignCases } from '@/features/collection-cases/hooks/use-bulk-a
 import { useAutoDistribute } from '@/features/collection-cases/hooks/use-auto-distribute';
 import { useExportCasesCsv } from '@/features/collection-cases/hooks/use-export-cases-csv';
 import { SupervisionCasesTable } from '@/features/supervision/components/supervision-cases-table';
+import { SupervisionPortfolios } from '@/features/supervision/components/supervision-portfolios';
 import { SupervisionFilters } from '@/features/supervision/components/supervision-filters';
+import { useCollectionCasePortfolios } from '@/features/collection-cases/hooks/use-collection-case-portfolios';
 import { useSupervisionSearchParams } from '@/features/supervision/hooks/use-supervision-search-params';
 import {
   hasActiveSupervisionFilters,
@@ -24,6 +33,7 @@ import { useUsers } from '@/features/users/hooks/use-users';
 import { useUsersWorkload } from '@/features/users/hooks/use-users-workload';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { toast } from '@/lib/toast';
+import { cn } from '@/lib/utils';
 import { ApiError } from '@/services/api/api-error';
 
 export default function SupervisionPage() {
@@ -36,6 +46,16 @@ export default function SupervisionPage() {
   const debouncedSearch = useDebouncedValue(searchInput, 400);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Painel de carteiras: modo de visualizacao e carteira selecionada. Sao
+  // estado local (nao vao pra URL) para nao poluir os filtros compartilhados.
+  // `selectedAgentId` = id do atendente, 'unassigned' (sem responsavel) ou null.
+  // A view padrao e Carteiras, mas quem nao pode distribuir so ve a Lista
+  // (derivamos a view efetiva em vez de travar no init, pois a sessao — e
+  // portanto canDistribute — pode nao estar pronta no primeiro render).
+  const [view, setView] = useState<'portfolios' | 'list'>('portfolios');
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
+  const effectiveView = canDistribute ? view : 'list';
 
   useEffect(() => {
     setSearchInput(filters.search);
@@ -57,12 +77,30 @@ export default function SupervisionPage() {
     clearFilters();
   };
 
-  const listParams = useMemo(
-    () => supervisionFiltersToListParams(filters, debouncedSearch),
-    [filters, debouncedSearch],
-  );
+  const listParams = useMemo(() => {
+    const base = supervisionFiltersToListParams(filters, debouncedSearch);
+    return selectedAgentId
+      ? { ...base, assignedToId: selectedAgentId }
+      : base;
+  }, [filters, debouncedSearch, selectedAgentId]);
 
   const casesQuery = useCollectionCases(listParams);
+
+  const portfoliosQuery = useCollectionCasePortfolios(canDistribute);
+
+  const handleSelectPortfolio = useCallback(
+    (agentId: string | null) => {
+      setSelectedAgentId(agentId ?? 'unassigned');
+      updateFilters({ page: 1 });
+      setView('list');
+    },
+    [updateFilters],
+  );
+
+  const clearPortfolioSelection = useCallback(() => {
+    setSelectedAgentId(null);
+    updateFilters({ page: 1 });
+  }, [updateFilters]);
 
   const agentsQuery = useUsers({
     status: 'ACTIVE',
@@ -72,6 +110,18 @@ export default function SupervisionPage() {
   });
   const agents = agentsQuery.data?.items ?? [];
   const workloadQuery = useUsersWorkload(canDistribute);
+
+  const selectedAgentName = useMemo(() => {
+    if (!selectedAgentId) return null;
+    if (selectedAgentId === 'unassigned') return 'Sem responsável';
+    return (
+      agentsQuery.data?.items.find((a) => a.id === selectedAgentId)?.name ??
+      portfoliosQuery.data?.portfolios.find(
+        (p) => p.agent?.id === selectedAgentId,
+      )?.agent?.name ??
+      'Atendente'
+    );
+  }, [selectedAgentId, agentsQuery.data, portfoliosQuery.data]);
 
   const bulkAssign = useBulkAssignCases();
   const autoDistributeMutation = useAutoDistribute();
@@ -172,23 +222,93 @@ export default function SupervisionPage() {
         }
       />
 
-      <SupervisionFilters
-        filters={filters}
-        searchInput={searchInput}
-        onSearchInputChange={setSearchInput}
-        onFilterChange={updateFilters}
-        onClearFilters={handleClearFilters}
-        hasActiveFilters={hasActiveFilters}
-      />
-
-      {!casesQuery.isLoading && !casesQuery.isError ? (
-        <CollectionCaseSnapshotStrip
-          items={items}
-          totalCases={casesQuery.data?.pagination.total}
-        />
+      {canDistribute ? (
+        <div className="flex self-start rounded-lg border border-border bg-card p-1">
+          <button
+            type="button"
+            onClick={() => setView('portfolios')}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+              effectiveView === 'portfolios'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-neutral hover:text-foreground',
+            )}
+          >
+            <LayoutGrid className="h-4 w-4" />
+            Carteiras
+          </button>
+          <button
+            type="button"
+            onClick={() => setView('list')}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+              effectiveView === 'list'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-neutral hover:text-foreground',
+            )}
+          >
+            <List className="h-4 w-4" />
+            Lista
+          </button>
+        </div>
       ) : null}
 
-      {casesQuery.isLoading ? <TableSkeleton rows={6} columns={5} /> : null}
+      {canDistribute && effectiveView === 'portfolios' ? (
+        portfoliosQuery.isError ? (
+          <ErrorState
+            title="Não foi possível carregar as carteiras"
+            description="Não foi possível conectar ao servidor. Tente novamente."
+            retryLabel="Tentar novamente"
+            onRetry={() => {
+              void portfoliosQuery.refetch();
+            }}
+          />
+        ) : (
+          <SupervisionPortfolios
+            portfolios={portfoliosQuery.data?.portfolios ?? []}
+            agents={agents}
+            isLoading={portfoliosQuery.isLoading}
+            onSelectAgent={handleSelectPortfolio}
+          />
+        )
+      ) : null}
+
+      {effectiveView === 'list' ? (
+        <>
+          {selectedAgentName ? (
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5">
+              <span className="text-sm">
+                Mostrando a carteira de{' '}
+                <span className="font-semibold">{selectedAgentName}</span>
+              </span>
+              <button
+                type="button"
+                onClick={clearPortfolioSelection}
+                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
+              >
+                <X className="h-3.5 w-3.5" />
+                Ver todos
+              </button>
+            </div>
+          ) : null}
+
+          <SupervisionFilters
+            filters={filters}
+            searchInput={searchInput}
+            onSearchInputChange={setSearchInput}
+            onFilterChange={updateFilters}
+            onClearFilters={handleClearFilters}
+            hasActiveFilters={hasActiveFilters}
+          />
+
+          {!casesQuery.isLoading && !casesQuery.isError ? (
+            <CollectionCaseSnapshotStrip
+              items={items}
+              totalCases={casesQuery.data?.pagination.total}
+            />
+          ) : null}
+
+          {casesQuery.isLoading ? <TableSkeleton rows={6} columns={5} /> : null}
 
       {casesQuery.isError ? (
         <ErrorState
@@ -233,16 +353,18 @@ export default function SupervisionPage() {
         />
       ) : null}
 
-      {canDistribute ? (
-        <BulkActionBar
-          selectedCount={selectedIds.size}
-          selectedCaseIds={Array.from(selectedIds)}
-          agents={agents}
-          workload={workloadQuery.data}
-          onBulkAssign={(id) => { void handleBulkAssign(id); }}
-          onClearSelection={clearSelection}
-          isAssigning={bulkAssign.isPending}
-        />
+          {canDistribute ? (
+            <BulkActionBar
+              selectedCount={selectedIds.size}
+              selectedCaseIds={Array.from(selectedIds)}
+              agents={agents}
+              workload={workloadQuery.data}
+              onBulkAssign={(id) => { void handleBulkAssign(id); }}
+              onClearSelection={clearSelection}
+              isAssigning={bulkAssign.isPending}
+            />
+          ) : null}
+        </>
       ) : null}
     </PageContainer>
   );

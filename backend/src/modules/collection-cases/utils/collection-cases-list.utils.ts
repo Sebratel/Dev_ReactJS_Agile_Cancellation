@@ -162,7 +162,10 @@ export function buildCollectionCasesWhere(
     where.priority = params.priority as Priority;
   }
 
-  if (params.assignedToId) {
+  if (params.assignedToId === 'unassigned') {
+    // Carteira "Sem responsavel" — casos ativos sem atendente atribuido.
+    where.assignedUserId = null;
+  } else if (params.assignedToId) {
     where.assignedUserId = params.assignedToId;
   }
 
@@ -395,7 +398,14 @@ export function filterMockCollectionCases(
       return false;
     }
 
-    if (params.assignedToId && record.assignedUserId !== params.assignedToId) {
+    if (params.assignedToId === 'unassigned') {
+      if (record.assignedUserId !== null) {
+        return false;
+      }
+    } else if (
+      params.assignedToId &&
+      record.assignedUserId !== params.assignedToId
+    ) {
       return false;
     }
 

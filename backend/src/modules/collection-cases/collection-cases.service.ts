@@ -140,6 +140,12 @@ export class CollectionCasesService {
     return createApiResponse(summary);
   }
 
+  async getPortfolios() {
+    const portfolios = await this.collectionCasesRepository.getPortfolios();
+
+    return createApiResponse(portfolios);
+  }
+
   async getCaseById(id: string, user?: AuthenticatedUser) {
     const details = await this.collectionCasesRepository.getCaseById(id);
 

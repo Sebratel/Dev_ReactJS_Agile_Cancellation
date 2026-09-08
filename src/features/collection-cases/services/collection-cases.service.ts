@@ -16,6 +16,7 @@ import {
   type CollectionCasesListParams,
   type CreateCollectionAttemptPayload,
   type OverdueDateSummaryResponse,
+  type CollectionCasePortfoliosResponse,
   type CreatePaymentPromisePayload,
   type PaymentPromiseResponse,
   type RevertCancellationPayload,
@@ -91,6 +92,14 @@ export async function getOverdueDateSummary(
 
   const response = await httpClient.request<OverdueDateSummaryResponse>({
     path: `/collection-cases/overdue-dates-summary?${searchParams.toString()}`,
+  });
+
+  return response.data;
+}
+
+export async function getCollectionCasePortfolios() {
+  const response = await httpClient.request<CollectionCasePortfoliosResponse>({
+    path: '/collection-cases/portfolios',
   });
 
   return response.data;

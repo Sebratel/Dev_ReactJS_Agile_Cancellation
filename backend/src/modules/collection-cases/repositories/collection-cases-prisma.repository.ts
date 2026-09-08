@@ -22,6 +22,10 @@ import {
   OPEN_INVOICE_STATUSES,
 } from '@/modules/collection-cases/utils/collection-cases-list.utils';
 import type { OverdueDateSummaryResponse } from '@/modules/collection-cases/dto/overdue-date-summary.response';
+import type {
+  CollectionCasePortfolioSummary,
+  CollectionCasePortfoliosResponse,
+} from '@/modules/collection-cases/dto/collection-case-portfolio.response';
 import { BULK_CONTACT_MAX_CASES } from '@/common/constants/bulk-contact.constants';
 import type { CollectionAttemptResponse } from '@/modules/collection-cases/dto/collection-attempt.response';
 import type { CancellationProcessResponse } from '@/modules/collection-cases/dto/cancellation-process.response';
@@ -358,6 +362,102 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
       firstDueDates: toSortedItems(firstCounts),
       secondDueDates: toSortedItems(secondCounts),
     };
+  }
+
+  // Casos considerados "em carteira" (ativos) — mesma regra da distribuicao e
+  // do workload (ver users.service.ts): exclui CLOSED/RECOVERED e triagem ja
+  // finalizada.
+  private static readonly PORTFOLIO_ACTIVE_STATUSES: CollectionStatus[] = [
+    CollectionStatus.WAITING_TRIAGE,
+    CollectionStatus.IN_COLLECTION,
+    CollectionStatus.NO_RESPONSE,
+    CollectionStatus.ELIGIBLE_FOR_CANCELLATION,
+    CollectionStatus.CANCELLATION_IN_PROGRESS,
+  ];
+
+  async getPortfolios(): Promise<CollectionCasePortfoliosResponse> {
+    const now = new Date();
+    const activeStatus = {
+      status: {
+        in: CollectionCasesPrismaRepository.PORTFOLIO_ACTIVE_STATUSES,
+      },
+    } satisfies Prisma.CollectionCaseWhereInput;
+
+    const [totals, slaOverdue, awaitingReply, noManualInteraction] =
+      await Promise.all([
+        this.prisma.collectionCase.groupBy({
+          by: ['assignedUserId'],
+          where: activeStatus,
+          _count: { _all: true },
+          _sum: { outstandingAmount: true },
+        }),
+        this.prisma.collectionCase.groupBy({
+          by: ['assignedUserId'],
+          where: { ...activeStatus, slaDueAt: { lt: now } },
+          _count: { _all: true },
+        }),
+        this.prisma.collectionCase.groupBy({
+          by: ['assignedUserId'],
+          where: { ...activeStatus, matrixAwaitingReply: true },
+          _count: { _all: true },
+        }),
+        this.prisma.collectionCase.groupBy({
+          by: ['assignedUserId'],
+          where: {
+            ...activeStatus,
+            // Sem nenhuma tentativa manual — so a automatica inicial existe.
+            collectionAttempts: { none: { isAutomatic: false } },
+          },
+          _count: { _all: true },
+        }),
+      ]);
+
+    const countByUser = (
+      rows: Array<{ assignedUserId: string | null; _count: { _all: number } }>,
+    ) => {
+      const map = new Map<string | null, number>();
+      for (const row of rows) {
+        map.set(row.assignedUserId, row._count._all);
+      }
+      return map;
+    };
+
+    const slaMap = countByUser(slaOverdue);
+    const replyMap = countByUser(awaitingReply);
+    const noInteractionMap = countByUser(noManualInteraction);
+
+    // Nomes/avatares dos atendentes que possuem casos ativos atribuidos.
+    const assignedUserIds = totals
+      .map((row) => row.assignedUserId)
+      .filter((id): id is string => id !== null);
+
+    const users =
+      assignedUserIds.length > 0
+        ? await this.prisma.user.findMany({
+            where: { id: { in: assignedUserIds } },
+            select: { id: true, name: true, avatarUrl: true },
+          })
+        : [];
+    const usersById = new Map(users.map((user) => [user.id, user]));
+
+    const portfolios: CollectionCasePortfolioSummary[] = totals.map((row) => {
+      const user = row.assignedUserId
+        ? usersById.get(row.assignedUserId)
+        : undefined;
+
+      return {
+        agent: user
+          ? { id: user.id, name: user.name, avatarUrl: user.avatarUrl }
+          : null,
+        totalActive: row._count._all,
+        slaOverdue: slaMap.get(row.assignedUserId) ?? 0,
+        awaitingReply: replyMap.get(row.assignedUserId) ?? 0,
+        noManualInteraction: noInteractionMap.get(row.assignedUserId) ?? 0,
+        totalOutstanding: formatDecimal(row._sum.outstandingAmount),
+      };
+    });
+
+    return { portfolios };
   }
 
   async getCaseById(id: string) {

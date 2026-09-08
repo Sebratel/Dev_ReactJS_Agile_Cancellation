@@ -51,6 +51,10 @@ import type {
 } from '@/modules/collection-cases/repositories/collection-cases.repository';
 import type { CancellationProcessResponse } from '@/modules/collection-cases/dto/cancellation-process.response';
 import type { OverdueDateSummaryResponse } from '@/modules/collection-cases/dto/overdue-date-summary.response';
+import type {
+  CollectionCasePortfolioSummary,
+  CollectionCasePortfoliosResponse,
+} from '@/modules/collection-cases/dto/collection-case-portfolio.response';
 import {
   filterMockCollectionCases,
   normalizeListParams,
@@ -132,6 +136,77 @@ export class CollectionCasesMockRepository implements CollectionCasesRepository 
       firstDueDates: toSortedItems(firstCounts),
       secondDueDates: toSortedItems(secondCounts),
     });
+  }
+
+  getPortfolios(): Promise<CollectionCasePortfoliosResponse> {
+    const ACTIVE_STATUSES = new Set([
+      'WAITING_TRIAGE',
+      'IN_COLLECTION',
+      'NO_RESPONSE',
+      'ELIGIBLE_FOR_CANCELLATION',
+      'CANCELLATION_IN_PROGRESS',
+    ]);
+    const now = Date.now();
+
+    type Bucket = Omit<CollectionCasePortfolioSummary, 'totalOutstanding'> & {
+      outstanding: number;
+    };
+    const buckets = new Map<string | null, Bucket>();
+
+    for (const record of mockCollectionCaseListRecords) {
+      if (!ACTIVE_STATUSES.has(record.status)) {
+        continue;
+      }
+
+      const key = record.assignedUserId;
+      let bucket = buckets.get(key);
+      if (!bucket) {
+        bucket = {
+          agent: record.assignedTo
+            ? {
+                id: record.assignedTo.id,
+                name: record.assignedTo.name,
+                avatarUrl: null,
+              }
+            : null,
+          totalActive: 0,
+          slaOverdue: 0,
+          awaitingReply: 0,
+          noManualInteraction: 0,
+          outstanding: 0,
+        };
+        buckets.set(key, bucket);
+      }
+
+      bucket.totalActive += 1;
+      bucket.outstanding += Number(record.outstandingAmount);
+
+      if (record.slaDueAt && new Date(record.slaDueAt).getTime() < now) {
+        bucket.slaOverdue += 1;
+      }
+
+      if (record.matrixAwaitingReply) {
+        bucket.awaitingReply += 1;
+      }
+
+      // So a tentativa automatica inicial (totalAttempts <= 1) = nao trabalhado.
+      if (record.totalAttempts <= 1) {
+        bucket.noManualInteraction += 1;
+      }
+    }
+
+    const portfolios: CollectionCasePortfolioSummary[] = Array.from(
+      buckets.values(),
+    ).map((bucket) => ({
+      agent: bucket.agent,
+      totalActive: bucket.totalActive,
+      slaOverdue: bucket.slaOverdue,
+      awaitingReply: bucket.awaitingReply,
+      noManualInteraction: bucket.noManualInteraction,
+      totalOutstanding: bucket.outstanding.toFixed(2),
+    }));
+
+    return Promise.resolve({ portfolios });
   }
 
   getCaseById(id: string) {
