@@ -92,7 +92,12 @@ export class WebhooksPrismaRepository implements WebhooksRepository {
           summary.invoicesUpserted += 1;
         }
 
-        await tx.collectionCase.upsert({
+        const existingCase = await tx.collectionCase.findUnique({
+          where: { externalId: event.externalId },
+          select: { id: true },
+        });
+
+        const collectionCase = await tx.collectionCase.upsert({
           where: { externalId: event.externalId },
           update: {
             contractId: contract.id,
@@ -113,6 +118,23 @@ export class WebhooksPrismaRepository implements WebhooksRepository {
           },
         });
         summary.casesUpserted += 1;
+
+        // Tentativa inicial automatica: criada apenas uma vez, quando o caso
+        // e novo. Representa o contato via mensagem (WhatsApp/HSM) enviado
+        // pelo sistema antes de o caso entrar na plataforma.
+        if (!existingCase) {
+          await tx.collectionAttempt.create({
+            data: {
+              collectionCaseId: collectionCase.id,
+              performedByUserId: null,
+              channel: 'WHATSAPP',
+              result: 'NO_ANSWER',
+              notes: 'Mensagem automática enviada ao cliente antes da entrada na plataforma.',
+              attemptedAt: new Date(),
+              isAutomatic: true,
+            },
+          });
+        }
       });
     }
 

@@ -42,6 +42,7 @@ export type TimelineAttemptSource = {
   attemptedAt: Date | string;
   notes?: string | null;
   actorName?: string | null;
+  isAutomatic?: boolean;
 };
 
 export type TimelinePromiseSource = {
@@ -254,6 +255,7 @@ export function buildCollectionCaseTimeline(
         attemptId: attempt.id,
         channel: attempt.channel,
         result: attempt.result,
+        isAutomatic: attempt.isAutomatic ?? false,
       },
     });
   }

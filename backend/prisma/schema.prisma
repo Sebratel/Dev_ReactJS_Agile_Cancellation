@@ -299,6 +299,7 @@ model CollectionAttempt {
   nextContactAt     DateTime?
   notes             String?        @db.Text
   externalId        String?        @unique
+  isAutomatic       Boolean        @default(false)
   createdAt         DateTime       @default(now())
 
   collectionCase CollectionCase @relation(fields: [collectionCaseId], references: [id], onDelete: Cascade)

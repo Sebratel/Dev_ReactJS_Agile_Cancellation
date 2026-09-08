@@ -31,6 +31,7 @@ export type CollectionCaseListItemResponse = {
   priority: string;
   daysOverdue: number;
   outstandingAmount: string;
+  totalAttempts: number;
   assignedTo: CollectionCaseAssigneeSummary | null;
   slaDueAt: string | null;
   matrixAwaitingReply: boolean;
@@ -91,6 +92,7 @@ export type CollectionCaseAttemptSummary = {
   attemptedAt: string;
   notes?: string | null;
   nextContactAt?: string | null;
+  isAutomatic: boolean;
 };
 
 export type CreateCollectionAttemptPayload = {

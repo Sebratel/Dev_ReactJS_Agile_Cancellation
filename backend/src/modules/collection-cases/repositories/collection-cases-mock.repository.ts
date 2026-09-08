@@ -194,6 +194,7 @@ export class CollectionCasesMockRepository implements CollectionCasesRepository 
         attemptedAt: attempt.attemptedAt,
         notes: attempt.notes ?? null,
         actorName: null,
+        isAutomatic: attempt.isAutomatic ?? false,
       })),
       promises: details.promises.map((promise) => ({
         id: promise.id,
@@ -250,6 +251,7 @@ export class CollectionCasesMockRepository implements CollectionCasesRepository 
 
     const now = new Date().toISOString();
     const attemptId = `att_${Date.now()}`;
+    const isAutomatic = input.isAutomatic ?? false;
     const attemptSummary = {
       id: attemptId,
       channel: input.channel,
@@ -257,6 +259,7 @@ export class CollectionCasesMockRepository implements CollectionCasesRepository 
       attemptedAt: now,
       notes: input.notes ?? null,
       nextContactAt: input.nextContactAt ?? null,
+      isAutomatic,
     };
 
     details.attempts = [attemptSummary, ...details.attempts];
@@ -272,6 +275,7 @@ export class CollectionCasesMockRepository implements CollectionCasesRepository 
       notes: input.notes ?? null,
       nextContactAt: input.nextContactAt ?? null,
       performedByUserId,
+      isAutomatic,
     };
 
     pushMockAuditLog({

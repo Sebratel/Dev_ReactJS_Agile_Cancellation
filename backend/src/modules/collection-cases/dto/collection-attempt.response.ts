@@ -7,4 +7,5 @@ export type CollectionAttemptResponse = {
   notes: string | null;
   nextContactAt: string | null;
   performedByUserId: string | null;
+  isAutomatic: boolean;
 };

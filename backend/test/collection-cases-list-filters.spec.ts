@@ -31,6 +31,7 @@ function createRecord(
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     hasCollectionAttempts: true,
+    totalAttempts: 1,
     paymentPromiseStatuses: ['ACTIVE'],
     ...overrides,
   };

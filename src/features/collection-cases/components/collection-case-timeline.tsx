@@ -260,6 +260,12 @@ export function CollectionCaseTimeline({
                               >
                                 {style.label}
                               </span>
+                              {event.type === 'ATTEMPT_CREATED' &&
+                                event.metadata?.isAutomatic === true ? (
+                                <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-neutral">
+                                  Automático
+                                </span>
+                              ) : null}
                             </div>
                             <p className="text-sm font-medium text-foreground">
                               {event.title}

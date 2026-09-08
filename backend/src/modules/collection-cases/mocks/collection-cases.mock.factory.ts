@@ -106,7 +106,9 @@ function buildListRecord(index: number): MockCollectionCaseListRecord {
           : new Date(Date.now() + 86_400_000 * (index % 5)).toISOString(),
     createdAt,
     updatedAt,
-    hasCollectionAttempts: index % 5 !== 0,
+    // Todos os casos entram com pelo menos 1 tentativa automatica inicial.
+    hasCollectionAttempts: true,
+    totalAttempts: 1 + (index % 5 !== 0 ? 1 + (index % 3) : 0),
     paymentPromiseStatuses,
   };
 }
@@ -130,6 +132,7 @@ export function createMockCollectionCaseListItems(
     priority: record.priority,
     daysOverdue: record.daysOverdue,
     outstandingAmount: record.outstandingAmount,
+    totalAttempts: record.totalAttempts,
     assignedTo: record.assignedTo,
     slaDueAt: record.slaDueAt,
     matrixAwaitingReply: record.matrixAwaitingReply,
@@ -169,22 +172,32 @@ export function createMockCollectionCaseDetails(): Record<
       slaDueAt: new Date(Date.now() - 172_800_000).toISOString(),
       recentAttempts: [
         {
+          id: 'att_0001_auto',
+          channel: 'WHATSAPP',
+          result: 'NO_ANSWER',
+          attemptedAt: new Date(Date.now() - 2_592_000_000).toISOString(),
+          isAutomatic: true,
+        },
+        {
           id: 'att_0001',
           channel: 'PHONE',
           result: 'NO_ANSWER',
           attemptedAt: new Date(Date.now() - 604_800_000).toISOString(),
+          isAutomatic: false,
         },
         {
           id: 'att_0002',
           channel: 'WHATSAPP',
           result: 'CONTACTED',
           attemptedAt: new Date(Date.now() - 432_000_000).toISOString(),
+          isAutomatic: false,
         },
         {
           id: 'att_0003',
           channel: 'EMAIL',
           result: 'NO_ANSWER',
           attemptedAt: new Date(Date.now() - 259_200_000).toISOString(),
+          isAutomatic: false,
         },
       ],
       activePromise: null,
@@ -193,22 +206,32 @@ export function createMockCollectionCaseDetails(): Record<
         '12890.55',
         [
           {
+            id: 'att_0001_auto',
+            channel: 'WHATSAPP',
+            result: 'NO_ANSWER',
+            attemptedAt: new Date(Date.now() - 2_592_000_000).toISOString(),
+            isAutomatic: true,
+          },
+          {
             id: 'att_0001',
             channel: 'PHONE',
             result: 'NO_ANSWER',
             attemptedAt: new Date(Date.now() - 604_800_000).toISOString(),
+            isAutomatic: false,
           },
           {
             id: 'att_0002',
             channel: 'WHATSAPP',
             result: 'CONTACTED',
             attemptedAt: new Date(Date.now() - 432_000_000).toISOString(),
+            isAutomatic: false,
           },
           {
             id: 'att_0003',
             channel: 'EMAIL',
             result: 'NO_ANSWER',
             attemptedAt: new Date(Date.now() - 259_200_000).toISOString(),
+            isAutomatic: false,
           },
         ],
         null,
@@ -232,10 +255,18 @@ export function createMockCollectionCaseDetails(): Record<
       slaDueAt: new Date(Date.now() + 14_400_000).toISOString(),
       recentAttempts: [
         {
+          id: 'att_0004_auto',
+          channel: 'WHATSAPP',
+          result: 'NO_ANSWER',
+          attemptedAt: new Date(Date.now() - 691_200_000).toISOString(),
+          isAutomatic: true,
+        },
+        {
           id: 'att_0004',
           channel: 'PHONE',
           result: 'REFUSED',
           attemptedAt: new Date(Date.now() - 518_400_000).toISOString(),
+          isAutomatic: false,
         },
       ],
       activePromise: null,
@@ -244,10 +275,18 @@ export function createMockCollectionCaseDetails(): Record<
         '9430.90',
         [
           {
+            id: 'att_0004_auto',
+            channel: 'WHATSAPP',
+            result: 'NO_ANSWER',
+            attemptedAt: new Date(Date.now() - 691_200_000).toISOString(),
+            isAutomatic: true,
+          },
+          {
             id: 'att_0004',
             channel: 'PHONE',
             result: 'REFUSED',
             attemptedAt: new Date(Date.now() - 518_400_000).toISOString(),
+            isAutomatic: false,
           },
         ],
         null,
@@ -271,10 +310,18 @@ export function createMockCollectionCaseDetails(): Record<
       slaDueAt: new Date(Date.now() + 86_400_000).toISOString(),
       recentAttempts: [
         {
+          id: 'att_0005_auto',
+          channel: 'WHATSAPP',
+          result: 'NO_ANSWER',
+          attemptedAt: new Date(Date.now() - 432_000_000).toISOString(),
+          isAutomatic: true,
+        },
+        {
           id: 'att_0005',
           channel: 'PHONE',
           result: 'PROMISE_MADE',
           attemptedAt: new Date(Date.now() - 172_800_000).toISOString(),
+          isAutomatic: false,
         },
       ],
       activePromise: {
@@ -288,10 +335,18 @@ export function createMockCollectionCaseDetails(): Record<
         '15120.40',
         [
           {
+            id: 'att_0005_auto',
+            channel: 'WHATSAPP',
+            result: 'NO_ANSWER',
+            attemptedAt: new Date(Date.now() - 432_000_000).toISOString(),
+            isAutomatic: true,
+          },
+          {
             id: 'att_0005',
             channel: 'PHONE',
             result: 'PROMISE_MADE',
             attemptedAt: new Date(Date.now() - 172_800_000).toISOString(),
+            isAutomatic: false,
           },
         ],
         {
@@ -318,10 +373,26 @@ export function createMockCollectionCaseDetails(): Record<
       outstandingAmount: '0.00',
       assignedTo: null,
       slaDueAt: null,
-      recentAttempts: [],
+      recentAttempts: [
+        {
+          id: 'att_recovered_auto',
+          channel: 'WHATSAPP',
+          result: 'NO_ANSWER',
+          attemptedAt: new Date(Date.now() - 3_888_000_000).toISOString(),
+          isAutomatic: true,
+        },
+      ],
       activePromise: null,
       matrixContact: emptyMatrixContact(),
-      ...buildMockDetailExtensions('0.00', [], null),
+      ...buildMockDetailExtensions('0.00', [
+        {
+          id: 'att_recovered_auto',
+          channel: 'WHATSAPP',
+          result: 'NO_ANSWER',
+          attemptedAt: new Date(Date.now() - 3_888_000_000).toISOString(),
+          isAutomatic: true,
+        },
+      ], null),
       createdAt: new Date(Date.now() - 3_888_000_000).toISOString(),
       updatedAt: new Date(Date.now() - 172_800_000).toISOString(),
     },

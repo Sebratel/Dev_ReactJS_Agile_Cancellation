@@ -534,7 +534,14 @@ export default function CollectionCaseDetailPage() {
                             ).map((attempt) => (
                               <tr key={attempt.id}>
                                 <td className={tableCellClassName}>
-                                  {getAttemptChannelLabel(attempt.channel)}
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    {getAttemptChannelLabel(attempt.channel)}
+                                    {attempt.isAutomatic ? (
+                                      <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-neutral">
+                                        Automático
+                                      </span>
+                                    ) : null}
+                                  </div>
                                 </td>
                                 <td className={tableCellClassName}>
                                   {getAttemptResultLabel(attempt.result)}

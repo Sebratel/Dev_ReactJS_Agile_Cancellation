@@ -132,6 +132,7 @@ export const mockCollectionCaseListItems: CollectionCaseListItemResponse[] = [
     priority: 'HIGH',
     daysOverdue: 119,
     outstandingAmount: '12890.55',
+    totalAttempts: 4,
     assignedTo: { id: 'usr_marina', name: 'Marina Lopes' },
     slaDueAt: new Date(Date.now() - 172_800_000).toISOString(),
     matrixAwaitingReply: false,
@@ -150,6 +151,7 @@ export const mockCollectionCaseListItems: CollectionCaseListItemResponse[] = [
     priority: 'HIGH',
     daysOverdue: 133,
     outstandingAmount: '9430.90',
+    totalAttempts: 2,
     assignedTo: { id: 'usr_carlos', name: 'Carlos Nunes' },
     slaDueAt: new Date(Date.now() + 14_400_000).toISOString(),
     matrixAwaitingReply: false,
@@ -221,18 +223,34 @@ export const mockCollectionCaseDetails: CollectionCaseDetailsResponse = {
   slaDueAt: new Date(Date.now() - 172_800_000).toISOString(),
   recentAttempts: [
     {
-      id: 'att_0001',
-      channel: 'PHONE',
+      id: 'att_0001_auto',
+      channel: 'WHATSAPP',
       result: 'NO_ANSWER',
-      attemptedAt: new Date(Date.now() - 604_800_000).toISOString(),
+      attemptedAt: new Date(Date.now() - 2_592_000_000).toISOString(),
+      isAutomatic: true,
     },
-  ],
-  attempts: [
     {
       id: 'att_0001',
       channel: 'PHONE',
       result: 'NO_ANSWER',
       attemptedAt: new Date(Date.now() - 604_800_000).toISOString(),
+      isAutomatic: false,
+    },
+  ],
+  attempts: [
+    {
+      id: 'att_0001_auto',
+      channel: 'WHATSAPP',
+      result: 'NO_ANSWER',
+      attemptedAt: new Date(Date.now() - 2_592_000_000).toISOString(),
+      isAutomatic: true,
+    },
+    {
+      id: 'att_0001',
+      channel: 'PHONE',
+      result: 'NO_ANSWER',
+      attemptedAt: new Date(Date.now() - 604_800_000).toISOString(),
+      isAutomatic: false,
     },
     {
       id: 'att_0002',
@@ -240,6 +258,7 @@ export const mockCollectionCaseDetails: CollectionCaseDetailsResponse = {
       result: 'CONTACTED',
       attemptedAt: new Date(Date.now() - 432_000_000).toISOString(),
       nextContactAt: new Date(Date.now() + 172_800_000).toISOString(),
+      isAutomatic: false,
     },
   ],
   activePromise: null,

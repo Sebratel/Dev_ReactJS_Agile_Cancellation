@@ -165,7 +165,7 @@ describe('CollectionCaseDetailPage', () => {
     expect(
       screen.getByText(
         formatDateTimePtBR(
-          mockCollectionCaseDetails.attempts[1]?.nextContactAt ?? '',
+          mockCollectionCaseDetails.attempts[2]?.nextContactAt ?? '',
         ),
       ),
     ).toBeInTheDocument();

@@ -28,6 +28,7 @@ const page = {
       priority: 'HIGH',
       daysOverdue: 45,
       outstandingAmount: '12890.55',
+      totalAttempts: 1,
       assignedTo: { id: 'usr_marina', name: 'Marina Lopes' },
       slaDueAt: null,
       matrixAwaitingReply: false,

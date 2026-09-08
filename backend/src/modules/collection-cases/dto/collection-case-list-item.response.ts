@@ -12,6 +12,7 @@ export type CollectionCaseListItemResponse = {
   priority: string;
   daysOverdue: number;
   outstandingAmount: string;
+  totalAttempts: number;
   assignedTo: CollectionCaseAssigneeSummary | null;
   slaDueAt: string | null;
   matrixAwaitingReply: boolean;

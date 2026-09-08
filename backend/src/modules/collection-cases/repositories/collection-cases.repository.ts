@@ -61,6 +61,7 @@ export type CreateCollectionAttemptInput = {
   result: AttemptResult;
   notes?: string;
   nextContactAt?: string;
+  isAutomatic?: boolean;
 };
 
 export type CreateCollectionAttemptParams = {

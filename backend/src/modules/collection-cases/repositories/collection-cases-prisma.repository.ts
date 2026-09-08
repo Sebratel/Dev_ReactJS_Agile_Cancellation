@@ -168,6 +168,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
             },
           },
           assignedUser: { select: { id: true, name: true } },
+          _count: { select: { collectionAttempts: true } },
         },
       }),
       this.prisma.collectionCase.count({ where }),
@@ -190,6 +191,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
         priority: record.priority,
         daysOverdue: record.daysOverdue,
         outstandingAmount: formatDecimal(record.outstandingAmount),
+        totalAttempts: record._count.collectionAttempts,
         assignedTo: record.assignedUser
           ? { id: record.assignedUser.id, name: record.assignedUser.name }
           : null,
@@ -418,6 +420,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
         attemptedAt: attempt.attemptedAt,
         notes: attempt.notes,
         actorName: attempt.performedBy?.name ?? null,
+        isAutomatic: attempt.isAutomatic,
       })),
       promises: record.paymentPromises.map((promise) => ({
         id: promise.id,
@@ -680,6 +683,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
           nextContactAt: input.nextContactAt
             ? new Date(input.nextContactAt)
             : null,
+          isAutomatic: input.isAutomatic ?? false,
         },
       });
 
@@ -727,6 +731,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
       notes: attempt.notes,
       nextContactAt: attempt.nextContactAt?.toISOString() ?? null,
       performedByUserId,
+      isAutomatic: attempt.isAutomatic,
     };
   }
 
@@ -1223,6 +1228,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
       attemptedAt: attempt.attemptedAt.toISOString(),
       notes: attempt.notes,
       nextContactAt: attempt.nextContactAt?.toISOString() ?? null,
+      isAutomatic: attempt.isAutomatic,
     }));
 
     const promises = record.paymentPromises.map((promise) => ({

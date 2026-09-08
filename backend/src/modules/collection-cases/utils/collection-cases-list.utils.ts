@@ -32,7 +32,7 @@ export type MockCollectionCaseListRecord = CollectionCaseListItemResponse & {
   updatedAt: string;
   hasCollectionAttempts: boolean;
   paymentPromiseStatuses: PaymentPromiseStatus[];
-};
+} & { totalAttempts: number };
 
 function getTomorrowStart(date: Date) {
   const tomorrow = new Date(date);
@@ -589,6 +589,7 @@ export function toListItemResponse(
     priority: record.priority,
     daysOverdue: record.daysOverdue,
     outstandingAmount: record.outstandingAmount,
+    totalAttempts: record.totalAttempts,
     assignedTo: record.assignedTo,
     slaDueAt: record.slaDueAt,
     matrixAwaitingReply: record.matrixAwaitingReply,

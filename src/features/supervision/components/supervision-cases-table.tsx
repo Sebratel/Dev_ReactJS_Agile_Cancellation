@@ -201,12 +201,13 @@ export function SupervisionCasesTable({
         <Table className="min-w-[980px] table-fixed">
           <colgroup>
             {canDistribute ? <col className="w-10" /> : null}
-            <col className="w-[23%]" />
-            <col className="w-[17%]" />
-            <col className="w-[17%]" />
-            <col className="w-[18%]" />
+            <col className="w-[22%]" />
+            <col className="w-[16%]" />
             <col className="w-[15%]" />
             <col className="w-[10%]" />
+            <col className="w-[17%]" />
+            <col className="w-[12%]" />
+            <col className="w-[8%]" />
           </colgroup>
           <TableHead sticky>
             <tr>
@@ -244,6 +245,7 @@ export function SupervisionCasesTable({
                   </span>
                 </button>
               </TableHeaderCell>
+              <TableHeaderCell align="center">Tentativas</TableHeaderCell>
               <TableHeaderCell>Responsável</TableHeaderCell>
               <TableHeaderCell align="center">Andamento</TableHeaderCell>
               <TableHeaderCell align="center">Ação</TableHeaderCell>
@@ -328,6 +330,11 @@ export function SupervisionCasesTable({
                         <StatusBadge label={sla.label} variant={sla.variant} />
                       </div>
                     </div>
+                  </TableCell>
+                  <TableCell align="center">
+                    <span className="text-sm font-semibold tabular-nums">
+                      {formatInteger(item.totalAttempts)}
+                    </span>
                   </TableCell>
                   <TableCell className="text-neutral">
                     {canDistribute ? (

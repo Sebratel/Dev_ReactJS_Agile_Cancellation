@@ -17,7 +17,8 @@ describe('CollectionCasesPrismaRepository', () => {
           status: 'Bloqueio Financeiro',
           invoices: [{ dueDate: new Date('2026-07-10T00:00:00') }],
         },
-        assignedUser: { name: 'Operador DB' },
+        assignedUser: { id: 'usr_db_1', name: 'Operador DB' },
+        _count: { collectionAttempts: 2 },
       },
     ]);
     const count = jest.fn().mockResolvedValue(1);

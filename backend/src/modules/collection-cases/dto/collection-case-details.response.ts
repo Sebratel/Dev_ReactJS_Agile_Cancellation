@@ -51,6 +51,7 @@ export type CollectionCaseAttemptSummary = {
   attemptedAt: string;
   notes?: string | null;
   nextContactAt?: string | null;
+  isAutomatic: boolean;
 };
 
 export type CollectionCasePromiseSummary = {

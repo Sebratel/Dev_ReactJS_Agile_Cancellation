@@ -237,7 +237,12 @@ async function seedCollectionCases(
       );
     }
 
-    await prisma.collectionCase.upsert({
+    const existingSeedCase = await prisma.collectionCase.findUnique({
+      where: { externalId: collectionCase.externalId },
+      select: { id: true },
+    });
+
+    const createdCase = await prisma.collectionCase.upsert({
       where: { externalId: collectionCase.externalId },
       update: {
         contractId,
@@ -259,5 +264,20 @@ async function seedCollectionCases(
         externalId: collectionCase.externalId,
       },
     });
+
+    // Tentativa inicial automatica: criada apenas uma vez por caso.
+    if (!existingSeedCase) {
+      await prisma.collectionAttempt.create({
+        data: {
+          collectionCaseId: createdCase.id,
+          performedByUserId: null,
+          channel: 'WHATSAPP',
+          result: 'NO_ANSWER',
+          notes: 'Mensagem automática enviada ao cliente antes da entrada na plataforma.',
+          attemptedAt: createdCase.createdAt,
+          isAutomatic: true,
+        },
+      });
+    }
   }
 }

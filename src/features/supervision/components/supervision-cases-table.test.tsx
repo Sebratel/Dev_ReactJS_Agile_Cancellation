@@ -52,6 +52,7 @@ const items: CollectionCaseListItemResponse[] = [
     priority: 'HIGH',
     daysOverdue: 45,
     outstandingAmount: '12890.55',
+    totalAttempts: 1,
     assignedTo: null,
     slaDueAt: null,
     matrixAwaitingReply: false,
