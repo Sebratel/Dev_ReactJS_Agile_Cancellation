@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { getIntegrationEvents, getIntegrationEventsSummary } from '@/features/integrations/services/integration-events.service';
+import { getIntegrationEvents, getIntegrationEventsSummary, getSyncHealth } from '@/features/integrations/services/integration-events.service';
 import { type IntegrationEventsListParams } from '@/features/integrations/types/integration-events-api.types';
 import { queryKeys } from '@/services/api/query-keys';
 
@@ -20,5 +20,14 @@ export function useIntegrationEventsSummary() {
     queryKey: queryKeys.integrations.events.summary,
     queryFn: getIntegrationEventsSummary,
     refetchInterval: 30_000,
+  });
+}
+
+export function useSyncHealth(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.integrations.events.syncHealth,
+    queryFn: getSyncHealth,
+    enabled,
+    refetchInterval: 60_000,
   });
 }

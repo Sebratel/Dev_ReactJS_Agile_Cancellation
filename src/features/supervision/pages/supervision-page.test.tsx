@@ -34,6 +34,12 @@ vi.mock('@/features/users/hooks/use-users-workload', () => ({
   }),
 }));
 
+// O banner de saude da sincronizacao dispara sua propria query; mockamos para
+// nao fazer request real nem introduzir flakiness entre os testes da pagina.
+vi.mock('@/features/integrations/hooks/use-integration-events', () => ({
+  useSyncHealth: () => ({ isLoading: true, isError: false, data: undefined }),
+}));
+
 import { getCollectionCases } from '@/features/collection-cases/services/collection-cases.service';
 
 function LocationDisplay() {

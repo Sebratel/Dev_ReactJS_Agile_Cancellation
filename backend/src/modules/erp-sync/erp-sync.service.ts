@@ -168,6 +168,14 @@ export class ErpSyncService {
 
     const { payload, skippedContracts } = mapErpRowsToIngestPayload(rows);
 
+    // Observabilidade do inflow: a entrada de casos e intermitente (so dispara
+    // nos dias seguintes a uma data de faturamento pesada). Registrar a
+    // contagem a cada rodada facilita distinguir "janela de silencio esperada"
+    // de "feed realmente parado".
+    this.logger.log(
+      `ERP sync: ${rows.length} linha(s) elegivel(is), ${payload.events.length} contrato(s) candidato(s) a ingestao.`,
+    );
+
     if (skippedContracts > 0) {
       this.logger.warn(
         `${skippedContracts} contrato(s) ignorado(s) por falta de documento (CPF/CNPJ) no ERP.`,

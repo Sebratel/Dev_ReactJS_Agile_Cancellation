@@ -27,4 +27,9 @@ export class IntegrationEventsService {
     const result = await this.repository.getSummary();
     return createApiResponse(result);
   }
+
+  async getSyncHealth() {
+    const result = await this.repository.getSyncHealth();
+    return createApiResponse(result);
+  }
 }

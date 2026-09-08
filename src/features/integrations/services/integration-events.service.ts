@@ -3,6 +3,7 @@ import type {
   IntegrationEventListItemResponse,
   IntegrationEventsListParams,
   IntegrationEventsSummaryResponse,
+  SyncHealthResponse,
 } from '@/features/integrations/types/integration-events-api.types';
 import type { PaginatedResponse } from '@/services/api/types/api-envelope';
 
@@ -31,6 +32,14 @@ export async function getIntegrationEvents(
 export async function getIntegrationEventsSummary(): Promise<IntegrationEventsSummaryResponse> {
   const { data } = await httpClient.request<IntegrationEventsSummaryResponse>({
     path: '/integration-events/summary',
+    method: 'GET',
+  });
+  return data;
+}
+
+export async function getSyncHealth(): Promise<SyncHealthResponse> {
+  const { data } = await httpClient.request<SyncHealthResponse>({
+    path: '/integration-events/sync-health',
     method: 'GET',
   });
   return data;

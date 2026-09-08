@@ -21,6 +21,7 @@ import { useBulkAssignCases } from '@/features/collection-cases/hooks/use-bulk-a
 import { useAutoDistribute } from '@/features/collection-cases/hooks/use-auto-distribute';
 import { useExportCasesCsv } from '@/features/collection-cases/hooks/use-export-cases-csv';
 import { SupervisionCasesTable } from '@/features/supervision/components/supervision-cases-table';
+import { SyncHealthBanner } from '@/features/supervision/components/sync-health-banner';
 import { SupervisionPortfolios } from '@/features/supervision/components/supervision-portfolios';
 import { SupervisionFilters } from '@/features/supervision/components/supervision-filters';
 import { useCollectionCasePortfolios } from '@/features/collection-cases/hooks/use-collection-case-portfolios';
@@ -221,6 +222,8 @@ export default function SupervisionPage() {
           </>
         }
       />
+
+      {canDistribute ? <SyncHealthBanner /> : null}
 
       {canDistribute ? (
         <div className="flex self-start rounded-lg border border-border bg-card p-1">

@@ -16,3 +16,13 @@ export type IntegrationEventsSummaryResponse = {
   failed: number;
   completedToday: number;
 };
+
+// Sinais de frescor da base para a supervisao "bater o olho": prova que o
+// job de sync esta vivo (lastErpSyncAt) e mede a entrada real de casos novos.
+export type SyncHealthResponse = {
+  lastErpSyncAt: string | null;
+  lastIngestEventAt: string | null;
+  lastNewCaseAt: string | null;
+  newCasesLast24h: number;
+  newCasesLast7d: number;
+};

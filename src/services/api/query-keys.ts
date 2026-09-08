@@ -14,6 +14,7 @@ export const queryKeys = {
       list: (params: IntegrationEventsListParams) =>
         ['integration-events', 'list', params] as const,
       summary: ['integration-events', 'summary'] as const,
+      syncHealth: ['integration-events', 'sync-health'] as const,
     },
   },
   dashboard: {

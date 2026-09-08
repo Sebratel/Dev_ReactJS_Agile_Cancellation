@@ -25,6 +25,14 @@ export type IntegrationEventsSummaryResponse = {
   completedToday: number;
 };
 
+export type SyncHealthResponse = {
+  lastErpSyncAt: string | null;
+  lastIngestEventAt: string | null;
+  lastNewCaseAt: string | null;
+  newCasesLast24h: number;
+  newCasesLast7d: number;
+};
+
 export type IntegrationEventsListParams = {
   status?: IntegrationEventStatus | '';
   source?: string;

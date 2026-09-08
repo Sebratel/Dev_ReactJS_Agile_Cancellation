@@ -18,4 +18,11 @@ export class IntegrationEventsController {
   getSummary() {
     return this.service.getSummary();
   }
+
+  // Frescor da base: ultima sincronizacao/ingestao e entrada de casos novos.
+  @Roles('ADMIN', 'SUPERVISOR')
+  @Get('sync-health')
+  getSyncHealth() {
+    return this.service.getSyncHealth();
+  }
 }

@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Prisma, IntegrationEventStatus } from '@prisma/client';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import { createPaginatedResponse } from '@/common/pagination/paginated-response';
-import type { IntegrationEventListItemResponse, IntegrationEventsSummaryResponse } from '@/modules/integration-events/dto/integration-event-list-item.response';
+import type { IntegrationEventListItemResponse, IntegrationEventsSummaryResponse, SyncHealthResponse } from '@/modules/integration-events/dto/integration-event-list-item.response';
 import type { ListIntegrationEventsParams, IntegrationEventsRepository } from '@/modules/integration-events/repositories/integration-events.repository';
 
 @Injectable()
@@ -76,5 +76,46 @@ export class IntegrationEventsPrismaRepository implements IntegrationEventsRepos
     ]);
 
     return { pending, processing, failed, completedToday };
+  }
+
+  async getSyncHealth(): Promise<SyncHealthResponse> {
+    const now = Date.now();
+    const dayAgo = new Date(now - 24 * 60 * 60 * 1000);
+    const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
+
+    const [lastErpSync, lastIngest, lastNewCase, newCasesLast24h, newCasesLast7d] =
+      await Promise.all([
+        // Prova que o job de sync esta vivo (qualquer evento do erp-sync).
+        this.prisma.integrationEvent.findFirst({
+          where: { source: 'erp-sync' },
+          orderBy: { createdAt: 'desc' },
+          select: { createdAt: true },
+        }),
+        // Ultima rodada de ingestao registrada (traz casos novos/atualizados).
+        this.prisma.integrationEvent.findFirst({
+          where: { eventType: 'collection_cases.ingest' },
+          orderBy: { createdAt: 'desc' },
+          select: { createdAt: true },
+        }),
+        // Ultimo caso genuinamente novo (entrada real de cliente na esteira).
+        this.prisma.collectionCase.findFirst({
+          orderBy: { createdAt: 'desc' },
+          select: { createdAt: true },
+        }),
+        this.prisma.collectionCase.count({
+          where: { createdAt: { gte: dayAgo } },
+        }),
+        this.prisma.collectionCase.count({
+          where: { createdAt: { gte: weekAgo } },
+        }),
+      ]);
+
+    return {
+      lastErpSyncAt: lastErpSync?.createdAt.toISOString() ?? null,
+      lastIngestEventAt: lastIngest?.createdAt.toISOString() ?? null,
+      lastNewCaseAt: lastNewCase?.createdAt.toISOString() ?? null,
+      newCasesLast24h,
+      newCasesLast7d,
+    };
   }
 }
