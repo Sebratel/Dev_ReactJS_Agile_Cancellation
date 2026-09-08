@@ -21,6 +21,19 @@ function isPromiseNotification(notification: NotificationResponse) {
   return notification.type.startsWith('PAYMENT_PROMISE_');
 }
 
+function isRecoveryNotification(notification: NotificationResponse) {
+  return (
+    notification.type === 'CASE_RECOVERED' ||
+    notification.type === 'CASES_RECOVERED_SUMMARY'
+  );
+}
+
+const RECOVERY_TONE = {
+  icon: BadgeCheck,
+  label: 'Cliente regularizado',
+  className: 'border-success/30 bg-success/10 text-success',
+};
+
 function getPromiseNotificationTone(type: string) {
   if (type === 'PAYMENT_PROMISE_FULFILLED') {
     return {
@@ -160,7 +173,12 @@ export function NotificationBell() {
                   const promiseTone = isPromise
                     ? getPromiseNotificationTone(notification.type)
                     : null;
-                  const PromiseIcon = promiseTone?.icon;
+                  const tone = promiseTone
+                    ? promiseTone
+                    : isRecoveryNotification(notification)
+                      ? RECOVERY_TONE
+                      : null;
+                  const ToneIcon = tone?.icon;
 
                   const content = (
                     <div
@@ -171,14 +189,14 @@ export function NotificationBell() {
                       )}
                     >
                       <div className="flex items-start gap-2">
-                        {PromiseIcon && promiseTone ? (
+                        {ToneIcon && tone ? (
                           <span
                             className={cn(
                               'mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border',
-                              promiseTone.className,
+                              tone.className,
                             )}
                           >
-                            <PromiseIcon className="h-4 w-4" />
+                            <ToneIcon className="h-4 w-4" />
                           </span>
                         ) : isUnread ? (
                           <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
@@ -189,14 +207,14 @@ export function NotificationBell() {
                           <p className="text-sm font-medium text-foreground">
                             {notification.title}
                           </p>
-                          {promiseTone ? (
+                          {tone ? (
                             <span
                               className={cn(
                                 'mt-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em]',
-                                promiseTone.className,
+                                tone.className,
                               )}
                             >
-                              {promiseTone.label}
+                              {tone.label}
                             </span>
                           ) : null}
                           <p className="mt-0.5 text-xs text-neutral">

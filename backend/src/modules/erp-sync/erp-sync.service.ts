@@ -6,6 +6,8 @@ import {
   CollectionStatus,
   IntegrationEventStatus,
   InvoiceStatus,
+  PaymentPromiseStatus,
+  Prisma,
 } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { validateSync } from 'class-validator';
@@ -24,6 +26,12 @@ import {
   mapContractStatus,
   type ErpEligibleRow,
 } from '@/modules/erp-sync/erp-sync.mapper';
+import { NotificationsService } from '@/modules/notifications/notifications.service';
+import { MailService } from '@/modules/mail/mail.service';
+import {
+  buildRecoveryNotifications,
+  type RecoveredCaseForNotification,
+} from '@/modules/erp-sync/recovery-notifications.builder';
 
 /**
  * Elegibilidade: contratos com 2 vencimentos consecutivos em aberto (ontem e
@@ -125,6 +133,8 @@ export class ErpSyncService {
   constructor(
     private readonly webhooksService: WebhooksService,
     private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+    private readonly mailService: MailService,
   ) {}
 
   @Cron('*/30 * * * *')
@@ -238,6 +248,17 @@ export class ErpSyncService {
         outstandingAmount: true,
         daysOverdue: true,
         contractId: true,
+        assignedUser: {
+          select: { id: true, name: true, email: true },
+        },
+        customer: {
+          select: { name: true },
+        },
+        paymentPromises: {
+          where: { status: PaymentPromiseStatus.ACTIVE },
+          select: { id: true },
+          take: 1,
+        },
         cancellationProcesses: {
           select: {
             id: true,
@@ -517,6 +538,102 @@ export class ErpSyncService {
     this.logger.log(
       `Reconciliacao ERP concluida: ${casesToRecover.length} caso(s) marcado(s) como recuperado(s).`,
     );
+
+    // Notifica apos o commit — nunca dentro da transacao. Falhas aqui sao
+    // engolidas para nao reverter a recuperacao ja persistida.
+    await this.dispatchRecoveryNotifications(casesToRecover);
+  }
+
+  private async dispatchRecoveryNotifications(
+    recovered: Array<{
+      id: string;
+      outstandingAmount: Prisma.Decimal;
+      customer: { name: string } | null;
+      assignedUser: { id: string; name: string; email: string | null } | null;
+      paymentPromises: Array<{ id: string }>;
+    }>,
+  ): Promise<void> {
+    if (recovered.length === 0) {
+      return;
+    }
+
+    try {
+      const cases: RecoveredCaseForNotification[] = recovered.map((item) => ({
+        caseId: item.id,
+        customerName: item.customer?.name ?? 'Cliente',
+        recoveredAmount: Number(item.outstandingAmount),
+        assignedUser: item.assignedUser
+          ? {
+              id: item.assignedUser.id,
+              name: item.assignedUser.name,
+              email: item.assignedUser.email,
+            }
+          : null,
+        hadActivePromise: item.paymentPromises.length > 0,
+      }));
+
+      const { agentNotifications, supervisorSummary } =
+        buildRecoveryNotifications(cases);
+
+      // Atendente responsavel: sino + e-mail por cliente da carteira dele.
+      for (const notification of agentNotifications) {
+        await this.notificationsService.notify({
+          userId: notification.userId,
+          type: 'CASE_RECOVERED',
+          title: notification.title,
+          body: notification.body,
+          entityType: 'COLLECTION_CASE',
+          entityId: notification.entityId,
+        });
+
+        if (notification.email) {
+          await this.mailService.sendMail({
+            to: notification.email,
+            subject: notification.title,
+            html: `<p>${notification.body}</p>`,
+          });
+        }
+      }
+
+      // Supervisao: um unico resumo consolidado da rodada (sino + e-mail).
+      if (supervisorSummary) {
+        await this.notificationsService.notifySupervisors({
+          type: 'CASES_RECOVERED_SUMMARY',
+          title: supervisorSummary.title,
+          body: supervisorSummary.body,
+        });
+
+        const supervisorEmails = await this.getSupervisorEmails();
+        if (supervisorEmails.length > 0) {
+          await this.mailService.sendMail({
+            to: supervisorEmails,
+            subject: supervisorSummary.title,
+            html: `<p>${supervisorSummary.body}</p>`,
+          });
+        }
+      }
+    } catch (error) {
+      this.logger.error(
+        'Falha ao enviar notificacoes de recuperacao.',
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
+  }
+
+  private async getSupervisorEmails(): Promise<string[]> {
+    const users = await this.prisma.user.findMany({
+      where: {
+        status: 'ACTIVE',
+        userRoles: {
+          some: { role: { code: { in: ['ADMIN', 'SUPERVISOR'] } } },
+        },
+      },
+      select: { email: true },
+    });
+
+    return users
+      .map((user) => user.email)
+      .filter((email): email is string => Boolean(email));
   }
 
   private getPool(db: ErpSyncDbConfig): Pool {
