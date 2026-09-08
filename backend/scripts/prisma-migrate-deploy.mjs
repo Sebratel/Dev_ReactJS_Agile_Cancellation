@@ -1,17 +1,14 @@
 import { execFileSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { loadBackendEnv } from './load-env.mjs';
 
+const require = createRequire(import.meta.url);
 const backendRoot = path.resolve(import.meta.dirname, '..');
-const prismaBin =
-  process.platform === 'win32'
-    ? path.join(backendRoot, 'node_modules', '.bin', 'prisma.cmd')
-    : path.join(backendRoot, 'node_modules', '.bin', 'prisma');
+const prismaCli = require.resolve('prisma/build/index.js');
 
-const env = loadBackendEnv();
-
-execFileSync(prismaBin, ['migrate', 'deploy'], {
+execFileSync(process.execPath, [prismaCli, 'migrate', 'deploy'], {
   cwd: backendRoot,
   stdio: 'inherit',
-  env,
+  env: loadBackendEnv(),
 });

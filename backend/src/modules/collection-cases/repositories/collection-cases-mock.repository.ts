@@ -349,6 +349,7 @@ export class CollectionCasesMockRepository implements CollectionCasesRepository 
             ? 'HSM Matrix solicitado via N8N.'
             : `Falha ao solicitar HSM Matrix via N8N.${errorMessage ? ` ${errorMessage}` : ''}`,
         nextContactAt: null,
+        isAutomatic: false,
       };
 
       details.attempts = [attempt, ...details.attempts];
