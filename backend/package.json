@@ -24,6 +24,7 @@
     "prisma:migrate:deploy": "node ./scripts/prisma-migrate-deploy.mjs",
     "prisma:seed": "node ./scripts/prisma-seed.mjs",
     "db:setup": "node ./scripts/db-setup.mjs",
+    "db:backfill-initial-attempts": "node ./scripts/backfill-initial-attempts.mjs",
     "db:reset-demo": "node ./scripts/db-reset-demo.mjs",
     "db:reset-demo:confirm": "node ./scripts/db-reset-demo.mjs --confirm",
     "erp-sync:run-once": "node ./scripts/erp-sync-run-once.mjs",
