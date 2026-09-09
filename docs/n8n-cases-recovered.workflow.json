@@ -3,51 +3,122 @@
   "nodes": [
     {
       "parameters": {
+        "content": "## Notificacao: Cliente Regularizado\n\nRecebe da **plataforma de cobranca** quando o ERP confirma o pagamento de um\ncliente (o caso vira RECUPERADO na reconciliacao) e dispara os e-mails.\n\n**Webhook:** `POST /webhook/cases-recovered`  \n**Origem:** backend, env `N8N_RECOVERY_WEBHOOK_URL`  \n**Cadencia:** 1 chamada por rodada de reconciliacao (~30 min), best-effort.\n\n**Payload recebido:**\n```\n{\n  event: 'cases.recovered',\n  occurredAt: ISO,\n  summary: { count, totalAmount },\n  supervisorEmails: [ ... ],\n  cases: [ { caseId, customerName, recoveredAmount,\n             hadActivePromise, agent: { name, email } | null } ]\n}\n```",
+        "height": 320,
+        "width": 520,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -260,
+        -360
+      ],
+      "id": "note_overview",
+      "name": "Sobre este fluxo"
+    },
+    {
+      "parameters": {
         "httpMethod": "POST",
         "path": "cases-recovered",
-        "responseMode": "onReceived",
         "options": {}
       },
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        -720,
-        120
+        -192,
+        16
       ],
       "id": "webhook_cases_recovered",
-      "name": "Webhook Plataforma"
+      "name": "Webhook Plataforma",
+      "webhookId": "61ecc0c7-0847-4188-9d6c-351c23357ab3"
     },
     {
       "parameters": {
-        "jsCode": "// Recebe o payload da plataforma (event=cases.recovered) e monta os e-mails.\nconst first = $input.first();\nconst body = first && first.json && first.json.body ? first.json.body : (first ? first.json : {});\nconst cases = Array.isArray(body.cases) ? body.cases : [];\nconst supervisorEmails = Array.isArray(body.supervisorEmails) ? body.supervisorEmails : [];\nconst summary = body.summary || { count: cases.length, totalAmount: 0 };\n\nfunction brl(v) {\n  return Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });\n}\n\nconst out = [];\n\n// 1) Um e-mail para o atendente responsavel de cada caso da carteira dele.\nfor (const c of cases) {\n  if (!c.agent || !c.agent.email) continue;\n  const promessa = c.hadActivePromise ? ' (o cliente tinha promessa ativa)' : '';\n  const assunto = c.hadActivePromise\n    ? 'Promessa cumprida - cliente regularizou'\n    : 'Cliente regularizou o pagamento';\n  out.push({\n    json: {\n      tipo: 'atendente',\n      to: c.agent.email,\n      subject: assunto,\n      html: '<p>Ola ' + (c.agent.name || '') + ',</p>' +\n            '<p><strong>' + c.customerName + '</strong> regularizou o pagamento (' + brl(c.recoveredAmount) + ')' + promessa + '.</p>' +\n            '<p>Caso: ' + c.caseId + '</p>'\n    }\n  });\n}\n\n// 2) Um resumo consolidado para a supervisao.\nif (supervisorEmails.length > 0) {\n  out.push({\n    json: {\n      tipo: 'supervisao',\n      to: supervisorEmails.join(','),\n      subject: summary.count === 1\n        ? '1 cliente regularizou o pagamento'\n        : summary.count + ' clientes regularizaram o pagamento',\n      html: '<p>' + summary.count + ' cliente(s) regularizaram o pagamento nesta sincronizacao (' +\n            brl(summary.totalAmount) + ' recuperado).</p>'\n    }\n  });\n}\n\n// Sem destinatarios: nada a enviar (o webhook ja respondeu 200 no recebimento).\nreturn out;"
+        "content": "### 1. Recebe o webhook\nResponde **200** no recebimento (o disparo da plataforma e best-effort e nao espera o e-mail).",
+        "height": 160,
+        "width": 220,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -244,
+        -140
+      ],
+      "id": "note_webhook",
+      "name": "Nota Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Recebe o payload da plataforma (event=cases.recovered) e monta os e-mails.\nconst first = $input.first();\nconst body = first && first.json && first.json.body ? first.json.body : (first ? first.json : {});\nconst cases = Array.isArray(body.cases) ? body.cases : [];\nconst supervisorEmails = Array.isArray(body.supervisorEmails) ? body.supervisorEmails : [];\nconst summary = body.summary || { count: cases.length, totalAmount: 0 };\n\nfunction brl(v) {\n  return Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });\n}\n\nconst out = [];\n\n// 1) Um e-mail para o atendente responsavel de cada caso da carteira dele.\nfor (const c of cases) {\n  if (!c.agent || !c.agent.email) continue;\n  const promessa = c.hadActivePromise ? ' (o cliente tinha promessa ativa)' : '';\n  const assunto = c.hadActivePromise\n    ? 'Promessa cumprida - cliente regularizou'\n    : 'Cliente regularizou o pagamento';\n  out.push({\n    json: {\n      tipo: 'atendente',\n      to: c.agent.email,\n      subject: assunto,\n      html: '<p>Ola ' + (c.agent.name || '') + ',</p>' +\n            '<p><strong>' + c.customerName + '</strong> regularizou o pagamento (' + brl(c.recoveredAmount) + ')' + promessa + '.</p>' +\n            '<p>Caso: ' + c.caseId + '</p>'\n    }\n  });\n}\n\n// 2) Um resumo consolidado para a supervisao.\nif (supervisorEmails.length > 0) {\n  out.push({\n    json: {\n      tipo: 'supervisao',\n      to: supervisorEmails.join(','),\n      subject: summary.count === 1\n        ? '1 cliente regularizou o pagamento'\n        : summary.count + ' clientes regularizaram o pagamento',\n      html: '<p>' + summary.count + ' cliente(s) regularizaram o pagamento nesta sincronizacao (' +\n            brl(summary.totalAmount) + ' recuperado).</p>'\n    }\n  });\n}\n\n// Sem destinatarios: retorna vazio (o webhook ja respondeu 200 no recebimento).\nreturn out;"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -480,
-        120
+        48,
+        16
       ],
       "id": "prepare_emails",
       "name": "Preparar e-mails"
     },
     {
       "parameters": {
-        "fromEmail": "PREENCHER_REMETENTE@sebratel.com.br",
-        "toEmail": "={{ $json.to }}",
-        "subject": "={{ $json.subject }}",
-        "emailFormat": "html",
-        "html": "={{ $json.html }}",
-        "options": {}
+        "content": "### 2. Monta os e-mails\n1 e-mail por **atendente** responsavel + 1 **resumo** para a supervisao (com valor total). Sem destinatario, retorna vazio.",
+        "height": 160,
+        "width": 220,
+        "color": 7
       },
-      "type": "n8n-nodes-base.emailSend",
-      "typeVersion": 2.1,
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
       "position": [
-        -240,
-        120
+        0,
+        -140
+      ],
+      "id": "note_code",
+      "name": "Nota Preparar"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "message": "={{ $json.html }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        340,
+        16
       ],
       "id": "send_email",
       "name": "Enviar e-mail",
-      "onError": "continueRegularOutput"
+      "webhookId": "740142a4-afcb-4c21-bc5c-6c8686db89e8",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "YSOAIGGl4IGlyE0N",
+          "name": "Gmail Fabricio"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "### 3. Envia (Gmail / HTML)\nCredencial **Gmail Fabricio**. Um envio por item. `Email Type = HTML` para renderizar o corpo. Remetente = conta do OAuth.",
+        "height": 160,
+        "width": 240,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        300,
+        -140
+      ],
+      "id": "note_gmail",
+      "name": "Nota Gmail"
     }
   ],
   "connections": {
@@ -81,6 +152,6 @@
   "staticData": null,
   "tags": [],
   "triggerCount": 0,
-  "updatedAt": "2026-09-09T12:00:00.000Z",
-  "versionId": "cases-recovered-v1"
+  "updatedAt": "2026-09-09T13:00:00.000Z",
+  "versionId": "cases-recovered-v2"
 }
