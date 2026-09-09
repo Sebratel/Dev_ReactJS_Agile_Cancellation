@@ -13,6 +13,7 @@ const supervisorUser: AuthenticatedUser = {
   id: 'supervisor-1',
   email: 'supervisor@ger.local',
   name: 'Supervisor',
+  avatarUrl: null,
   roles: ['SUPERVISOR'],
 };
 
@@ -20,6 +21,7 @@ const collectionAgentUser: AuthenticatedUser = {
   id: 'agent-1',
   email: 'agent@ger.local',
   name: 'Agente',
+  avatarUrl: null,
   roles: ['COLLECTION_AGENT'],
 };
 
