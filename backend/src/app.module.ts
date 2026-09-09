@@ -22,7 +22,6 @@ import { HealthModule } from '@/modules/health/health.module';
 import { IntegrationEventsModule } from '@/modules/integration-events/integration-events.module';
 import { IntegrationsModule } from '@/modules/integrations/integrations.module';
 import { InvoicesModule } from '@/modules/invoices/invoices.module';
-import { MailModule } from '@/modules/mail/mail.module';
 import { NotificationsModule } from '@/modules/notifications/notifications.module';
 import { PaymentPromisesModule } from '@/modules/payment-promises/payment-promises.module';
 import { RolesModule } from '@/modules/roles/roles.module';
@@ -67,7 +66,6 @@ const legacyBackendEnvPath =
     WhatsappBulkContactModule,
     CollectionAttemptsModule,
     CaseNotesModule,
-    MailModule,
     NotificationsModule,
     PaymentPromisesModule,
     CancellationsModule,

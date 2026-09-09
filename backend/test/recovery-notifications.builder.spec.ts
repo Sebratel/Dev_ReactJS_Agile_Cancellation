@@ -1,5 +1,6 @@
 import {
   buildRecoveryNotifications,
+  buildRecoveryWebhookPayload,
   type RecoveredCaseForNotification,
 } from '@/modules/erp-sync/recovery-notifications.builder';
 
@@ -73,5 +74,35 @@ describe('buildRecoveryNotifications', () => {
 
     expect(agentNotifications).toHaveLength(0);
     expect(supervisorSummary).toBeNull();
+  });
+});
+
+describe('buildRecoveryWebhookPayload', () => {
+  it('monta o payload do N8N com destinatarios e total', () => {
+    const payload = buildRecoveryWebhookPayload(
+      [
+        caseData({ caseId: 'a', recoveredAmount: 1000 }),
+        caseData({ caseId: 'b', recoveredAmount: 500, assignedUser: null }),
+      ],
+      ['sup@ger.local'],
+      new Date('2026-09-09T12:00:00.000Z'),
+    );
+
+    expect(payload).not.toBeNull();
+    expect(payload?.event).toBe('cases.recovered');
+    expect(payload?.occurredAt).toBe('2026-09-09T12:00:00.000Z');
+    expect(payload?.summary).toEqual({ count: 2, totalAmount: 1500 });
+    expect(payload?.supervisorEmails).toEqual(['sup@ger.local']);
+    expect(payload?.cases).toHaveLength(2);
+    expect(payload?.cases[0]?.agent).toEqual({
+      name: 'Marina',
+      email: 'marina@ger.local',
+    });
+    // Caso sem responsavel entra no lote com agent null.
+    expect(payload?.cases[1]?.agent).toBeNull();
+  });
+
+  it('retorna null quando nada foi recuperado', () => {
+    expect(buildRecoveryWebhookPayload([], ['sup@ger.local'])).toBeNull();
   });
 });

@@ -26,6 +26,59 @@ export type RecoveryNotifications = {
   supervisorSummary: SupervisorRecoverySummary | null;
 };
 
+export type RecoveryWebhookCase = {
+  caseId: string;
+  customerName: string;
+  recoveredAmount: number;
+  hadActivePromise: boolean;
+  agent: { name: string; email: string | null } | null;
+};
+
+export type RecoveryWebhookPayload = {
+  event: 'cases.recovered';
+  occurredAt: string;
+  summary: { count: number; totalAmount: number };
+  supervisorEmails: string[];
+  cases: RecoveryWebhookCase[];
+};
+
+/**
+ * Payload enviado ao N8N por rodada de reconciliacao. Carrega os dados e os
+ * destinatarios (atendente por caso + e-mails da supervisao) para que o fluxo
+ * no N8N decida os canais (e-mail, WhatsApp, etc.). Retorna null quando nada
+ * foi recuperado.
+ */
+export function buildRecoveryWebhookPayload(
+  recoveredCases: RecoveredCaseForNotification[],
+  supervisorEmails: string[],
+  occurredAt: Date = new Date(),
+): RecoveryWebhookPayload | null {
+  if (recoveredCases.length === 0) {
+    return null;
+  }
+
+  const totalAmount = recoveredCases.reduce(
+    (total, caseData) => total + caseData.recoveredAmount,
+    0,
+  );
+
+  return {
+    event: 'cases.recovered',
+    occurredAt: occurredAt.toISOString(),
+    summary: { count: recoveredCases.length, totalAmount },
+    supervisorEmails,
+    cases: recoveredCases.map((caseData) => ({
+      caseId: caseData.caseId,
+      customerName: caseData.customerName,
+      recoveredAmount: caseData.recoveredAmount,
+      hadActivePromise: caseData.hadActivePromise,
+      agent: caseData.assignedUser
+        ? { name: caseData.assignedUser.name, email: caseData.assignedUser.email }
+        : null,
+    })),
+  };
+}
+
 function formatBRL(value: number): string {
   return `R$ ${value.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
 }

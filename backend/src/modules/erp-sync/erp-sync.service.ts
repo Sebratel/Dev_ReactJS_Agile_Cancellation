@@ -27,9 +27,10 @@ import {
   type ErpEligibleRow,
 } from '@/modules/erp-sync/erp-sync.mapper';
 import { NotificationsService } from '@/modules/notifications/notifications.service';
-import { MailService } from '@/modules/mail/mail.service';
+import { RecoveryNotifierService } from '@/modules/erp-sync/recovery-notifier.service';
 import {
   buildRecoveryNotifications,
+  buildRecoveryWebhookPayload,
   type RecoveredCaseForNotification,
 } from '@/modules/erp-sync/recovery-notifications.builder';
 
@@ -134,7 +135,7 @@ export class ErpSyncService {
     private readonly webhooksService: WebhooksService,
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
-    private readonly mailService: MailService,
+    private readonly recoveryNotifier: RecoveryNotifierService,
   ) {}
 
   @Cron('*/30 * * * *')
@@ -575,7 +576,7 @@ export class ErpSyncService {
       const { agentNotifications, supervisorSummary } =
         buildRecoveryNotifications(cases);
 
-      // Atendente responsavel: sino + e-mail por cliente da carteira dele.
+      // Sino interno: uma notificacao por atendente responsavel.
       for (const notification of agentNotifications) {
         await this.notificationsService.notify({
           userId: notification.userId,
@@ -585,32 +586,27 @@ export class ErpSyncService {
           entityType: 'COLLECTION_CASE',
           entityId: notification.entityId,
         });
-
-        if (notification.email) {
-          await this.mailService.sendMail({
-            to: notification.email,
-            subject: notification.title,
-            html: `<p>${notification.body}</p>`,
-          });
-        }
       }
 
-      // Supervisao: um unico resumo consolidado da rodada (sino + e-mail).
+      // Sino interno: um unico resumo consolidado para a supervisao.
       if (supervisorSummary) {
         await this.notificationsService.notifySupervisors({
           type: 'CASES_RECOVERED_SUMMARY',
           title: supervisorSummary.title,
           body: supervisorSummary.body,
         });
+      }
 
-        const supervisorEmails = await this.getSupervisorEmails();
-        if (supervisorEmails.length > 0) {
-          await this.mailService.sendMail({
-            to: supervisorEmails,
-            subject: supervisorSummary.title,
-            html: `<p>${supervisorSummary.body}</p>`,
-          });
-        }
+      // Entrega externa (e-mail/WhatsApp/etc.) fica a cargo do N8N: um unico
+      // POST por rodada com o lote e os destinatarios (atendente + supervisao).
+      const supervisorEmails = await this.getSupervisorEmails();
+      const webhookPayload = buildRecoveryWebhookPayload(
+        cases,
+        supervisorEmails,
+      );
+
+      if (webhookPayload) {
+        await this.recoveryNotifier.dispatch(webhookPayload);
       }
     } catch (error) {
       this.logger.error(
