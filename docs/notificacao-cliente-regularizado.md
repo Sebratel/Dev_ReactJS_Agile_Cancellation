@@ -83,6 +83,12 @@ Webhook Plataforma  →  Preparar e-mails (Code)  →  Enviar e-mail (Gmail / HT
 2. **Preparar e-mails** (Code) — transforma o payload em uma lista de e-mails:
    um por atendente (`to`, `subject`, `html`) + um resumo para a supervisão.
    Valores formatados em `pt-BR` (`R$ 1.500,00`). Sem destinatário, retorna vazio.
+   O HTML segue o **padrão visual Sebratel** (mesmo do relatório de indicadores):
+   layout 600px email-safe (tabelas + estilo inline), régua e lockup da marca no
+   topo, destaque **verde** para o status positivo (a marca vermelha nunca aparece
+   perto de status), sem imagens (o proxy do Gmail não alcança o painel interno).
+   O e-mail do atendente traz um card verde com cliente + valor recuperado; o da
+   supervisão traz KPIs (clientes / total recuperado) + a lista dos regularizados.
 3. **Enviar e-mail** (Gmail, `Email Type = HTML`) — um envio por item, com a
    credencial **Gmail Fabricio**.
 
