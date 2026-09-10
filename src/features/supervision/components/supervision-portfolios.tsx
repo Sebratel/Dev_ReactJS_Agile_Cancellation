@@ -207,7 +207,11 @@ export function SupervisionPortfolios({
     for (const agent of agents) {
       if (!byKey.has(agent.id)) {
         byKey.set(agent.id, {
-          agent: { id: agent.id, name: agent.name, avatarUrl: agent.avatarUrl },
+          agent: {
+            id: agent.id,
+            name: agent.name,
+            avatarUrl: agent.avatarUrl ?? null,
+          },
           totalActive: 0,
           slaOverdue: 0,
           awaitingReply: 0,
