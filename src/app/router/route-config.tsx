@@ -65,7 +65,9 @@ export const appRoutes: AppRouteItem[] = [
     path: '/minha-cobranca',
     shortTitle: 'Cobrança',
     icon: BookUser,
-    allowedRoles: ['ADMIN', 'COLLECTION_AGENT'],
+    // Fila pessoal do atendente (so os casos atribuidos a ele). Supervisao/ADMIN
+    // enxergam a carteira completa pela tela "Supervisao", entao nao veem esta.
+    allowedRoles: ['COLLECTION_AGENT'],
     ready: true,
     group: 'operacao',
   },

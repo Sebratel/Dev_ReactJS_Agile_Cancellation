@@ -20,7 +20,6 @@ const assertions: SidebarAssertion[] = [
       'Visão geral',
       'Supervisão',
       'Clientes',
-      'Minha cobrança',
       'Cobrança',
       'Promessas',
       'Cancelamentos',
@@ -30,7 +29,8 @@ const assertions: SidebarAssertion[] = [
       'Usuários',
       'Configurações',
     ],
-    hidden: [],
+    // Minha cobranca e a fila pessoal do atendente; ADMIN usa a Supervisao.
+    hidden: ['Minha cobrança'],
   },
   {
     role: 'SUPERVISOR',

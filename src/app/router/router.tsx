@@ -75,9 +75,7 @@ export function createAppRouter() {
               ],
             },
             {
-              element: (
-                <RoleGuard allowedRoles={['ADMIN', 'COLLECTION_AGENT']} />
-              ),
+              element: <RoleGuard allowedRoles={['COLLECTION_AGENT']} />,
               children: [
                 {
                   path: 'minha-cobranca',
