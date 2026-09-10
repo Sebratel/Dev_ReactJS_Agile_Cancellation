@@ -24,6 +24,7 @@ import { IntegrationsModule } from '@/modules/integrations/integrations.module';
 import { InvoicesModule } from '@/modules/invoices/invoices.module';
 import { NotificationsModule } from '@/modules/notifications/notifications.module';
 import { PaymentPromisesModule } from '@/modules/payment-promises/payment-promises.module';
+import { PreCollectionModule } from '@/modules/pre-collection/pre-collection.module';
 import { RolesModule } from '@/modules/roles/roles.module';
 import { UsersModule } from '@/modules/users/users.module';
 import { WebhooksModule } from '@/modules/webhooks/webhooks.module';
@@ -68,6 +69,7 @@ const legacyBackendEnvPath =
     CaseNotesModule,
     NotificationsModule,
     PaymentPromisesModule,
+    PreCollectionModule,
     CancellationsModule,
     DashboardModule,
     AuditModule,

@@ -1,0 +1,253 @@
+import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
+import { Pool } from 'pg';
+import { createApiResponse } from '@/common/responses/api-response';
+import { getDataSourceMode } from '@/common/data-source/data-source.config';
+import { getErpSyncConfig, type ErpSyncDbConfig } from '@/config/erp-sync.config';
+import type {
+  PreCollectionItemResponse,
+  PreCollectionListResponse,
+} from '@/modules/pre-collection/dto/pre-collection-item.response';
+
+const DEFAULT_DAYS_WINDOW = 7;
+const MIN_DAYS_WINDOW = 1;
+// Janela maxima suportada. O snapshot em cache e calculado com esta janela;
+// janelas menores (3, 7) sao filtradas em memoria a partir dele.
+const CACHE_WINDOW_DAYS = 15;
+
+// Contratos com EXATAMENTE 1 titulo vencido e ao menos 1 prestes a vencer dentro
+// da janela ($1 dias). Mesmos filtros da regra de elegibilidade da esteira
+// (ver erp-sync.service.ts › ELIGIBILITY_QUERY) — muda apenas o criterio de datas.
+// A varredura e limitada a [hoje-2meses, hoje+janela] para desempenho: contratos
+// cujo unico vencido seja mais antigo que isso ficam de fora (raro — normalmente
+// ja estariam com 2+ vencidos, ou seja, na esteira).
+const PRE_COLLECTION_QUERY = `
+WITH abertos AS (
+  SELECT c.id AS contract_id,
+         c.public_id::text        AS contract_external_id,
+         c.contract_number::text  AS contract_number,
+         p.name                    AS customer_name,
+         p.tx_id                   AS document,
+         p.phone                   AS phone,
+         fr.expiration_date::date  AS venc,
+         fr.balance::numeric       AS saldo
+  FROM erp.financial_receivable_titles fr
+  LEFT JOIN erp.financers_natures fn ON fn.id = fr.financer_nature_id
+  LEFT JOIN erp.financial_receipt_titles x ON x.financial_receivable_title_id = fr.id
+  JOIN erp.contracts c ON c.id = fr.contract_id
+  JOIN erp.people p ON p.id = c.client_id
+  LEFT JOIN erp.contract_types ct ON ct.id = c.contract_type_id
+  WHERE fr.bill_title_id IS NULL
+    AND fr.renegotiated IS false
+    AND fr.deleted IS false
+    AND x.client_paid_date IS NULL
+    AND fn.title <> 'DF - TARIFA BAIXA DE TÍTULO'
+    AND c.v_status IN ('Bloqueio Financeiro', 'Normal')
+    AND ct.title NOT IN ('Sebratel - Fat. Especial')
+    AND fr.expiration_date >= CURRENT_DATE - INTERVAL '2 months'
+    AND fr.expiration_date <= CURRENT_DATE + ($1::int * INTERVAL '1 day')
+),
+agg AS (
+  SELECT contract_id,
+         MAX(contract_external_id) AS contract_external_id,
+         MAX(contract_number)      AS contract_number,
+         MAX(customer_name)        AS customer_name,
+         MAX(document)             AS document,
+         MAX(phone)                AS phone,
+         COUNT(*) FILTER (WHERE venc < CURRENT_DATE) AS vencidos,
+         COUNT(*) FILTER (WHERE venc BETWEEN CURRENT_DATE AND CURRENT_DATE + ($1::int * INTERVAL '1 day')) AS a_vencer,
+         MIN(venc) FILTER (WHERE venc < CURRENT_DATE) AS first_overdue_date,
+         SUM(saldo) FILTER (WHERE venc < CURRENT_DATE) AS first_overdue_amount,
+         MIN(venc) FILTER (WHERE venc BETWEEN CURRENT_DATE AND CURRENT_DATE + ($1::int * INTERVAL '1 day')) AS second_due_date,
+         SUM(saldo) FILTER (WHERE venc BETWEEN CURRENT_DATE AND CURRENT_DATE + ($1::int * INTERVAL '1 day')) AS second_due_amount
+  FROM abertos
+  GROUP BY contract_id
+)
+SELECT contract_external_id,
+       contract_number,
+       customer_name,
+       document,
+       phone,
+       first_overdue_date,
+       first_overdue_amount,
+       second_due_date,
+       second_due_amount
+FROM agg
+WHERE vencidos = 1 AND a_vencer >= 1
+ORDER BY second_due_date ASC, customer_name ASC;
+`;
+
+type PreCollectionRow = {
+  contract_external_id: string | null;
+  contract_number: string | null;
+  customer_name: string | null;
+  document: string | null;
+  phone: string | null;
+  first_overdue_date: Date | string;
+  first_overdue_amount: string | number;
+  second_due_date: Date | string;
+  second_due_amount: string | number | null;
+};
+
+// Normaliza a janela de dias (1..CACHE_WINDOW_DAYS; padrao 7). Ausente ou vazio
+// cai no padrao (Number('') seria 0, o que nao e a intencao de "?daysWindow=").
+export function normalizeDaysWindow(value: unknown): number {
+  if (
+    value === null ||
+    value === undefined ||
+    (typeof value === 'string' && value.trim() === '')
+  ) {
+    return DEFAULT_DAYS_WINDOW;
+  }
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return DEFAULT_DAYS_WINDOW;
+  }
+  return Math.min(
+    CACHE_WINDOW_DAYS,
+    Math.max(MIN_DAYS_WINDOW, Math.round(parsed)),
+  );
+}
+
+function toIsoDate(value: Date | string): string {
+  return value instanceof Date
+    ? value.toISOString().slice(0, 10)
+    : String(value).slice(0, 10);
+}
+
+function toAmount(value: string | number | null): string {
+  return Number(value ?? 0).toFixed(2);
+}
+
+function daysUntil(dateIso: string): number {
+  const target = new Date(`${dateIso}T00:00:00.000Z`).getTime();
+  const today = new Date();
+  const todayUtc = Date.UTC(
+    today.getUTCFullYear(),
+    today.getUTCMonth(),
+    today.getUTCDate(),
+  );
+  return Math.max(0, Math.round((target - todayUtc) / 86_400_000));
+}
+
+function mapRow(row: PreCollectionRow): PreCollectionItemResponse {
+  const firstOverdueDate = toIsoDate(row.first_overdue_date);
+  const secondDueDate = toIsoDate(row.second_due_date);
+  const firstAmount = toAmount(row.first_overdue_amount);
+  const secondAmount = toAmount(row.second_due_amount);
+
+  return {
+    contractExternalId: row.contract_external_id,
+    contractCode: row.contract_number ?? '',
+    customerName: row.customer_name?.trim() || 'Cliente',
+    customerDocument: row.document?.trim() || null,
+    customerPhone: row.phone?.trim() || null,
+    firstOverdueDate,
+    firstOverdueAmount: firstAmount,
+    secondDueDate,
+    secondDueAmount: secondAmount,
+    daysUntilSecond: daysUntil(secondDueDate),
+    totalOpenAmount: (Number(firstAmount) + Number(secondAmount)).toFixed(2),
+  };
+}
+
+/**
+ * A consulta ao ERP e cara (varre a tabela de titulos), entao servimos um
+ * snapshot em cache atualizado em background — o endpoint responde na hora.
+ */
+@Injectable()
+export class PreCollectionService implements OnModuleInit {
+  private readonly logger = new Logger(PreCollectionService.name);
+  private pool: Pool | null = null;
+  private cache: { items: PreCollectionItemResponse[]; refreshedAt: string } | null =
+    null;
+  private refreshing = false;
+
+  onModuleInit(): void {
+    // Primeiro carregamento em background (nao bloqueia o boot).
+    void this.refreshCache();
+  }
+
+  @Cron('*/30 * * * *')
+  handleScheduledRefresh(): void {
+    void this.refreshCache();
+  }
+
+  private getPool(db: ErpSyncDbConfig): Pool {
+    this.pool ??= new Pool({
+      host: db.host,
+      port: db.port,
+      database: db.database,
+      user: db.user,
+      password: db.password,
+      max: 2,
+      ssl: false,
+    });
+    return this.pool;
+  }
+
+  async refreshCache(): Promise<void> {
+    if (this.refreshing) {
+      return;
+    }
+
+    const config = getErpSyncConfig();
+    if (!config.db || getDataSourceMode() !== 'database') {
+      this.cache = { items: [], refreshedAt: new Date().toISOString() };
+      return;
+    }
+
+    this.refreshing = true;
+    try {
+      const pool = this.getPool(config.db);
+      const result = await pool.query<PreCollectionRow>(PRE_COLLECTION_QUERY, [
+        CACHE_WINDOW_DAYS,
+      ]);
+      this.cache = {
+        items: result.rows.map(mapRow),
+        refreshedAt: new Date().toISOString(),
+      };
+      this.logger.log(
+        `Snapshot pre-cobranca atualizado: ${result.rowCount} contrato(s).`,
+      );
+    } catch (error) {
+      this.logger.error(
+        'Falha ao atualizar snapshot de pre-cobranca no ERP.',
+        error instanceof Error ? error.stack : String(error),
+      );
+    } finally {
+      this.refreshing = false;
+    }
+  }
+
+  list(daysWindowInput: unknown) {
+    const daysWindow = normalizeDaysWindow(daysWindowInput);
+
+    if (!this.cache) {
+      // Cache ainda nao pronto — dispara o carregamento e responde "atualizando".
+      void this.refreshCache();
+      const response: PreCollectionListResponse = {
+        daysWindow,
+        generatedAt: null,
+        refreshing: true,
+        total: 0,
+        items: [],
+      };
+      return createApiResponse(response);
+    }
+
+    // Janelas menores que a do cache sao filtradas em memoria.
+    const items = this.cache.items.filter(
+      (item) => item.daysUntilSecond <= daysWindow,
+    );
+
+    const response: PreCollectionListResponse = {
+      daysWindow,
+      generatedAt: this.cache.refreshedAt,
+      refreshing: this.refreshing,
+      total: items.length,
+      items,
+    };
+    return createApiResponse(response);
+  }
+}

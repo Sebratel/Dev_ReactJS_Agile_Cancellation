@@ -41,6 +41,10 @@ export const queryKeys = {
     bulkContactWhatsAppJobsList: (page: number) =>
       ['collection-cases', 'bulk-contact-whatsapp-jobs', page] as const,
   },
+  preCollection: {
+    list: (daysWindow: number) =>
+      ['pre-collection', 'list', daysWindow] as const,
+  },
   auditoria: {
     list: (params: AuditLogsListParams) =>
       ['auditoria', 'list', params] as const,

@@ -16,6 +16,7 @@ import {
   LazyAuditoriaPage,
   LazyMyCollectionPage,
   LazyPaymentPromisesPage,
+  LazyPreCollectionPage,
   LazyRankingPage,
   LazyReportsPage,
   LazySettingsPage,
@@ -109,6 +110,10 @@ export function createAppRouter() {
                 {
                   path: 'backlog',
                   element: withRouteFallback(<LazyBacklogPage />),
+                },
+                {
+                  path: 'pre-cobranca',
+                  element: withRouteFallback(<LazyPreCollectionPage />),
                 },
                 {
                   path: 'promessas',

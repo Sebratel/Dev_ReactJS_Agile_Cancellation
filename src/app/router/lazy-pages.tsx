@@ -28,6 +28,9 @@ export const LazyCustomerDetailPage = lazy(
 export const LazyBacklogPage = lazy(
   async () => import('@/features/backlog/pages/backlog-page'),
 );
+export const LazyPreCollectionPage = lazy(
+  async () => import('@/features/pre-collection/pages/pre-collection-page'),
+);
 export const LazyPaymentPromisesPage = lazy(
   async () => import('@/features/payment-promises/pages/payment-promises-page'),
 );
