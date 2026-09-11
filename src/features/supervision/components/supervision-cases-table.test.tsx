@@ -143,4 +143,26 @@ describe('SupervisionCasesTable', () => {
       }),
     ).not.toBeInTheDocument();
   });
+
+  it('renderiza como cards em telas menores (sem tabela)', async () => {
+    // Simula viewport mobile: matchMedia nao casa o breakpoint de desktop.
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })) as unknown as typeof window.matchMedia;
+
+    renderTable();
+
+    // No layout de card os campos aparecem rotulados e nao ha tabela.
+    expect(await screen.findByText('Construtora Horizonte')).toBeInTheDocument();
+    expect(screen.getByText('Vencimentos')).toBeInTheDocument();
+    expect(screen.getByText('Responsável')).toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
 });

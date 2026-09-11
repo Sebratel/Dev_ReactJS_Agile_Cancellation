@@ -6,7 +6,9 @@ if (typeof window !== 'undefined' && !window.matchMedia) {
   Object.defineProperty(window, 'matchMedia', {
     writable: true,
     value: (query: string) => ({
-      matches: false,
+      // Por padrao os testes rodam como desktop (>= lg), para exercitar o
+      // layout de tabela. Testes de layout mobile sobrescrevem matchMedia.
+      matches: query.includes('min-width: 1024px'),
       media: query,
       onchange: null,
       addListener: vi.fn(),

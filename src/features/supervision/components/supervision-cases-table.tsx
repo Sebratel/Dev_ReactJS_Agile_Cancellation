@@ -14,6 +14,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
+import { useMediaQuery } from '@/hooks/use-media-query';
 import {
   type CollectionCaseListItemResponse,
   type CollectionCasesSortBy,
@@ -109,6 +110,180 @@ function SelectAllCheckbox({
   );
 }
 
+function AndamentoBadges({
+  item,
+  className,
+}: {
+  item: CollectionCaseListItemResponse;
+  className?: string;
+}) {
+  const matrixReply = getMatrixReplyPresentation(item);
+  return (
+    <div className={className}>
+      <StatusBadge
+        label={getCollectionStatusLabel(item.status)}
+        variant={getCollectionStatusVariant(item.status)}
+      />
+      <StatusBadge label={matrixReply.label} variant={matrixReply.variant} />
+      <StatusBadge
+        label={getPriorityLabel(item.priority)}
+        variant={getPriorityVariant(item.priority)}
+      />
+    </div>
+  );
+}
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-neutral">
+      {children}
+    </div>
+  );
+}
+
+// Layout de cada caso em cartao — usado em telas menores, onde a tabela nao cabe.
+function SupervisionCaseCards({
+  items,
+  agents,
+  agentsLoading,
+  workload,
+  canDistribute,
+  selectedIds,
+  onToggleSelect,
+}: Pick<
+  SupervisionCasesTableProps,
+  | 'items'
+  | 'agents'
+  | 'agentsLoading'
+  | 'workload'
+  | 'canDistribute'
+  | 'selectedIds'
+  | 'onToggleSelect'
+>) {
+  return (
+    <div className="divide-y divide-border">
+      {items.map((item) => {
+        const sla = getSlaPresentation(item.slaDueAt);
+        const isSelected = selectedIds.has(item.id);
+        const isCritical =
+          CRITICAL_STATUSES.has(item.status) ||
+          item.priority === 'CRITICAL' ||
+          sla.variant === 'danger';
+
+        return (
+          <article
+            key={item.id}
+            className={cn(
+              'p-4',
+              isCritical && 'border-l-2 border-l-danger bg-danger/[0.025]',
+              isSelected && 'bg-primary/5',
+            )}
+          >
+            <div className="flex items-start gap-2">
+              {canDistribute ? (
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => onToggleSelect(item.id)}
+                  className="mt-1 h-4 w-4 shrink-0 cursor-pointer rounded border-border accent-primary"
+                  aria-label={`Selecionar caso de ${item.customerName}`}
+                />
+              ) : null}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="min-w-0 truncate font-medium">
+                    {item.customerName}
+                  </span>
+                  <ContactCustomerWhatsAppAction
+                    caseId={item.id}
+                    customerName={item.customerName}
+                    customerPhone={item.customerPhone}
+                  />
+                </div>
+                <div className="text-xs text-neutral">{item.contractCode}</div>
+              </div>
+              <Link
+                to={`/supervisao/${item.id}`}
+                className={cn(
+                  buttonVariants({ variant: 'secondary', size: 'sm' }),
+                  'shrink-0',
+                )}
+              >
+                Ver detalhes
+              </Link>
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <div className="space-y-0.5">
+                <FieldLabel>Vencimentos</FieldLabel>
+                <div className="text-xs">
+                  1º{' '}
+                  <span className="tabular-nums">
+                    {formatDateOnlyPtBR(item.firstOverdueDate) ?? '—'}
+                  </span>
+                </div>
+                <div className="text-xs">
+                  2º{' '}
+                  <span className="tabular-nums">
+                    {formatDateOnlyPtBR(item.secondOverdueDate) ?? '—'}
+                  </span>
+                </div>
+                <div className="pt-1">
+                  <StatusBadge
+                    label={getContractStatusLabel(item.contractStatus)}
+                    variant={getContractStatusVariant(item.contractStatus)}
+                  />
+                </div>
+              </div>
+              <div className="space-y-0.5">
+                <FieldLabel>Financeiro</FieldLabel>
+                <div className="font-semibold tabular-nums">
+                  {formatCurrencyFromDecimalString(item.outstandingAmount)}
+                </div>
+                <div className="text-xs text-neutral">
+                  {formatInteger(item.daysOverdue)} dias em atraso
+                </div>
+                <div className="pt-1">
+                  <StatusBadge label={sla.label} variant={sla.variant} />
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-3 flex items-end justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <FieldLabel>Responsável</FieldLabel>
+                <div className="mt-0.5">
+                  {canDistribute ? (
+                    <InlineAssigneeSelect
+                      caseId={item.id}
+                      currentAssignee={item.assignedTo}
+                      agents={agents}
+                      agentsLoading={agentsLoading}
+                      workload={workload}
+                    />
+                  ) : (
+                    <span className="text-sm text-neutral">
+                      {item.assignedTo?.name ?? 'Não atribuído'}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="shrink-0 text-right">
+                <FieldLabel>Tentativas</FieldLabel>
+                <div className="text-sm font-semibold tabular-nums">
+                  {formatInteger(item.totalAttempts)}
+                </div>
+              </div>
+            </div>
+
+            <AndamentoBadges item={item} className="mt-3 flex flex-wrap gap-1.5" />
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
 export function SupervisionCasesTable({
   items,
   agents,
@@ -185,6 +360,7 @@ export function SupervisionCasesTable({
 
   const allSelected = items.length > 0 && items.every((i) => selectedIds.has(i.id));
   const someSelected = items.some((i) => selectedIds.has(i.id));
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
 
   return (
     <SectionCard
@@ -193,6 +369,17 @@ export function SupervisionCasesTable({
       contentClassName="p-0"
     >
       <div ref={tableShellRef}>
+      {!isDesktop ? (
+        <SupervisionCaseCards
+          items={items}
+          agents={agents}
+          agentsLoading={agentsLoading}
+          workload={workload}
+          canDistribute={canDistribute}
+          selectedIds={selectedIds}
+          onToggleSelect={onToggleSelect}
+        />
+      ) : (
       <TableContainer
         flush
         className="max-h-[70vh] overflow-y-auto"
@@ -254,7 +441,6 @@ export function SupervisionCasesTable({
           <TableBody>
             {items.map((item) => {
               const sla = getSlaPresentation(item.slaDueAt);
-              const matrixReply = getMatrixReplyPresentation(item);
               const isSelected = selectedIds.has(item.id);
               const isCritical =
                 CRITICAL_STATUSES.has(item.status) ||
@@ -350,20 +536,10 @@ export function SupervisionCasesTable({
                     )}
                   </TableCell>
                   <TableCell align="center">
-                    <div className="flex flex-col items-center gap-1">
-                      <StatusBadge
-                        label={getCollectionStatusLabel(item.status)}
-                        variant={getCollectionStatusVariant(item.status)}
-                      />
-                      <StatusBadge
-                        label={matrixReply.label}
-                        variant={matrixReply.variant}
-                      />
-                      <StatusBadge
-                        label={getPriorityLabel(item.priority)}
-                        variant={getPriorityVariant(item.priority)}
-                      />
-                    </div>
+                    <AndamentoBadges
+                      item={item}
+                      className="flex flex-col items-center gap-1"
+                    />
                   </TableCell>
                   <TableCell align="center">
                     <Link
@@ -382,6 +558,7 @@ export function SupervisionCasesTable({
           </TableBody>
         </Table>
       </TableContainer>
+      )}
       </div>
 
       <Pagination
