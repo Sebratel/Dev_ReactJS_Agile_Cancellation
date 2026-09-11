@@ -362,10 +362,11 @@ export function SupervisionCasesTable({
   const someSelected = items.some((i) => selectedIds.has(i.id));
   // Alterna tabela x cards pela largura REAL disponível (container), não pelo
   // viewport — a sidebar consome largura e deixava a tabela apertada em
-  // notebooks. Abaixo de 1100px de espaço útil, usa cards. 0 = ainda não medido
-  // (jsdom/1º render) → mantém a tabela para não quebrar os testes existentes.
+  // notebooks. Abaixo de 1280px de espaço útil (notebooks ~1100px depois da
+  // sidebar), usa cards; só telas realmente largas mostram a tabela. 0 = ainda
+  // não medido (jsdom/1º render) → mantém a tabela para não quebrar os testes.
   const shellWidth = useContainerWidth(tableShellRef);
-  const isNarrow = shellWidth > 0 && shellWidth < 1100;
+  const isNarrow = shellWidth > 0 && shellWidth < 1280;
 
   return (
     <SectionCard
