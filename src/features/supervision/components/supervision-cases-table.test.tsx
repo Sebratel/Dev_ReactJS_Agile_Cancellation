@@ -144,25 +144,36 @@ describe('SupervisionCasesTable', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('renderiza como cards em telas menores (sem tabela)', async () => {
-    // Simula viewport mobile: matchMedia nao casa o breakpoint de desktop.
-    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
-      matches: false,
-      media: query,
-      onchange: null,
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    })) as unknown as typeof window.matchMedia;
+  it('renderiza como cards quando o container disponivel e estreito (sem tabela)', async () => {
+    // O layout e escolhido pela largura REAL do container (ResizeObserver +
+    // getBoundingClientRect), nao pelo viewport. Forcamos um container estreito
+    // (< 1100px) para exercitar o caminho de cards.
+    const rectSpy = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockReturnValue({
+        width: 700,
+        height: 600,
+        top: 0,
+        left: 0,
+        right: 700,
+        bottom: 600,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      } as DOMRect);
 
-    renderTable();
+    try {
+      renderTable();
 
-    // No layout de card os campos aparecem rotulados e nao ha tabela.
-    expect(await screen.findByText('Construtora Horizonte')).toBeInTheDocument();
-    expect(screen.getByText('Vencimentos')).toBeInTheDocument();
-    expect(screen.getByText('Responsável')).toBeInTheDocument();
-    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+      // No layout de card os campos aparecem rotulados e nao ha tabela.
+      expect(
+        await screen.findByText('Construtora Horizonte'),
+      ).toBeInTheDocument();
+      expect(screen.getByText('Vencimentos')).toBeInTheDocument();
+      expect(screen.getByText('Responsável')).toBeInTheDocument();
+      expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    } finally {
+      rectSpy.mockRestore();
+    }
   });
 });

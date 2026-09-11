@@ -6,9 +6,7 @@ if (typeof window !== 'undefined' && !window.matchMedia) {
   Object.defineProperty(window, 'matchMedia', {
     writable: true,
     value: (query: string) => ({
-      // Por padrao os testes rodam como desktop (>= lg), para exercitar o
-      // layout de tabela. Testes de layout mobile sobrescrevem matchMedia.
-      matches: query.includes('min-width: 1024px'),
+      matches: false,
       media: query,
       onchange: null,
       addListener: vi.fn(),
@@ -18,6 +16,15 @@ if (typeof window !== 'undefined' && !window.matchMedia) {
       dispatchEvent: vi.fn(),
     }),
   });
+}
+
+// jsdom nao implementa ResizeObserver (usado por layouts medidos por container).
+if (typeof globalThis !== 'undefined' && !globalThis.ResizeObserver) {
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof ResizeObserver;
 }
 import { authStorageKey } from '@/features/auth/auth.constants';
 import { type AuthSession } from '@/types/auth';

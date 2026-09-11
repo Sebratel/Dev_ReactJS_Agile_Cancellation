@@ -14,7 +14,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
-import { useMediaQuery } from '@/hooks/use-media-query';
+import { useContainerWidth } from '@/hooks/use-container-width';
 import {
   type CollectionCaseListItemResponse,
   type CollectionCasesSortBy,
@@ -360,7 +360,12 @@ export function SupervisionCasesTable({
 
   const allSelected = items.length > 0 && items.every((i) => selectedIds.has(i.id));
   const someSelected = items.some((i) => selectedIds.has(i.id));
-  const isDesktop = useMediaQuery('(min-width: 1024px)');
+  // Alterna tabela x cards pela largura REAL disponível (container), não pelo
+  // viewport — a sidebar consome largura e deixava a tabela apertada em
+  // notebooks. Abaixo de 1100px de espaço útil, usa cards. 0 = ainda não medido
+  // (jsdom/1º render) → mantém a tabela para não quebrar os testes existentes.
+  const shellWidth = useContainerWidth(tableShellRef);
+  const isNarrow = shellWidth > 0 && shellWidth < 1100;
 
   return (
     <SectionCard
@@ -369,7 +374,7 @@ export function SupervisionCasesTable({
       contentClassName="p-0"
     >
       <div ref={tableShellRef}>
-      {!isDesktop ? (
+      {isNarrow ? (
         <SupervisionCaseCards
           items={items}
           agents={agents}
