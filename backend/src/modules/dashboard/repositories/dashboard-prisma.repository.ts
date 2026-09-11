@@ -41,6 +41,7 @@ const STATUS_LABELS: Record<CollectionStatus, string> = {
   CANCELLATION_IN_PROGRESS: 'Cancelamento em andamento',
   CLOSED: 'Encerrado',
   RECOVERED: 'Recuperado',
+  PAYMENT_MADE: 'Pagamento realizado',
 };
 
 const ACTIVE_CANCELLATION_STATUSES: CancellationStatus[] = [
@@ -53,6 +54,7 @@ const ACTIVE_CANCELLATION_STATUSES: CancellationStatus[] = [
 const CLOSED_COLLECTION_STATUSES: CollectionStatus[] = [
   CollectionStatus.CLOSED,
   CollectionStatus.RECOVERED,
+  CollectionStatus.PAYMENT_MADE,
 ];
 
 @Injectable()
@@ -196,7 +198,11 @@ export class DashboardPrismaRepository implements DashboardRepository {
           ...scopedCaseWhere,
           slaDueAt: { lt: now },
           status: {
-            notIn: [CollectionStatus.CLOSED, CollectionStatus.RECOVERED],
+            notIn: [
+              CollectionStatus.CLOSED,
+              CollectionStatus.RECOVERED,
+              CollectionStatus.PAYMENT_MADE,
+            ],
           },
         },
       }),

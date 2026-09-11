@@ -16,6 +16,7 @@ import type {
 const FINALIZED_STATUSES: CollectionStatus[] = [
   CollectionStatus.CLOSED,
   CollectionStatus.RECOVERED,
+  CollectionStatus.PAYMENT_MADE,
 ];
 
 export const OPEN_INVOICE_STATUSES: InvoiceStatus[] = [

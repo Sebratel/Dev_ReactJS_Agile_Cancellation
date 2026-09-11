@@ -236,7 +236,11 @@ export class ErpSyncService {
       where: {
         externalId: { not: null },
         status: {
-          notIn: [CollectionStatus.CLOSED, CollectionStatus.RECOVERED],
+          notIn: [
+            CollectionStatus.CLOSED,
+            CollectionStatus.RECOVERED,
+            CollectionStatus.PAYMENT_MADE,
+          ],
         },
         contract: {
           externalId: { not: null },
@@ -457,16 +461,46 @@ export class ErpSyncService {
         });
       }
 
-      await tx.collectionCase.updateMany({
-        where: { id: { in: caseIds } },
-        data: {
-          status: CollectionStatus.RECOVERED,
-          recoveredAt: now,
-          outstandingAmount: 0,
-          daysOverdue: 0,
-          updatedAt: now,
-        },
+      // Distingue quem foi RECUPERADO por um atendente (teve pelo menos 1
+      // tentativa manual antes de pagar) de quem so PAGOU sem atendimento
+      // (PAYMENT_MADE). Assim a supervisao/ranking nao credita ao atendente um
+      // pagamento espontaneo.
+      const manualAttempts = await tx.collectionAttempt.findMany({
+        where: { collectionCaseId: { in: caseIds }, isAutomatic: false },
+        select: { collectionCaseId: true },
+        distinct: ['collectionCaseId'],
       });
+      const recoveredIds = new Set(
+        manualAttempts.map((attempt) => attempt.collectionCaseId),
+      );
+      const recoveredCaseIds = caseIds.filter((id) => recoveredIds.has(id));
+      const paidCaseIds = caseIds.filter((id) => !recoveredIds.has(id));
+
+      if (recoveredCaseIds.length > 0) {
+        await tx.collectionCase.updateMany({
+          where: { id: { in: recoveredCaseIds } },
+          data: {
+            status: CollectionStatus.RECOVERED,
+            recoveredAt: now,
+            outstandingAmount: 0,
+            daysOverdue: 0,
+            updatedAt: now,
+          },
+        });
+      }
+
+      if (paidCaseIds.length > 0) {
+        await tx.collectionCase.updateMany({
+          where: { id: { in: paidCaseIds } },
+          data: {
+            status: CollectionStatus.PAYMENT_MADE,
+            recoveredAt: now,
+            outstandingAmount: 0,
+            daysOverdue: 0,
+            updatedAt: now,
+          },
+        });
+      }
 
       await tx.cancellationProcess.updateMany({
         where: {
@@ -491,7 +525,9 @@ export class ErpSyncService {
               daysOverdue: collectionCase.daysOverdue,
             },
             afterSnapshot: {
-              status: CollectionStatus.RECOVERED,
+              status: recoveredIds.has(collectionCase.id)
+                ? CollectionStatus.RECOVERED
+                : CollectionStatus.PAYMENT_MADE,
               outstandingAmount: '0',
               daysOverdue: 0,
               recoveredAt: now.toISOString(),

@@ -9,6 +9,7 @@ const STATUS_LABELS: Record<string, string> = {
   CANCELLATION_IN_PROGRESS: 'Cancelamento em andamento',
   CLOSED: 'Encerrado',
   RECOVERED: 'Recuperado',
+  PAYMENT_MADE: 'Pagamento realizado',
 };
 
 const PRIORITY_LABELS: Record<string, string> = {
@@ -20,7 +21,7 @@ const PRIORITY_LABELS: Record<string, string> = {
 
 const DANGER_STATUSES = new Set(['NO_RESPONSE', 'ELIGIBLE_FOR_CANCELLATION']);
 
-const SUCCESS_STATUSES = new Set(['RECOVERED']);
+const SUCCESS_STATUSES = new Set(['RECOVERED', 'PAYMENT_MADE']);
 
 export function getCollectionStatusLabel(status: string) {
   return STATUS_LABELS[status] ?? status;
@@ -194,6 +195,7 @@ const ACTIVE_CANCELLATION_PROCESS_STATUSES = new Set([
 const BLOCKED_SEND_TO_CANCELLATION_STATUSES = new Set([
   'CLOSED',
   'RECOVERED',
+  'PAYMENT_MADE',
   'CANCELLATION_IN_PROGRESS',
 ]);
 
