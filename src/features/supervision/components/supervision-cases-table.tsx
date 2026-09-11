@@ -161,7 +161,12 @@ function SupervisionCaseCards({
   | 'onToggleSelect'
 >) {
   return (
-    <div className="divide-y divide-border">
+    <div
+      className="grid gap-3 p-3"
+      style={{
+        gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 440px), 1fr))',
+      }}
+    >
       {items.map((item) => {
         const sla = getSlaPresentation(item.slaDueAt);
         const isSelected = selectedIds.has(item.id);
@@ -174,9 +179,9 @@ function SupervisionCaseCards({
           <article
             key={item.id}
             className={cn(
-              'p-4',
+              'rounded-lg border border-border p-4',
               isCritical && 'border-l-2 border-l-danger bg-danger/[0.025]',
-              isSelected && 'bg-primary/5',
+              isSelected && 'border-primary/40 bg-primary/5',
             )}
           >
             <div className="flex items-start gap-2">
