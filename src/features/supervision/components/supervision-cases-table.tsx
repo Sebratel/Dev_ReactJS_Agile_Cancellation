@@ -150,6 +150,9 @@ function SupervisionCaseCards({
   canDistribute,
   selectedIds,
   onToggleSelect,
+  onToggleSelectAll,
+  allSelected,
+  someSelected,
 }: Pick<
   SupervisionCasesTableProps,
   | 'items'
@@ -159,14 +162,30 @@ function SupervisionCaseCards({
   | 'canDistribute'
   | 'selectedIds'
   | 'onToggleSelect'
->) {
+  | 'onToggleSelectAll'
+> & {
+  allSelected: boolean;
+  someSelected: boolean;
+}) {
   return (
-    <div
-      className="grid gap-3 p-3"
-      style={{
-        gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 440px), 1fr))',
-      }}
-    >
+    <div className="p-3">
+      {canDistribute ? (
+        <label className="mb-3 flex w-fit cursor-pointer items-center gap-2 text-sm text-neutral">
+          <SelectAllCheckbox
+            checked={allSelected}
+            indeterminate={someSelected && !allSelected}
+            onChange={onToggleSelectAll}
+          />
+          Selecionar todos
+        </label>
+      ) : null}
+      <div
+        className="grid gap-3"
+        style={{
+          gridTemplateColumns:
+            'repeat(auto-fill, minmax(min(100%, 440px), 1fr))',
+        }}
+      >
       {items.map((item) => {
         const sla = getSlaPresentation(item.slaDueAt);
         const isSelected = selectedIds.has(item.id);
@@ -285,6 +304,7 @@ function SupervisionCaseCards({
           </article>
         );
       })}
+      </div>
     </div>
   );
 }
@@ -389,6 +409,9 @@ export function SupervisionCasesTable({
           canDistribute={canDistribute}
           selectedIds={selectedIds}
           onToggleSelect={onToggleSelect}
+          onToggleSelectAll={onToggleSelectAll}
+          allSelected={allSelected}
+          someSelected={someSelected}
         />
       ) : (
       <TableContainer
