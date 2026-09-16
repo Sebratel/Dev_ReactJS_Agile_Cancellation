@@ -5,9 +5,10 @@ import { collectionCasesRepositoryProvider } from '@/modules/collection-cases/re
 import { MatrixWhatsappContactService } from '@/modules/collection-cases/services/matrix-whatsapp-contact.service';
 import { PerformedByResolverService } from '@/modules/collection-cases/services/performed-by-resolver.service';
 import { NotificationsModule } from '@/modules/notifications/notifications.module';
+import { SettingsModule } from '@/modules/settings/settings.module';
 
 @Module({
-  imports: [NotificationsModule],
+  imports: [NotificationsModule, SettingsModule],
   controllers: [CollectionCasesController],
   providers: [
     CollectionCasesService,

@@ -5,6 +5,9 @@ import { SectionCard } from '@/components/data-display/section-card';
 import { StatusBadge } from '@/components/data-display/status-badge';
 import { useElevenIntegrationStatus } from '@/features/integrations/hooks/use-eleven-integration-status';
 import { IntegrationEventsPanel } from '@/features/integrations/components/integration-events-panel';
+import { useAuth } from '@/features/auth/auth-context';
+import { hasAnyRole } from '@/features/auth/utils/role-utils';
+import { CancellationPermissionsCard } from '@/features/settings/components/cancellation-permissions-card';
 
 const SLA_THRESHOLDS = [
   { priority: 'Baixa', days: 15 },
@@ -16,6 +19,8 @@ const SLA_THRESHOLDS = [
 export default function SettingsPage() {
   const elevenStatusQuery = useElevenIntegrationStatus();
   const elevenStatus = elevenStatusQuery.data;
+  const { session } = useAuth();
+  const isAdmin = hasAnyRole(session?.user.roles ?? [], ['ADMIN']);
 
   return (
     <PageContainer>
@@ -23,6 +28,8 @@ export default function SettingsPage() {
         title="Configurações"
         description="Ajustes gerais da plataforma, integrações e parâmetros institucionais."
       />
+
+      {isAdmin ? <CancellationPermissionsCard /> : null}
 
       <div className="grid gap-4 xl:grid-cols-2">
         <SectionCard

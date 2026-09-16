@@ -331,6 +331,14 @@ model CaseNote {
   @@map("case_notes")
 }
 
+model AppSetting {
+  key       String   @id
+  value     String   @db.Text
+  updatedAt DateTime @updatedAt
+
+  @@map("app_settings")
+}
+
 model PaymentPromise {
   id               String               @id @default(cuid())
   collectionCaseId String

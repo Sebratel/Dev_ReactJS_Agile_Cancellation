@@ -26,6 +26,7 @@ import { NotificationsModule } from '@/modules/notifications/notifications.modul
 import { PaymentPromisesModule } from '@/modules/payment-promises/payment-promises.module';
 import { PreCollectionModule } from '@/modules/pre-collection/pre-collection.module';
 import { RolesModule } from '@/modules/roles/roles.module';
+import { SettingsModule } from '@/modules/settings/settings.module';
 import { UsersModule } from '@/modules/users/users.module';
 import { WebhooksModule } from '@/modules/webhooks/webhooks.module';
 import { WhatsappBulkContactModule } from '@/modules/whatsapp-bulk-contact/whatsapp-bulk-contact.module';
@@ -60,6 +61,7 @@ const legacyBackendEnvPath =
     AuthModule,
     UsersModule,
     RolesModule,
+    SettingsModule,
     CustomersModule,
     ContractsModule,
     InvoicesModule,

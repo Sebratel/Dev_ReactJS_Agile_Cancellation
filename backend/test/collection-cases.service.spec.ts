@@ -6,6 +6,7 @@ import { createPaginatedResponse } from '@/common/pagination/paginated-response'
 import type { PerformedByResolverService } from '@/modules/collection-cases/services/performed-by-resolver.service';
 import type { MatrixWhatsappContactService } from '@/modules/collection-cases/services/matrix-whatsapp-contact.service';
 import type { NotificationsService } from '@/modules/notifications/notifications.service';
+import type { SettingsService } from '@/modules/settings/settings.service';
 import type { AuthenticatedUser } from '@/modules/auth/types/authenticated-user.type';
 
 function createService(repository: CollectionCasesRepository) {
@@ -22,6 +23,12 @@ function createService(repository: CollectionCasesRepository) {
   const matrixWhatsappContactService = {
     sendHsm: jest.fn(),
   } as unknown as MatrixWhatsappContactService;
+  const isAgentSendToCancellationAllowed = jest
+    .fn()
+    .mockResolvedValue(false);
+  const settingsService = {
+    isAgentSendToCancellationAllowed,
+  } as unknown as SettingsService;
 
   return {
     service: new CollectionCasesService(
@@ -29,15 +36,35 @@ function createService(repository: CollectionCasesRepository) {
       performedByResolver,
       matrixWhatsappContactService,
       notificationsService,
+      settingsService,
     ),
     resolvePerformedBy,
     matrixWhatsappContactService,
+    settingsMocks: {
+      isAgentSendToCancellationAllowed,
+    },
     notificationMocks: {
       notify,
       notifySupervisors,
     },
   };
 }
+
+const supervisorPerformer: AuthenticatedUser = {
+  id: 'usr_custom',
+  email: 'supervisor@ger.local',
+  name: 'Supervisão',
+  avatarUrl: null,
+  roles: ['SUPERVISOR'],
+};
+
+const agentPerformer: AuthenticatedUser = {
+  id: 'usr_agent',
+  email: 'agente@ger.local',
+  name: 'Atendente',
+  avatarUrl: null,
+  roles: ['COLLECTION_AGENT'],
+};
 
 function createRepository(
   overrides: Partial<CollectionCasesRepository> = {},
@@ -536,7 +563,7 @@ describe('CollectionCasesService', () => {
     const response = await service.sendToCancellation(
       'case_0001',
       { reason: 'Cliente recusou acordo.' },
-      'usr_custom',
+      supervisorPerformer,
     );
 
     expect(resolvePerformedBy).toHaveBeenCalledWith('usr_custom');
@@ -563,7 +590,7 @@ describe('CollectionCasesService', () => {
         {
           reason: 'Cliente recusou acordo.',
         },
-        'usr_marina',
+        supervisorPerformer,
       ),
     ).rejects.toMatchObject({
       status: HttpStatus.CONFLICT,
@@ -586,11 +613,60 @@ describe('CollectionCasesService', () => {
         {
           reason: 'Cliente recusou acordo.',
         },
-        'usr_marina',
+        supervisorPerformer,
       ),
     ).rejects.toMatchObject({
       status: HttpStatus.CONFLICT,
     });
+  });
+
+  it('bloqueia atendente quando a chave global esta desligada', async () => {
+    const sendToCancellation = jest.fn();
+    const repository = createRepository({ sendToCancellation });
+
+    const { service, settingsMocks } = createService(repository);
+    settingsMocks.isAgentSendToCancellationAllowed.mockResolvedValue(false);
+
+    await expect(
+      service.sendToCancellation(
+        'case_0001',
+        { reason: 'Cliente recusou acordo.' },
+        agentPerformer,
+      ),
+    ).rejects.toMatchObject({
+      status: HttpStatus.FORBIDDEN,
+    });
+
+    expect(sendToCancellation).not.toHaveBeenCalled();
+  });
+
+  it('permite atendente quando a chave global esta ligada', async () => {
+    const cancellationProcess = {
+      id: 'can_agent',
+      collectionCaseId: 'case_0001',
+      status: 'PENDING',
+      reason: 'Cliente recusou acordo.',
+      notes: null,
+      startedAt: new Date().toISOString(),
+      completedAt: null,
+      createdAt: new Date().toISOString(),
+    };
+    const sendToCancellation = jest
+      .fn()
+      .mockResolvedValue({ outcome: 'success', cancellationProcess });
+    const repository = createRepository({ sendToCancellation });
+
+    const { service, settingsMocks } = createService(repository);
+    settingsMocks.isAgentSendToCancellationAllowed.mockResolvedValue(true);
+
+    const response = await service.sendToCancellation(
+      'case_0001',
+      { reason: 'Cliente recusou acordo.' },
+      agentPerformer,
+    );
+
+    expect(sendToCancellation).toHaveBeenCalledTimes(1);
+    expect(response.data.id).toBe('can_agent');
   });
 
   it('reverte cancelamento e credita o responsavel resolvido', async () => {

@@ -19,6 +19,8 @@ import { TableSkeleton } from '@/components/feedback/table-skeleton';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/features/auth/auth-context';
+import { hasAnyRole } from '@/features/auth/utils/role-utils';
+import { useSettings } from '@/features/settings/hooks/use-settings';
 import { CancellationProcessSection } from '@/features/collection-cases/components/cancellation-process-section';
 import { CaseNotesSection } from '@/features/collection-cases/components/case-notes-section';
 import { AssignCaseAction } from '@/features/collection-cases/components/assign-case-action';
@@ -228,6 +230,15 @@ export default function CollectionCaseDetailPage() {
       (role) => role === 'ADMIN' || role === 'SUPERVISOR',
     ) ?? false;
 
+  const settingsQuery = useSettings();
+  const userRoles = session?.user.roles ?? [];
+  // SUPERVISOR/ADMIN sempre podem; atendente só quando o admin libera a chave
+  // global. Espelha a regra do backend (assertCanSendToCancellation).
+  const canSendToCancellationByRole =
+    hasAnyRole(userRoles, ['ADMIN', 'SUPERVISOR']) ||
+    (settingsQuery.data?.allowAgentSendToCancellation === true &&
+      hasAnyRole(userRoles, ['COLLECTION_AGENT']));
+
   const attemptsCount = caseQuery.data
     ? (caseQuery.data.attempts.length > 0
         ? caseQuery.data.attempts
@@ -318,7 +329,8 @@ export default function CollectionCaseDetailPage() {
             description={`Contrato ${caseQuery.data.contract.code}`}
             actions={
               <div className="flex flex-wrap items-center gap-2">
-                {canSendCaseToCancellation({
+                {canSendToCancellationByRole &&
+                canSendCaseToCancellation({
                   status: caseQuery.data.status,
                   cancellationProcess: caseQuery.data.cancellationProcess,
                 }) ? (
@@ -683,7 +695,8 @@ export default function CollectionCaseDetailPage() {
                       Este caso ainda não possui processo de cancelamento
                       iniciado.
                     </p>
-                    {canSendCaseToCancellation({
+                    {canSendToCancellationByRole &&
+                    canSendCaseToCancellation({
                       status: caseQuery.data.status,
                       cancellationProcess: caseQuery.data.cancellationProcess,
                     }) ? (

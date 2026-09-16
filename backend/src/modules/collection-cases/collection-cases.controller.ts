@@ -177,18 +177,14 @@ export class CollectionCasesController {
     return this.collectionCasesService.assignCase(id, body, user.id);
   }
 
-  @Roles('SUPERVISOR', 'ADMIN')
+  @Roles('SUPERVISOR', 'ADMIN', 'COLLECTION_AGENT')
   @Post(':id/send-to-cancellation')
   sendToCancellation(
     @Param('id') caseId: string,
     @Body() body: SendToCancellationDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.collectionCasesService.sendToCancellation(
-      caseId,
-      body,
-      user.id,
-    );
+    return this.collectionCasesService.sendToCancellation(caseId, body, user);
   }
 
   @Roles('COLLECTION_AGENT', 'SUPERVISOR', 'ADMIN')

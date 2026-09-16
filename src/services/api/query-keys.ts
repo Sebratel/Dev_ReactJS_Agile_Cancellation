@@ -7,6 +7,9 @@ import { type IntegrationEventsListParams } from '@/features/integrations/types/
 import { type NotificationsListParams } from '@/features/notifications/types/notifications-api.types';
 
 export const queryKeys = {
+  settings: {
+    all: ['settings'] as const,
+  },
   integrations: {
     elevenStatus: ['integrations', 'eleven', 'status'] as const,
     events: {

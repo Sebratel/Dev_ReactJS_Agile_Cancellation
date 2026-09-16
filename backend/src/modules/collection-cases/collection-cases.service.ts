@@ -23,6 +23,7 @@ import type {
 import { PerformedByResolverService } from '@/modules/collection-cases/services/performed-by-resolver.service';
 import { MatrixWhatsappContactService } from '@/modules/collection-cases/services/matrix-whatsapp-contact.service';
 import { NotificationsService } from '@/modules/notifications/notifications.service';
+import { SettingsService } from '@/modules/settings/settings.service';
 
 export type WhatsAppContactAttemptOutcome =
   | { outcome: 'case_not_found' }
@@ -119,6 +120,7 @@ export class CollectionCasesService {
     private readonly performedByResolver: PerformedByResolverService,
     private readonly matrixWhatsappContactService: MatrixWhatsappContactService,
     private readonly notificationsService: NotificationsService,
+    private readonly settingsService: SettingsService,
   ) {}
 
   async listCases(params: CollectionCasesListParams) {
@@ -458,10 +460,11 @@ export class CollectionCasesService {
   async sendToCancellation(
     caseId: string,
     dto: SendToCancellationDto,
-    performedByUserId: string,
+    performer: AuthenticatedUser,
   ) {
-    const resolvedPerformerId =
-      this.performedByResolver.resolve(performedByUserId);
+    await this.assertCanSendToCancellation(performer);
+
+    const resolvedPerformerId = this.performedByResolver.resolve(performer.id);
     const result = await this.collectionCasesRepository.sendToCancellation({
       caseId,
       input: dto,
@@ -583,6 +586,31 @@ export class CollectionCasesService {
     }
 
     return createApiResponse(result);
+  }
+
+  // SUPERVISOR/ADMIN sempre podem encaminhar. Atendente (COLLECTION_AGENT) só
+  // quando o administrador libera a chave global `allowAgentSendToCancellation`.
+  private async assertCanSendToCancellation(performer: AuthenticatedUser) {
+    const isPrivileged = performer.roles.some(
+      (role) => role === 'ADMIN' || role === 'SUPERVISOR',
+    );
+
+    if (isPrivileged) {
+      return;
+    }
+
+    const isAgent = performer.roles.includes('COLLECTION_AGENT');
+    const agentAllowed =
+      await this.settingsService.isAgentSendToCancellationAllowed();
+
+    if (isAgent && agentAllowed) {
+      return;
+    }
+
+    throw new AppException(
+      'Seu perfil não tem permissão para encaminhar casos ao cancelamento.',
+      HttpStatus.FORBIDDEN,
+    );
   }
 
   private assertSendToCancellationResult(

@@ -59,6 +59,10 @@ vi.mock('@/features/collection-cases/hooks/use-break-payment-promise', () => ({
   }),
 }));
 
+vi.mock('@/features/settings/hooks/use-settings', () => ({
+  useSettings: () => ({ data: { allowAgentSendToCancellation: false } }),
+}));
+
 vi.mock('@/features/collection-cases/hooks/use-cancel-payment-promise', () => ({
   useCancelPaymentPromise: () => ({
     mutateAsync: vi.fn(),
