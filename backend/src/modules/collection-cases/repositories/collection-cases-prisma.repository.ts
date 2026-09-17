@@ -592,6 +592,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
     const now = new Date();
     const beforeSnapshot: Prisma.InputJsonValue = {
       status: existingCase.status,
+      assignedUserId: existingCase.assignedUserId,
       cancellationProcess: null,
     };
 
@@ -610,16 +611,22 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
         data: buildDefaultCancellationStepsForPrisma(process.id),
       });
 
+      // Ao entrar em cancelamento o caso deixa de ser da cobranca: limpamos a
+      // atribuicao para ele sair da carteira do atendente e aparecer como "Sem
+      // responsavel" na tela de Cancelamentos, pronto para ser distribuido a um
+      // agente de cancelamento (mesmo campo assignedUserId, por etapa).
       await tx.collectionCase.update({
         where: { id: caseId },
         data: {
           status: CollectionStatus.CANCELLATION_IN_PROGRESS,
+          assignedUserId: null,
           updatedAt: now,
         },
       });
 
       const afterSnapshot: Prisma.InputJsonValue = {
         status: CollectionStatus.CANCELLATION_IN_PROGRESS,
+        assignedUserId: null,
         cancellationProcess: {
           id: process.id,
           status: process.status,
