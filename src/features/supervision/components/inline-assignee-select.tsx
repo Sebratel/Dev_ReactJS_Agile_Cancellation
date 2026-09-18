@@ -1,4 +1,4 @@
-import { Check, ChevronDown, UserRound } from 'lucide-react';
+import { Check, ChevronDown } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useAssignCase } from '@/features/collection-cases/hooks/use-assign-case';
@@ -7,6 +7,7 @@ import { type UserResponse } from '@/features/users/types/users-api.types';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import { ApiError } from '@/services/api/api-error';
+import { AssigneeAvatar } from '@/features/supervision/components/assignee-avatar';
 
 type InlineAssigneeSelectProps = {
   caseId: string;
@@ -173,47 +174,6 @@ export function InlineAssigneeSelect({
 
       {menu ? createPortal(menu, document.body) : null}
     </div>
-  );
-}
-
-function getInitials(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  const first = parts[0]?.charAt(0) ?? '';
-  const last = parts.length > 1 ? (parts.at(-1)?.charAt(0) ?? '') : '';
-
-  return `${first}${last}`.toUpperCase() || '?';
-}
-
-function AssigneeAvatar({
-  name,
-  avatarUrl,
-}: {
-  name: string;
-  avatarUrl?: string | null;
-}) {
-  if (avatarUrl) {
-    return (
-      <img
-        src={avatarUrl}
-        alt=""
-        className="h-5 w-5 shrink-0 rounded-full object-cover"
-        referrerPolicy="no-referrer"
-      />
-    );
-  }
-
-  if (name === 'Nao atribuido') {
-    return (
-      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-neutral">
-        <UserRound className="h-3 w-3" aria-hidden="true" />
-      </span>
-    );
-  }
-
-  return (
-    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[9px] font-bold text-foreground">
-      {getInitials(name)}
-    </span>
   );
 }
 

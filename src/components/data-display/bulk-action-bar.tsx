@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react';
-import { ChevronDown, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BulkContactWhatsAppAction } from '@/features/collection-cases/components/bulk-contact-whatsapp-action';
 import { BulkSendToCancellationAction } from '@/features/collection-cases/components/bulk-send-to-cancellation-action';
+import {
+  BulkAssigneePicker,
+  REMOVE_ASSIGNMENT_VALUE,
+} from '@/features/supervision/components/bulk-assignee-picker';
 import { type UserResponse } from '@/features/users/types/users-api.types';
 
 type BulkActionBarProps = {
@@ -41,34 +45,20 @@ export function BulkActionBar({
         <span className="shrink-0 whitespace-nowrap text-sm font-medium text-foreground">
           {selectedCount === 1 ? 'caso selecionado' : 'casos selecionados'}
         </span>
-        <div className="relative shrink-0">
-          <select
-            value={agentId}
-            onChange={(e) => setAgentId(e.target.value)}
-            disabled={isAssigning}
-            className="h-8 min-w-[180px] appearance-none rounded-md border border-border bg-card pl-3 pr-8 text-sm text-foreground transition-colors hover:border-neutral/40 disabled:opacity-50"
-          >
-            <option value="">Selecionar pessoa...</option>
-            <option value="__remove__">— Remover atribuição</option>
-            {agents.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-                {workload ? ` (${workload[a.id] ?? 0} casos)` : ''}
-              </option>
-            ))}
-          </select>
-          <ChevronDown
-            className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral"
-            aria-hidden="true"
-          />
-        </div>
+        <BulkAssigneePicker
+          agents={agents}
+          workload={workload}
+          value={agentId}
+          onChange={setAgentId}
+          disabled={isAssigning}
+        />
 
         <Button
           size="sm"
           className="shrink-0 whitespace-nowrap"
           disabled={!agentId || isAssigning}
           onClick={() =>
-            onBulkAssign(agentId === '__remove__' ? null : agentId)
+            onBulkAssign(agentId === REMOVE_ASSIGNMENT_VALUE ? null : agentId)
           }
         >
           {isAssigning ? 'Atribuindo...' : 'Atribuir'}
