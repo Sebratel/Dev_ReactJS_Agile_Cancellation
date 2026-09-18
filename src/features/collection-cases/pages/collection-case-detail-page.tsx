@@ -46,6 +46,7 @@ import {
   getPromiseStatusVariant,
   getSlaPresentation,
 } from '@/features/collection-cases/utils/collection-case-labels';
+import { getContractStatusLabel } from '@/features/customers/utils/customer-labels';
 import { ApiError } from '@/services/api/api-error';
 import {
   formatCurrencyFromDecimalString,
@@ -421,7 +422,9 @@ export default function CollectionCaseDetailPage() {
                     <dt className="font-medium text-neutral">
                       Status do contrato
                     </dt>
-                    <dd className="mt-1">{caseQuery.data.contract.status}</dd>
+                    <dd className="mt-1">
+                      {getContractStatusLabel(caseQuery.data.contract.status)}
+                    </dd>
                   </div>
                   <div>
                     <dt className="font-medium text-neutral">
