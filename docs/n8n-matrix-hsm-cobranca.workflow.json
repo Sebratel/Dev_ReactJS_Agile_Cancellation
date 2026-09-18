@@ -182,8 +182,21 @@
     },
     {
       "parameters": {
+        "jsCode": "// Desaninha o erro da Matrix e extrai a mensagem legivel (msg / cod_error).\n// A Matrix retorna algo como: '400 - \"{\\\"cod_error\\\":13,\\\"msg\\\":\\\"Contato possui atendimento ativo\\\"}\"'\nconst item = $input.first().json;\nconst err = item && item.error ? item.error : item;\n\nlet statusCode = null;\nlet codError = null;\nlet matrixMessage = 'Falha ao enviar HSM pela Matrix.';\n\nconst raw = err && err.message ? String(err.message) : '';\nconst m = raw.match(/^\\s*(\\d{3})\\s*-\\s*([\\s\\S]*)$/);\nlet jsonPart = raw;\nif (m) {\n  statusCode = Number(m[1]);\n  jsonPart = m[2].trim();\n}\nif (statusCode === null && err && err.status !== undefined) {\n  const s = Number(err.status);\n  statusCode = Number.isFinite(s) ? s : null;\n}\n\ntry {\n  let parsed = JSON.parse(jsonPart);\n  if (typeof parsed === 'string') {\n    parsed = JSON.parse(parsed);\n  }\n  if (parsed && typeof parsed === 'object') {\n    if (parsed.cod_error !== undefined) codError = parsed.cod_error;\n    if (parsed.msg) matrixMessage = String(parsed.msg);\n    else if (parsed.message) matrixMessage = String(parsed.message);\n  }\n} catch (e) {\n  if (raw) matrixMessage = raw;\n}\n\nconst norm = $('Normalizar telefone').first().json;\n\nreturn [\n  {\n    json: {\n      caseId: norm.caseId,\n      telefone: norm.phone_formatted,\n      statusCode,\n      codError,\n      matrixMessage,\n      rawError: err,\n    },\n  },\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        380,
+        220
+      ],
+      "id": "extract_matrix_error",
+      "name": "Extrair erro Matrix"
+    },
+    {
+      "parameters": {
         "respondWith": "json",
-        "responseBody": "={\n  \"success\": false,\n  \"message\": \"Falha ao enviar HSM Matrix.\",\n  \"caseId\": \"{{ $('Normalizar telefone').first().json.caseId }}\",\n  \"telefone\": \"{{ $('Normalizar telefone').first().json.phone_formatted }}\",\n  \"error\": {{ JSON.stringify($json) }}\n}",
+        "responseBody": "={\n  \"success\": false,\n  \"provider\": \"matrix\",\n  \"message\": {{ JSON.stringify($json.matrixMessage) }},\n  \"codError\": {{ JSON.stringify($json.codError) }},\n  \"statusCode\": {{ JSON.stringify($json.statusCode) }},\n  \"caseId\": \"{{ $json.caseId }}\",\n  \"telefone\": \"{{ $json.telefone }}\",\n  \"error\": {{ JSON.stringify($json.rawError) }}\n}",
         "options": {
           "responseCode": 502
         }
@@ -261,6 +274,17 @@
         ],
         [
           {
+            "node": "Extrair erro Matrix",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extrair erro Matrix": {
+      "main": [
+        [
+          {
             "node": "Responder falha Matrix",
             "type": "main",
             "index": 0
@@ -276,6 +300,6 @@
   "staticData": null,
   "tags": [],
   "triggerCount": 0,
-  "updatedAt": "2026-08-11T12:30:00.000Z",
-  "versionId": "matrix-hsm-cobranca-v1"
+  "updatedAt": "2026-09-18T12:00:00.000Z",
+  "versionId": "matrix-hsm-cobranca-v2"
 }

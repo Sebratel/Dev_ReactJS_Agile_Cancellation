@@ -37,6 +37,28 @@ function readObject(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
+function readString(value: unknown): string | null {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed ? trimmed : null;
+  }
+
+  return null;
+}
+
+// Mensagem legível devolvida pelo fluxo n8n na falha (ex.: "Contato possui
+// atendimento ativo"). Deixa claro ao usuário que o motivo veio da Matrix, e
+// não é um erro da plataforma.
+function extractProviderMessage(responseBody: unknown): string | null {
+  const root = readObject(responseBody);
+
+  if (!root) {
+    return null;
+  }
+
+  return readString(root.message) ?? readString(root.matrixMessage) ?? null;
+}
+
 function readExternalCode(value: unknown): string | null {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return String(value);
@@ -123,8 +145,12 @@ export class MatrixWhatsappContactService {
       const responseBody = parseResponseBody(await response.text());
 
       if (!response.ok) {
+        const providerMessage = extractProviderMessage(responseBody);
+
         throw new AppException(
-          'N8N retornou falha ao solicitar envio Matrix.',
+          providerMessage
+            ? `Não foi possível enviar pela Matrix: ${providerMessage}`
+            : 'N8N retornou falha ao solicitar envio Matrix.',
           HttpStatus.BAD_GATEWAY,
           {
             details: JSON.stringify({
