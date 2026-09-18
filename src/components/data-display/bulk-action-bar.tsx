@@ -33,17 +33,14 @@ export function BulkActionBar({
   if (selectedCount === 0) return null;
 
   return (
-    <div className="fixed bottom-6 left-1/2 z-50 max-w-[calc(100vw-2rem)] -translate-x-1/2 animate-rise-in-md">
-      <div className="flex flex-nowrap items-center gap-3 overflow-x-auto rounded-lg border border-border bg-card px-5 py-3 shadow-floating">
+    <div className="fixed bottom-6 left-1/2 z-50 w-[calc(100vw-2rem)] max-w-3xl -translate-x-1/2 animate-rise-in-md">
+      <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 rounded-lg border border-border bg-card px-5 py-3 shadow-floating">
         <span className="shrink-0 whitespace-nowrap rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-bold text-primary tabular-nums">
           {selectedCount}
         </span>
         <span className="shrink-0 whitespace-nowrap text-sm font-medium text-foreground">
           {selectedCount === 1 ? 'caso selecionado' : 'casos selecionados'}
         </span>
-
-        <div className="h-5 w-px shrink-0 bg-border" />
-
         <div className="relative shrink-0">
           <select
             value={agentId}
@@ -76,27 +73,18 @@ export function BulkActionBar({
         >
           {isAssigning ? 'Atribuindo...' : 'Atribuir'}
         </Button>
-
-        <div className="h-5 w-px shrink-0 bg-border" />
-
         <div className="shrink-0">
           <BulkContactWhatsAppAction
             caseIds={selectedCaseIds}
             onFinished={onClearSelection}
           />
         </div>
-
-        <div className="h-5 w-px shrink-0 bg-border" />
-
         <div className="shrink-0">
           <BulkSendToCancellationAction
             caseIds={selectedCaseIds}
             onFinished={onClearSelection}
           />
         </div>
-
-        <div className="h-5 w-px shrink-0 bg-border" />
-
         <button
           type="button"
           onClick={onClearSelection}
