@@ -669,6 +669,48 @@ describe('CollectionCasesService', () => {
     expect(response.data.id).toBe('can_agent');
   });
 
+  it('bulkSendToCancellation encaminha os elegiveis e reporta ignorados', async () => {
+    const sendToCancellation = jest
+      .fn()
+      .mockResolvedValueOnce({
+        outcome: 'success',
+        cancellationProcess: { id: 'can_1' },
+      })
+      .mockResolvedValueOnce({ outcome: 'already_in_cancellation' });
+    const repository = createRepository({ sendToCancellation });
+
+    const { service } = createService(repository);
+    const response = await service.bulkSendToCancellation(
+      { caseIds: ['case_0001', 'case_0002'], reason: 'Motivo em lote' },
+      supervisorPerformer,
+    );
+
+    expect(sendToCancellation).toHaveBeenCalledTimes(2);
+    expect(response.data).toEqual({
+      requested: 2,
+      sent: 1,
+      skipped: [{ caseId: 'case_0002', reason: 'already_in_cancellation' }],
+    });
+  });
+
+  it('bulkSendToCancellation deduplica caseIds repetidos', async () => {
+    const sendToCancellation = jest.fn().mockResolvedValue({
+      outcome: 'success',
+      cancellationProcess: { id: 'can_1' },
+    });
+    const repository = createRepository({ sendToCancellation });
+
+    const { service } = createService(repository);
+    const response = await service.bulkSendToCancellation(
+      { caseIds: ['case_0001', 'case_0001'], reason: 'Motivo' },
+      supervisorPerformer,
+    );
+
+    expect(sendToCancellation).toHaveBeenCalledTimes(1);
+    expect(response.data.requested).toBe(1);
+    expect(response.data.sent).toBe(1);
+  });
+
   it('reverte cancelamento e credita o responsavel resolvido', async () => {
     const details = mockCollectionCaseDetails.case_0001;
     const revertCancellation = jest

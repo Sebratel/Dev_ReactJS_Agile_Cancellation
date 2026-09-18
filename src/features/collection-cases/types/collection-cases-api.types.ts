@@ -269,6 +269,18 @@ export type BulkAssignCasesResponse = {
   skipped: number;
 };
 
+export type BulkSendToCancellationPayload = {
+  caseIds: string[];
+  reason: string;
+  notes?: string;
+};
+
+export type BulkSendToCancellationResponse = {
+  requested: number;
+  sent: number;
+  skipped: Array<{ caseId: string; reason: string }>;
+};
+
 export type AutoDistributePayload = {
   statuses: string[];
   targetRole: string;

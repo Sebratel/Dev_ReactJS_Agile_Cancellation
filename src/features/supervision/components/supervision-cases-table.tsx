@@ -22,6 +22,7 @@ import {
 } from '@/features/collection-cases/types/collection-cases-api.types';
 import { ContactCustomerWhatsAppAction } from '@/features/collection-cases/components/contact-customer-whatsapp-action';
 import {
+  canSendCaseToCancellation,
   getCollectionStatusLabel,
   getCollectionStatusVariant,
   getPriorityLabel,
@@ -32,6 +33,7 @@ import {
   getContractStatusLabel,
   getContractStatusVariant,
 } from '@/features/customers/utils/customer-labels';
+import { SendToCancellationRowAction } from '@/features/collection-cases/components/send-to-cancellation-row-action';
 import { InlineAssigneeSelect } from '@/features/supervision/components/inline-assignee-select';
 import { type UserResponse } from '@/features/users/types/users-api.types';
 import {
@@ -226,15 +228,26 @@ function SupervisionCaseCards({
                 </div>
                 <div className="text-xs text-neutral">{item.contractCode}</div>
               </div>
-              <Link
-                to={`/supervisao/${item.id}`}
-                className={cn(
-                  buttonVariants({ variant: 'secondary', size: 'sm' }),
-                  'shrink-0',
-                )}
-              >
-                Ver detalhes
-              </Link>
+              <div className="flex shrink-0 flex-col items-end gap-1">
+                <Link
+                  to={`/supervisao/${item.id}`}
+                  className={cn(
+                    buttonVariants({ variant: 'secondary', size: 'sm' }),
+                  )}
+                >
+                  Ver detalhes
+                </Link>
+                {canDistribute &&
+                canSendCaseToCancellation({
+                  status: item.status,
+                  cancellationProcess: null,
+                }) ? (
+                  <SendToCancellationRowAction
+                    caseId={item.id}
+                    customerName={item.customerName}
+                  />
+                ) : null}
+              </div>
             </div>
 
             <div className="mt-3 grid grid-cols-2 gap-3">
@@ -576,15 +589,27 @@ export function SupervisionCasesTable({
                     />
                   </TableCell>
                   <TableCell align="center">
-                    <Link
-                      to={`/supervisao/${item.id}`}
-                      className={cn(
-                        buttonVariants({ variant: 'secondary', size: 'sm' }),
-                        'justify-center',
-                      )}
-                    >
-                      Ver detalhes
-                    </Link>
+                    <div className="flex flex-col items-center gap-1">
+                      <Link
+                        to={`/supervisao/${item.id}`}
+                        className={cn(
+                          buttonVariants({ variant: 'secondary', size: 'sm' }),
+                          'justify-center',
+                        )}
+                      >
+                        Ver detalhes
+                      </Link>
+                      {canDistribute &&
+                      canSendCaseToCancellation({
+                        status: item.status,
+                        cancellationProcess: null,
+                      }) ? (
+                        <SendToCancellationRowAction
+                          caseId={item.id}
+                          customerName={item.customerName}
+                        />
+                      ) : null}
+                    </div>
                   </TableCell>
                 </TableRow>
               );

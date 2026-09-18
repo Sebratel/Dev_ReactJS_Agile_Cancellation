@@ -18,6 +18,7 @@ import { CollectionCasesQueryDto } from '@/modules/collection-cases/dto/collecti
 import { CreateCollectionAttemptDto } from '@/modules/collection-cases/dto/create-collection-attempt.dto';
 import { CreatePaymentPromiseDto } from '@/modules/collection-cases/dto/create-payment-promise.dto';
 import { SendToCancellationDto } from '@/modules/collection-cases/dto/send-to-cancellation.dto';
+import { BulkSendToCancellationDto } from '@/modules/collection-cases/dto/bulk-send-to-cancellation.dto';
 import { RevertCancellationDto } from '@/modules/collection-cases/dto/revert-cancellation.dto';
 import { UpdatePaymentPromiseStatusDto } from '@/modules/collection-cases/dto/update-payment-promise-status.dto';
 import { CollectionCasesService } from '@/modules/collection-cases/collection-cases.service';
@@ -185,6 +186,15 @@ export class CollectionCasesController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.collectionCasesService.sendToCancellation(caseId, body, user);
+  }
+
+  @Roles('SUPERVISOR', 'ADMIN')
+  @Post('send-to-cancellation-bulk')
+  bulkSendToCancellation(
+    @Body() body: BulkSendToCancellationDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.collectionCasesService.bulkSendToCancellation(body, user);
   }
 
   @Roles('COLLECTION_AGENT', 'SUPERVISOR', 'ADMIN')

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ChevronDown, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BulkContactWhatsAppAction } from '@/features/collection-cases/components/bulk-contact-whatsapp-action';
+import { BulkSendToCancellationAction } from '@/features/collection-cases/components/bulk-send-to-cancellation-action';
 import { type UserResponse } from '@/features/users/types/users-api.types';
 
 type BulkActionBarProps = {
@@ -80,6 +81,15 @@ export function BulkActionBar({
 
         <div className="shrink-0">
           <BulkContactWhatsAppAction
+            caseIds={selectedCaseIds}
+            onFinished={onClearSelection}
+          />
+        </div>
+
+        <div className="h-5 w-px shrink-0 bg-border" />
+
+        <div className="shrink-0">
+          <BulkSendToCancellationAction
             caseIds={selectedCaseIds}
             onFinished={onClearSelection}
           />

@@ -6,6 +6,8 @@ import {
   type AutoDistributeResponse,
   type BulkAssignCasesPayload,
   type BulkAssignCasesResponse,
+  type BulkSendToCancellationPayload,
+  type BulkSendToCancellationResponse,
   type CollectionAttemptResponse,
   type CollectionCaseDetailsResponse,
   type CollectionCaseTimelineResponse,
@@ -238,6 +240,17 @@ export async function cancelPaymentPromise(
 export async function bulkAssignCases(payload: BulkAssignCasesPayload) {
   const response = await httpClient.request<BulkAssignCasesResponse>({
     path: '/collection-cases/bulk-assign',
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  return response.data;
+}
+
+export async function bulkSendToCancellation(
+  payload: BulkSendToCancellationPayload,
+) {
+  const response = await httpClient.request<BulkSendToCancellationResponse>({
+    path: '/collection-cases/send-to-cancellation-bulk',
     method: 'POST',
     body: JSON.stringify(payload),
   });

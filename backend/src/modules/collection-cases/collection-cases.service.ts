@@ -7,6 +7,7 @@ import type { CreatePaymentPromiseDto } from '@/modules/collection-cases/dto/cre
 import type { UpdatePaymentPromiseStatusDto } from '@/modules/collection-cases/dto/update-payment-promise-status.dto';
 import type { PaymentPromiseResponse } from '@/modules/collection-cases/dto/payment-promise.response';
 import type { SendToCancellationDto } from '@/modules/collection-cases/dto/send-to-cancellation.dto';
+import type { BulkSendToCancellationDto } from '@/modules/collection-cases/dto/bulk-send-to-cancellation.dto';
 import type { RevertCancellationDto } from '@/modules/collection-cases/dto/revert-cancellation.dto';
 import type { AssignCaseDto } from '@/modules/collection-cases/dto/assign-case.dto';
 import type { BulkAssignCasesDto } from '@/modules/collection-cases/dto/bulk-assign-cases.dto';
@@ -481,6 +482,42 @@ export class CollectionCasesService {
     }
 
     return createApiResponse(result.cancellationProcess);
+  }
+
+  async bulkSendToCancellation(
+    dto: BulkSendToCancellationDto,
+    performer: AuthenticatedUser,
+  ) {
+    await this.assertCanSendToCancellation(performer);
+
+    const resolvedPerformerId = this.performedByResolver.resolve(performer.id);
+    const uniqueCaseIds = Array.from(new Set(dto.caseIds));
+
+    let sent = 0;
+    const skipped: Array<{ caseId: string; reason: string }> = [];
+
+    // Cada caso é encaminhado na sua própria transação (o repositório já é
+    // transacional por caso). Falha em um não derruba os demais — reportamos o
+    // resumo para a supervisão saber o que entrou e o que foi ignorado.
+    for (const caseId of uniqueCaseIds) {
+      const result = await this.collectionCasesRepository.sendToCancellation({
+        caseId,
+        input: { reason: dto.reason, notes: dto.notes },
+        performedByUserId: resolvedPerformerId,
+      });
+
+      if (result.outcome === 'success') {
+        sent += 1;
+      } else {
+        skipped.push({ caseId, reason: result.outcome });
+      }
+    }
+
+    return createApiResponse({
+      requested: uniqueCaseIds.length,
+      sent,
+      skipped,
+    });
   }
 
   async revertCancellation(
