@@ -228,11 +228,12 @@ function SupervisionCaseCards({
                 </div>
                 <div className="text-xs text-neutral">{item.contractCode}</div>
               </div>
-              <div className="flex shrink-0 flex-col items-end gap-1">
+              <div className="flex w-[132px] shrink-0 flex-col gap-1.5">
                 <Link
                   to={`/supervisao/${item.id}`}
                   className={cn(
                     buttonVariants({ variant: 'secondary', size: 'sm' }),
+                    'w-full justify-center',
                   )}
                 >
                   Ver detalhes
@@ -245,6 +246,7 @@ function SupervisionCaseCards({
                   <SendToCancellationRowAction
                     caseId={item.id}
                     customerName={item.customerName}
+                    className="w-full"
                   />
                 ) : null}
               </div>
@@ -589,12 +591,12 @@ export function SupervisionCasesTable({
                     />
                   </TableCell>
                   <TableCell align="center">
-                    <div className="flex flex-col items-center gap-1">
+                    <div className="mx-auto flex w-[132px] flex-col gap-1.5">
                       <Link
                         to={`/supervisao/${item.id}`}
                         className={cn(
                           buttonVariants({ variant: 'secondary', size: 'sm' }),
-                          'justify-center',
+                          'w-full justify-center',
                         )}
                       >
                         Ver detalhes
@@ -607,6 +609,7 @@ export function SupervisionCasesTable({
                         <SendToCancellationRowAction
                           caseId={item.id}
                           customerName={item.customerName}
+                          className="w-full"
                         />
                       ) : null}
                     </div>

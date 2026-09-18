@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { CancellationReasonDialog } from '@/features/collection-cases/components/cancellation-reason-dialog';
 import { useSendCaseToCancellation } from '@/features/collection-cases/hooks/use-send-case-to-cancellation';
 import { toast } from '@/lib/toast';
@@ -7,6 +8,7 @@ import { toast } from '@/lib/toast';
 type SendToCancellationRowActionProps = {
   caseId: string;
   customerName: string;
+  className?: string;
 };
 
 // Ação compacta para encaminhar um caso ao cancelamento direto da lista da
@@ -14,6 +16,7 @@ type SendToCancellationRowActionProps = {
 export function SendToCancellationRowAction({
   caseId,
   customerName,
+  className,
 }: SendToCancellationRowActionProps) {
   const [open, setOpen] = useState(false);
   const mutation = useSendCaseToCancellation(caseId);
@@ -24,7 +27,10 @@ export function SendToCancellationRowAction({
         type="button"
         variant="ghost"
         size="sm"
-        className="whitespace-nowrap text-danger hover:bg-danger/10"
+        className={cn(
+          'justify-center whitespace-nowrap text-danger ring-1 ring-danger/30 hover:bg-danger/10',
+          className,
+        )}
         onClick={() => setOpen(true)}
       >
         Cancelamento
