@@ -52,7 +52,7 @@ export function BulkActionBar({
             <option value="__remove__">— Remover atribuição</option>
             {agents.map((a) => (
               <option key={a.id} value={a.id}>
-                {a.name} - {a.email}
+                {a.name}
                 {workload ? ` (${workload[a.id] ?? 0} casos)` : ''}
               </option>
             ))}
