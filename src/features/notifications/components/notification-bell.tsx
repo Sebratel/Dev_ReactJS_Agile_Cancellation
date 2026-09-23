@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { BadgeCheck, Bell, BellRing, CheckCheck, TriangleAlert } from 'lucide-react';
+import { BadgeCheck, Ban, Bell, BellRing, CheckCheck, TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNotifications } from '@/features/notifications/hooks/use-notifications';
 import { useUnreadNotificationsCount } from '@/features/notifications/hooks/use-unread-notifications-count';
@@ -28,10 +28,23 @@ function isRecoveryNotification(notification: NotificationResponse) {
   );
 }
 
+function isCancellationNotification(notification: NotificationResponse) {
+  return (
+    notification.type === 'CASE_CANCELLED_EXTERNAL' ||
+    notification.type === 'CASES_CANCELLED_EXTERNAL_SUMMARY'
+  );
+}
+
 const RECOVERY_TONE = {
   icon: BadgeCheck,
   label: 'Cliente regularizado',
   className: 'border-success/30 bg-success/10 text-success',
+};
+
+const CANCELLATION_TONE = {
+  icon: Ban,
+  label: 'Cliente cancelou',
+  className: 'border-danger/30 bg-danger/10 text-danger',
 };
 
 function getPromiseNotificationTone(type: string) {
@@ -177,7 +190,9 @@ export function NotificationBell() {
                     ? promiseTone
                     : isRecoveryNotification(notification)
                       ? RECOVERY_TONE
-                      : null;
+                      : isCancellationNotification(notification)
+                        ? CANCELLATION_TONE
+                        : null;
                   const ToneIcon = tone?.icon;
 
                   const content = (

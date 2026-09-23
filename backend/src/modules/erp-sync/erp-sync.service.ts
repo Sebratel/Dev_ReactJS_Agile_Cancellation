@@ -33,6 +33,14 @@ import {
   buildRecoveryWebhookPayload,
   type RecoveredCaseForNotification,
 } from '@/modules/erp-sync/recovery-notifications.builder';
+import {
+  buildCancellationNotifications,
+  type CancelledCaseForNotification,
+} from '@/modules/erp-sync/cancellation-notifications.builder';
+import {
+  isContractRegularized,
+  type ErpContractReconcileStatus,
+} from '@/modules/erp-sync/reconcile-classification';
 
 /**
  * Elegibilidade: contratos com 2 vencimentos consecutivos em aberto (ontem e
@@ -124,6 +132,33 @@ type ErpOpenTitleRow = {
   title_amount: string;
   outstanding_amount: string;
   expiration_date: Date;
+};
+
+// Estado REAL do contrato no ERP para os casos que sumiram da regra — SEM o
+// filtro de v_status elegivel, para distinguir pagamento de cancelamento.
+// Retorna o status atual e a contagem de titulos vencidos em aberto.
+const CONTRACT_RECONCILE_STATUS_QUERY = `
+SELECT
+  c.public_id::text AS contract_external_id,
+  c.v_status::text  AS erp_contract_status,
+  COUNT(fr.id) FILTER (
+    WHERE fr.bill_title_id IS NULL
+      AND fr.renegotiated IS false
+      AND fr.deleted IS false
+      AND x.client_paid_date IS NULL
+      AND DATE(fr.expiration_date) < CURRENT_DATE
+  )::int AS open_overdue_titles
+FROM erp.contracts c
+LEFT JOIN erp.financial_receivable_titles fr ON fr.contract_id = c.id
+LEFT JOIN erp.financial_receipt_titles x ON x.financial_receivable_title_id = fr.id
+WHERE c.public_id = ANY($1::uuid[])
+GROUP BY c.public_id, c.v_status;
+`;
+
+type ErpContractReconcileStatusRow = {
+  contract_external_id: string;
+  erp_contract_status: string | null;
+  open_overdue_titles: number;
 };
 
 @Injectable()
@@ -403,10 +438,64 @@ export class ErpSyncService {
       return;
     }
 
-    const caseIds = casesToRecover.map((collectionCase) => collectionCase.id);
+    // Classifica os casos que sumiram da regra: pagamento (regularizou) x
+    // cancelamento/mudança de status. Sem isso, um contrato cancelado era
+    // creditado como "recuperado" e disparava notificação falsa.
+    const recoverExternalIds = casesToRecover
+      .map((collectionCase) => collectionCase.externalId)
+      .filter(
+        (externalId): externalId is string =>
+          Boolean(externalId && uuidPattern.test(externalId)),
+      );
+
+    const contractStatusByExternalId = new Map<
+      string,
+      ErpContractReconcileStatus
+    >();
+
+    if (recoverExternalIds.length > 0) {
+      try {
+        const pool = this.getPool(config.db);
+        const statusResult = await pool.query<ErpContractReconcileStatusRow>(
+          CONTRACT_RECONCILE_STATUS_QUERY,
+          [recoverExternalIds],
+        );
+
+        for (const row of statusResult.rows) {
+          contractStatusByExternalId.set(row.contract_external_id, {
+            erpContractStatus: row.erp_contract_status,
+            openOverdueTitles: Number(row.open_overdue_titles),
+          });
+        }
+      } catch (error) {
+        this.logger.error(
+          'Falha ao classificar casos (pagamento x cancelamento) no ERP. Reconciliacao abortada nesta rodada.',
+          error instanceof Error ? error.stack : String(error),
+        );
+        return;
+      }
+    }
+
+    const paidCases = casesToRecover.filter((collectionCase) =>
+      isContractRegularized(
+        collectionCase.externalId
+          ? contractStatusByExternalId.get(collectionCase.externalId)
+          : undefined,
+      ),
+    );
+    const paidCaseIdSet = new Set(paidCases.map((c) => c.id));
+    const cancelledCases = casesToRecover.filter(
+      (collectionCase) => !paidCaseIdSet.has(collectionCase.id),
+    );
+
+    // Efeitos de "recuperado" valem SÓ para quem pagou de fato.
+    const caseIds = paidCases.map((collectionCase) => collectionCase.id);
     const contractIds = [
-      ...new Set(casesToRecover.map((collectionCase) => collectionCase.contractId)),
+      ...new Set(paidCases.map((collectionCase) => collectionCase.contractId)),
     ];
+    const cancelledCaseIds = cancelledCases.map(
+      (collectionCase) => collectionCase.id,
+    );
     const cancellableProcessStatuses: CancellationStatus[] = [
       CancellationStatus.PENDING,
       CancellationStatus.IN_PROGRESS,
@@ -513,7 +602,7 @@ export class ErpSyncService {
         },
       });
 
-      for (const collectionCase of casesToRecover) {
+      for (const collectionCase of paidCases) {
         await tx.auditLog.create({
           data: {
             entityType: 'COLLECTION_CASE',
@@ -549,18 +638,61 @@ export class ErpSyncService {
         });
       }
 
+      // Casos que sairam da regra por CANCELAMENTO (nao pagamento): encerra o
+      // caso (para nao reprocessar/renotificar a cada rodada) SEM creditar
+      // recuperacao (recoveredAt fica nulo).
+      if (cancelledCaseIds.length > 0) {
+        await tx.collectionCase.updateMany({
+          where: { id: { in: cancelledCaseIds } },
+          data: {
+            status: CollectionStatus.CLOSED,
+            updatedAt: now,
+          },
+        });
+
+        for (const collectionCase of cancelledCases) {
+          await tx.auditLog.create({
+            data: {
+              entityType: 'COLLECTION_CASE',
+              entityId: collectionCase.id,
+              action: AuditAction.STATUS_CHANGE,
+              beforeSnapshot: {
+                status: collectionCase.status,
+                outstandingAmount: collectionCase.outstandingAmount.toString(),
+                daysOverdue: collectionCase.daysOverdue,
+              },
+              afterSnapshot: {
+                status: CollectionStatus.CLOSED,
+              },
+              metadata: {
+                resourceType: 'COLLECTION_CASE',
+                action: 'ERP_SYNC_CANCELLATION_RECONCILIATION',
+                source: ERP_SYNC_SOURCE,
+                reason:
+                  'Contrato saiu da regra do ERP por cancelamento/mudanca de status (nao houve pagamento).',
+                externalId: collectionCase.externalId,
+              },
+            },
+          });
+        }
+      }
+
       await tx.integrationEvent.create({
         data: {
           source: ERP_SYNC_SOURCE,
           eventType: 'collection_cases.reconcile_recovered',
           status: IntegrationEventStatus.COMPLETED,
           payload: {
-            recoveredCases: casesToRecover.length,
+            recoveredCases: paidCases.length,
+            cancelledCases: cancelledCases.length,
             refreshedCases: casesToRefresh.length,
             refreshedContracts: casesToRefresh.length,
             checkedCases: syncedCases.length,
             openTitles: openTitleRows.length,
-            recoveredExternalIds: casesToRecover.map(
+            recoveredExternalIds: paidCases.map(
+              (collectionCase) => collectionCase.externalId,
+            ),
+            cancelledExternalIds: cancelledCases.map(
               (collectionCase) => collectionCase.externalId,
             ),
           },
@@ -573,12 +705,66 @@ export class ErpSyncService {
     });
 
     this.logger.log(
-      `Reconciliacao ERP concluida: ${casesToRecover.length} caso(s) marcado(s) como recuperado(s).`,
+      `Reconciliacao ERP concluida: ${paidCases.length} recuperado(s), ${cancelledCases.length} cancelado(s).`,
     );
 
     // Notifica apos o commit — nunca dentro da transacao. Falhas aqui sao
-    // engolidas para nao reverter a recuperacao ja persistida.
-    await this.dispatchRecoveryNotifications(casesToRecover);
+    // engolidas para nao reverter o que ja foi persistido.
+    await this.dispatchRecoveryNotifications(paidCases);
+    await this.dispatchCancellationNotifications(cancelledCases);
+  }
+
+  private async dispatchCancellationNotifications(
+    cancelled: Array<{
+      id: string;
+      customer: { name: string } | null;
+      assignedUser: { id: string; name: string; email: string | null } | null;
+    }>,
+  ): Promise<void> {
+    if (cancelled.length === 0) {
+      return;
+    }
+
+    try {
+      const cases: CancelledCaseForNotification[] = cancelled.map((item) => ({
+        caseId: item.id,
+        customerName: item.customer?.name ?? 'Cliente',
+        assignedUser: item.assignedUser
+          ? {
+              id: item.assignedUser.id,
+              name: item.assignedUser.name,
+              email: item.assignedUser.email,
+            }
+          : null,
+      }));
+
+      const { agentNotifications, supervisorSummary } =
+        buildCancellationNotifications(cases);
+
+      for (const notification of agentNotifications) {
+        await this.notificationsService.notify({
+          userId: notification.userId,
+          type: 'CASE_CANCELLED_EXTERNAL',
+          title: notification.title,
+          body: notification.body,
+          entityType: 'COLLECTION_CASE',
+          entityId: notification.entityId,
+        });
+      }
+
+      if (supervisorSummary) {
+        await this.notificationsService.notifySupervisors({
+          type: 'CASES_CANCELLED_EXTERNAL_SUMMARY',
+          title: supervisorSummary.title,
+          body: supervisorSummary.body,
+        });
+      }
+    } catch (error) {
+      this.logger.error(
+        'Falha ao enviar notificacoes de cancelamento externo.',
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
   }
 
   private async dispatchRecoveryNotifications(
