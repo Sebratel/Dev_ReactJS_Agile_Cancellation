@@ -135,6 +135,30 @@ function AndamentoBadges({
   );
 }
 
+const PRIORITY_DOT_CLASS: Record<string, string> = {
+  success: 'bg-success',
+  warning: 'bg-warning',
+  danger: 'bg-danger',
+  neutral: 'bg-neutral/60',
+};
+
+// Prioridade como ponto colorido (layout compacto) — cor por variante, com
+// rótulo acessível/tooltip para não depender só da cor.
+function PriorityDot({ item }: { item: CollectionCaseListItemResponse }) {
+  const variant = getPriorityVariant(item.priority);
+  const label = getPriorityLabel(item.priority);
+  return (
+    <span
+      className={cn(
+        'inline-block h-2 w-2 shrink-0 rounded-full',
+        PRIORITY_DOT_CLASS[variant] ?? 'bg-neutral/60',
+      )}
+      title={`Prioridade: ${label}`}
+      aria-label={`Prioridade ${label}`}
+    />
+  );
+}
+
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
     <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-neutral">
@@ -434,16 +458,14 @@ export function SupervisionCasesTable({
         className="max-h-[70vh] overflow-y-auto"
         data-supervision-table-scroll
       >
-        <Table className="min-w-[980px] table-fixed">
+        <Table className="min-w-[900px] table-fixed">
           <colgroup>
             {canDistribute ? <col className="w-10" /> : null}
-            <col className="w-[22%]" />
-            <col className="w-[16%]" />
-            <col className="w-[15%]" />
+            <col className="w-[28%]" />
+            <col className="w-[18%]" />
+            <col className="w-[24%]" />
+            <col className="w-[20%]" />
             <col className="w-[10%]" />
-            <col className="w-[17%]" />
-            <col className="w-[12%]" />
-            <col className="w-[8%]" />
           </colgroup>
           <TableHead sticky>
             <tr>
@@ -457,7 +479,6 @@ export function SupervisionCasesTable({
                 </th>
               ) : null}
               <TableHeaderCell>Cliente</TableHeaderCell>
-              <TableHeaderCell>Contrato</TableHeaderCell>
               <TableHeaderCell align="center">
                 <button
                   type="button"
@@ -481,20 +502,22 @@ export function SupervisionCasesTable({
                   </span>
                 </button>
               </TableHeaderCell>
-              <TableHeaderCell align="center">Tentativas</TableHeaderCell>
+              <TableHeaderCell>Situação</TableHeaderCell>
               <TableHeaderCell>Responsável</TableHeaderCell>
-              <TableHeaderCell align="center">Andamento</TableHeaderCell>
               <TableHeaderCell align="center">Ação</TableHeaderCell>
             </tr>
           </TableHead>
           <TableBody>
             {items.map((item) => {
               const sla = getSlaPresentation(item.slaDueAt);
+              const matrixReply = getMatrixReplyPresentation(item);
               const isSelected = selectedIds.has(item.id);
               const isCritical =
                 CRITICAL_STATUSES.has(item.status) ||
                 item.priority === 'CRITICAL' ||
                 sla.variant === 'danger';
+              const attemptsLabel =
+                item.totalAttempts === 1 ? 'tentativa' : 'tentativas';
 
               return (
                 <TableRow
@@ -527,30 +550,9 @@ export function SupervisionCasesTable({
                         customerPhone={item.customerPhone}
                       />
                     </div>
-                  </TableCell>
-                  <TableCell className="text-neutral">
-                    <div className="space-y-1">
-                      <div className="font-medium text-foreground">
-                        {item.contractCode}
-                      </div>
-                      <div className="text-xs">
-                        1º venc.{' '}
-                        <span className="tabular-nums">
-                          {formatDateOnlyPtBR(item.firstOverdueDate) ??
-                            'Não informado'}
-                        </span>
-                      </div>
-                      <div className="text-xs">
-                        2º venc.{' '}
-                        <span className="tabular-nums">
-                          {formatDateOnlyPtBR(item.secondOverdueDate) ??
-                            'Não informado'}
-                        </span>
-                      </div>
-                      <StatusBadge
-                        label={getContractStatusLabel(item.contractStatus)}
-                        variant={getContractStatusVariant(item.contractStatus)}
-                      />
+                    <div className="mt-0.5 text-xs font-normal text-neutral">
+                      Contrato {item.contractCode} ·{' '}
+                      {formatInteger(item.totalAttempts)} {attemptsLabel}
                     </div>
                   </TableCell>
                   <TableCell align="center">
@@ -566,10 +568,19 @@ export function SupervisionCasesTable({
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell align="center">
-                    <span className="text-sm font-semibold tabular-nums">
-                      {formatInteger(item.totalAttempts)}
-                    </span>
+                  <TableCell>
+                    <div className="flex flex-col gap-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <PriorityDot item={item} />
+                        <span className="font-medium text-foreground">
+                          {getCollectionStatusLabel(item.status)}
+                        </span>
+                      </div>
+                      <div className="text-xs text-neutral">
+                        {matrixReply.label} ·{' '}
+                        {getContractStatusLabel(item.contractStatus)}
+                      </div>
+                    </div>
                   </TableCell>
                   <TableCell className="text-neutral">
                     {canDistribute ? (
@@ -583,12 +594,6 @@ export function SupervisionCasesTable({
                     ) : (
                       item.assignedTo?.name ?? 'Não atribuído'
                     )}
-                  </TableCell>
-                  <TableCell align="center">
-                    <AndamentoBadges
-                      item={item}
-                      className="flex flex-col items-center gap-1"
-                    />
                   </TableCell>
                   <TableCell align="center">
                     <div className="mx-auto flex w-[132px] flex-col gap-1.5">
