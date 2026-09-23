@@ -105,6 +105,8 @@ export type RecordWhatsAppContactIntegrationResult = {
 export type SendToCancellationInput = {
   reason: string;
   notes?: string;
+  // Agente de cancelamento que recebera o caso (obrigatorio).
+  assignedUserId: string;
 };
 
 export type SendToCancellationParams = {
@@ -117,7 +119,8 @@ export type SendToCancellationResult =
   | { outcome: 'success'; cancellationProcess: CancellationProcessResponse }
   | { outcome: 'case_not_found' }
   | { outcome: 'already_in_cancellation' }
-  | { outcome: 'status_not_allowed'; currentStatus: string };
+  | { outcome: 'status_not_allowed'; currentStatus: string }
+  | { outcome: 'assignee_invalid' };
 
 export type AssignCaseParams = {
   caseId: string;

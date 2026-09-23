@@ -508,7 +508,11 @@ export class CollectionCasesService {
     for (const caseId of uniqueCaseIds) {
       const result = await this.collectionCasesRepository.sendToCancellation({
         caseId,
-        input: { reason: dto.reason, notes: dto.notes },
+        input: {
+          reason: dto.reason,
+          notes: dto.notes,
+          assignedUserId: dto.assignedUserId,
+        },
         performedByUserId: resolvedPerformerId,
       });
 
@@ -678,6 +682,13 @@ export class CollectionCasesService {
       throw new AppException(
         `Caso de cobrança ${caseId} não pode ser encaminhado para cancelamento a partir do status ${result.currentStatus}.`,
         HttpStatus.CONFLICT,
+      );
+    }
+
+    if (result.outcome === 'assignee_invalid') {
+      throw new AppException(
+        'Selecione um agente de cancelamento ativo para receber o caso.',
+        HttpStatus.UNPROCESSABLE_ENTITY,
       );
     }
   }

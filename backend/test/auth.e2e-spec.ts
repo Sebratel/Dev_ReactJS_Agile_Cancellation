@@ -244,7 +244,10 @@ describe('Auth (e2e)', () => {
     await request(httpServer)
       .post('/collection-cases/case_0001/send-to-cancellation')
       .set(authHeader(agent.accessToken))
-      .send({ reason: 'Tentativa sem permissao.' })
+      .send({
+        reason: 'Tentativa sem permissao.',
+        assignedUserId: 'user-cancellation',
+      })
       .expect(403);
   });
 
@@ -256,7 +259,10 @@ describe('Auth (e2e)', () => {
     const sendResponse = await request(httpServer)
       .post('/collection-cases/case_0001/send-to-cancellation')
       .set(authHeader(supervisor.accessToken))
-      .send({ reason: 'Encaminhamento para teste de auth.' })
+      .send({
+        reason: 'Encaminhamento para teste de auth.',
+        assignedUserId: 'user-cancellation',
+      })
       .expect(201);
 
     const cancellationId = (sendResponse.body as ApiEnvelope<{ id: string }>)

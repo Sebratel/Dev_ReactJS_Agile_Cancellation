@@ -14,7 +14,7 @@ describe('resetMockCollectionCases', () => {
   it('restaura status e cancelamento apos mutacao', async () => {
     await repository.sendToCancellation({
       caseId: 'case_0002',
-      input: { reason: 'Motivo de teste.' },
+      input: { reason: 'Motivo de teste.', assignedUserId: 'usr_cancel' },
       performedByUserId: 'usr_marina',
     });
 

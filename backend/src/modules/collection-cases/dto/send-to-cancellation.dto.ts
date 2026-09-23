@@ -10,4 +10,9 @@ export class SendToCancellationDto {
   @IsString()
   @MaxLength(1000)
   notes?: string;
+
+  // Agente de cancelamento que recebera o caso (obrigatorio).
+  @IsString()
+  @IsNotEmpty()
+  assignedUserId!: string;
 }

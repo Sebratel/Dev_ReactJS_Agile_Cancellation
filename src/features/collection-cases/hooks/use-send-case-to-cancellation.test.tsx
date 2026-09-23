@@ -34,11 +34,13 @@ describe('useSendCaseToCancellation', () => {
 
     await result.current.mutateAsync({
       reason: 'Cliente recusou acordo.',
+      assignedUserId: 'user-cancellation',
     });
 
     await waitFor(() => {
       expect(sendCaseToCancellation).toHaveBeenCalledWith('case_0001', {
         reason: 'Cliente recusou acordo.',
+        assignedUserId: 'user-cancellation',
       });
     });
 

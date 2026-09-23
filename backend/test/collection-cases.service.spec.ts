@@ -563,14 +563,17 @@ describe('CollectionCasesService', () => {
     const { service, resolvePerformedBy } = createService(repository);
     const response = await service.sendToCancellation(
       'case_0001',
-      { reason: 'Cliente recusou acordo.' },
+      { reason: 'Cliente recusou acordo.', assignedUserId: 'usr_cancel' },
       supervisorPerformer,
     );
 
     expect(resolvePerformedBy).toHaveBeenCalledWith('usr_custom');
     expect(sendToCancellation).toHaveBeenCalledWith({
       caseId: 'case_0001',
-      input: { reason: 'Cliente recusou acordo.' },
+      input: {
+        reason: 'Cliente recusou acordo.',
+        assignedUserId: 'usr_cancel',
+      },
       performedByUserId: 'usr_marina',
     });
     expect(response.data.id).toBe('can_new');
@@ -588,9 +591,7 @@ describe('CollectionCasesService', () => {
     await expect(
       service.sendToCancellation(
         'case_0001',
-        {
-          reason: 'Cliente recusou acordo.',
-        },
+        { reason: 'Cliente recusou acordo.', assignedUserId: 'usr_cancel' },
         supervisorPerformer,
       ),
     ).rejects.toMatchObject({
@@ -611,9 +612,7 @@ describe('CollectionCasesService', () => {
     await expect(
       service.sendToCancellation(
         'case_0001',
-        {
-          reason: 'Cliente recusou acordo.',
-        },
+        { reason: 'Cliente recusou acordo.', assignedUserId: 'usr_cancel' },
         supervisorPerformer,
       ),
     ).rejects.toMatchObject({
@@ -631,7 +630,7 @@ describe('CollectionCasesService', () => {
     await expect(
       service.sendToCancellation(
         'case_0001',
-        { reason: 'Cliente recusou acordo.' },
+        { reason: 'Cliente recusou acordo.', assignedUserId: 'usr_cancel' },
         agentPerformer,
       ),
     ).rejects.toMatchObject({
@@ -662,7 +661,7 @@ describe('CollectionCasesService', () => {
 
     const response = await service.sendToCancellation(
       'case_0001',
-      { reason: 'Cliente recusou acordo.' },
+      { reason: 'Cliente recusou acordo.', assignedUserId: 'usr_cancel' },
       agentPerformer,
     );
 
@@ -682,7 +681,11 @@ describe('CollectionCasesService', () => {
 
     const { service } = createService(repository);
     const response = await service.bulkSendToCancellation(
-      { caseIds: ['case_0001', 'case_0002'], reason: 'Motivo em lote' },
+      {
+        caseIds: ['case_0001', 'case_0002'],
+        reason: 'Motivo em lote',
+        assignedUserId: 'usr_cancel',
+      },
       supervisorPerformer,
     );
 
@@ -703,7 +706,11 @@ describe('CollectionCasesService', () => {
 
     const { service } = createService(repository);
     const response = await service.bulkSendToCancellation(
-      { caseIds: ['case_0001', 'case_0001'], reason: 'Motivo' },
+      {
+        caseIds: ['case_0001', 'case_0001'],
+        reason: 'Motivo',
+        assignedUserId: 'usr_cancel',
+      },
       supervisorPerformer,
     );
 

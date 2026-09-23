@@ -624,6 +624,20 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
       };
     }
 
+    // O responsavel escolhido precisa ser um agente de cancelamento ativo.
+    const assignee = await this.prisma.user.findFirst({
+      where: {
+        id: input.assignedUserId,
+        status: UserStatus.ACTIVE,
+        userRoles: { some: { role: { code: 'CANCELLATION_AGENT' } } },
+      },
+      select: { id: true },
+    });
+
+    if (!assignee) {
+      return { outcome: 'assignee_invalid' };
+    }
+
     const now = new Date();
     const beforeSnapshot: Prisma.InputJsonValue = {
       status: existingCase.status,
@@ -646,22 +660,21 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
         data: buildDefaultCancellationStepsForPrisma(process.id),
       });
 
-      // Ao entrar em cancelamento o caso deixa de ser da cobranca: limpamos a
-      // atribuicao para ele sair da carteira do atendente e aparecer como "Sem
-      // responsavel" na tela de Cancelamentos, pronto para ser distribuido a um
-      // agente de cancelamento (mesmo campo assignedUserId, por etapa).
+      // Ao entrar em cancelamento o caso passa a ser do agente de cancelamento
+      // escolhido por quem enviou (sai da carteira de cobranca e ja cai na
+      // carteira do agente de cancelamento — mesmo campo assignedUserId).
       await tx.collectionCase.update({
         where: { id: caseId },
         data: {
           status: CollectionStatus.CANCELLATION_IN_PROGRESS,
-          assignedUserId: null,
+          assignedUserId: input.assignedUserId,
           updatedAt: now,
         },
       });
 
       const afterSnapshot: Prisma.InputJsonValue = {
         status: CollectionStatus.CANCELLATION_IN_PROGRESS,
-        assignedUserId: null,
+        assignedUserId: input.assignedUserId,
         cancellationProcess: {
           id: process.id,
           status: process.status,

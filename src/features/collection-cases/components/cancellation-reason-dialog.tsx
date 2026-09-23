@@ -4,6 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
 import { Textarea } from '@/components/ui/textarea';
 
+type CancellationAgentOption = {
+  id: string;
+  name: string;
+};
+
 type CancellationReasonDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -12,8 +17,14 @@ type CancellationReasonDialogProps = {
   confirmLabel: string;
   pendingLabel: string;
   isPending: boolean;
+  agents: CancellationAgentOption[];
+  agentsLoading: boolean;
   /** Deve lançar em caso de erro para manter o diálogo aberto. */
-  onConfirm: (reason: string, notes?: string) => Promise<void>;
+  onConfirm: (
+    reason: string,
+    notes: string | undefined,
+    assignedUserId: string,
+  ) => Promise<void>;
 };
 
 export function CancellationReasonDialog({
@@ -24,17 +35,21 @@ export function CancellationReasonDialog({
   confirmLabel,
   pendingLabel,
   isPending,
+  agents,
+  agentsLoading,
   onConfirm,
 }: CancellationReasonDialogProps) {
   const fieldId = useId();
   const [reason, setReason] = useState('');
   const [notes, setNotes] = useState('');
+  const [assigneeId, setAssigneeId] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const reset = () => {
     setReason('');
     setNotes('');
+    setAssigneeId('');
     setValidationError(null);
     setErrorMessage(null);
   };
@@ -48,6 +63,11 @@ export function CancellationReasonDialog({
 
   const handleConfirm = async () => {
     const trimmedReason = reason.trim();
+
+    if (!assigneeId) {
+      setValidationError('Selecione o atendente do cancelamento.');
+      return;
+    }
 
     if (!trimmedReason) {
       setValidationError('Informe o motivo do encaminhamento.');
@@ -63,7 +83,11 @@ export function CancellationReasonDialog({
     setErrorMessage(null);
 
     try {
-      await onConfirm(trimmedReason, notes.trim() ? notes.trim() : undefined);
+      await onConfirm(
+        trimmedReason,
+        notes.trim() ? notes.trim() : undefined,
+        assigneeId,
+      );
       reset();
       onOpenChange(false);
     } catch (error) {
@@ -88,6 +112,30 @@ export function CancellationReasonDialog({
           </AlertDialog.Description>
 
           <div className="mt-4 space-y-4">
+            <Field
+              label="Atendente do cancelamento"
+              htmlFor={`assignee-${fieldId}`}
+            >
+              <select
+                id={`assignee-${fieldId}`}
+                value={assigneeId}
+                onChange={(event) => setAssigneeId(event.target.value)}
+                disabled={agentsLoading || isPending}
+                className="h-10 w-full rounded-lg border border-input bg-card px-3 text-sm text-foreground transition-colors hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <option value="">
+                  {agentsLoading
+                    ? 'Carregando atendentes...'
+                    : 'Selecione o atendente...'}
+                </option>
+                {agents.map((agent) => (
+                  <option key={agent.id} value={agent.id}>
+                    {agent.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
             <Field label="Motivo" htmlFor={`reason-${fieldId}`}>
               <Textarea
                 id={`reason-${fieldId}`}

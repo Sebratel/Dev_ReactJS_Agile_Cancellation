@@ -212,6 +212,7 @@ export type CollectionCasePortfoliosResponse = {
 export type SendToCancellationPayload = {
   reason: string;
   notes?: string;
+  assignedUserId: string;
 };
 
 export type RevertCancellationPayload = {
@@ -279,6 +280,7 @@ export type BulkSendToCancellationPayload = {
   caseIds: string[];
   reason: string;
   notes?: string;
+  assignedUserId: string;
 };
 
 export type BulkSendToCancellationResponse = {

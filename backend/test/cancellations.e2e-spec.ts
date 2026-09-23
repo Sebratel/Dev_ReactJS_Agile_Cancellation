@@ -67,7 +67,10 @@ describe('Cancellations (e2e)', () => {
     const response = await request(httpServer)
       .post('/collection-cases/case_0001/send-to-cancellation')
       .set(authHeader(adminToken))
-      .send({ reason: 'Encaminhamento para testes de etapas.' })
+      .send({
+        reason: 'Encaminhamento para testes de etapas.',
+        assignedUserId: 'user-cancellation',
+      })
       .expect(201);
 
     const body = response.body as ApiEnvelope<{ id: string }>;
@@ -524,7 +527,10 @@ describe('Cancellations Eleven disabled (e2e)', () => {
     const response = await request(httpServer)
       .post('/collection-cases/case_0001/send-to-cancellation')
       .set(authHeader(adminToken))
-      .send({ reason: 'Teste Eleven disabled.' })
+      .send({
+        reason: 'Teste Eleven disabled.',
+        assignedUserId: 'user-cancellation',
+      })
       .expect(201);
 
     const body = response.body as ApiEnvelope<{ id: string }>;

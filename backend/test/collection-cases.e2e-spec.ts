@@ -569,6 +569,7 @@ describe('Collection cases (e2e)', () => {
       .send({
         reason: 'Cliente recusou acordo de pagamento.',
         notes: 'Encaminhado apos tentativas sem sucesso.',
+        assignedUserId: 'user-cancellation',
       })
       .expect(201);
 
@@ -620,7 +621,7 @@ describe('Collection cases (e2e)', () => {
 
     await api(httpServer)
       .post('/collection-cases/case_inexistente/send-to-cancellation')
-      .send({ reason: 'Motivo valido.' })
+      .send({ reason: 'Motivo valido.', assignedUserId: 'user-cancellation' })
       .expect(404);
   });
 
@@ -629,12 +630,12 @@ describe('Collection cases (e2e)', () => {
 
     await api(httpServer)
       .post('/collection-cases/case_0002/send-to-cancellation')
-      .send({ reason: 'Primeiro encaminhamento.' })
+      .send({ reason: 'Primeiro encaminhamento.', assignedUserId: 'user-cancellation' })
       .expect(201);
 
     await api(httpServer)
       .post('/collection-cases/case_0002/send-to-cancellation')
-      .send({ reason: 'Segundo encaminhamento.' })
+      .send({ reason: 'Segundo encaminhamento.', assignedUserId: 'user-cancellation' })
       .expect(409);
   });
 
@@ -643,7 +644,7 @@ describe('Collection cases (e2e)', () => {
 
     await api(httpServer)
       .post('/collection-cases/case_recovered/send-to-cancellation')
-      .send({ reason: 'Tentativa invalida.' })
+      .send({ reason: 'Tentativa invalida.', assignedUserId: 'user-cancellation' })
       .expect(409);
   });
 });

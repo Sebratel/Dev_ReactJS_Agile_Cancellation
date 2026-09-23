@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { CancellationReasonDialog } from '@/features/collection-cases/components/cancellation-reason-dialog';
 import { useBulkSendToCancellation } from '@/features/collection-cases/hooks/use-bulk-send-to-cancellation';
+import { useCancellationAgents } from '@/features/cancellations/hooks/use-cancellation-agents';
 import { toast } from '@/lib/toast';
 
 type BulkSendToCancellationActionProps = {
@@ -21,6 +22,8 @@ export function BulkSendToCancellationAction({
 }: BulkSendToCancellationActionProps) {
   const [open, setOpen] = useState(false);
   const mutation = useBulkSendToCancellation();
+  const agentsQuery = useCancellationAgents(open);
+  const agents = agentsQuery.data?.items ?? [];
   const count = caseIds.length;
 
   return (
@@ -44,8 +47,15 @@ export function BulkSendToCancellationAction({
         confirmLabel={`Encaminhar ${count}`}
         pendingLabel="Encaminhando..."
         isPending={mutation.isPending}
-        onConfirm={async (reason, notes) => {
-          const result = await mutation.mutateAsync({ caseIds, reason, notes });
+        agents={agents}
+        agentsLoading={agentsQuery.isLoading}
+        onConfirm={async (reason, notes, assignedUserId) => {
+          const result = await mutation.mutateAsync({
+            caseIds,
+            reason,
+            notes,
+            assignedUserId,
+          });
 
           if (result.sent === 0) {
             toast.error(

@@ -423,6 +423,7 @@ describe('CollectionCasesMockRepository', () => {
       input: {
         reason: 'Cliente recusou acordo.',
         notes: 'Sem retorno.',
+        assignedUserId: 'usr_cancel',
       },
       performedByUserId: 'usr_marina',
     });
@@ -444,13 +445,13 @@ describe('CollectionCasesMockRepository', () => {
   it('retorna already_in_cancellation ao reencaminhar caso', async () => {
     await repository.sendToCancellation({
       caseId: 'case_0002',
-      input: { reason: 'Primeiro encaminhamento.' },
+      input: { reason: 'Primeiro encaminhamento.', assignedUserId: 'usr_cancel' },
       performedByUserId: 'usr_marina',
     });
 
     const result = await repository.sendToCancellation({
       caseId: 'case_0002',
-      input: { reason: 'Segundo encaminhamento.' },
+      input: { reason: 'Segundo encaminhamento.', assignedUserId: 'usr_cancel' },
       performedByUserId: 'usr_marina',
     });
 

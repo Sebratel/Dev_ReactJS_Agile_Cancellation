@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { CancellationReasonDialog } from '@/features/collection-cases/components/cancellation-reason-dialog';
 import { useSendCaseToCancellation } from '@/features/collection-cases/hooks/use-send-case-to-cancellation';
+import { useCancellationAgents } from '@/features/cancellations/hooks/use-cancellation-agents';
 import { toast } from '@/lib/toast';
 
 type SendToCancellationRowActionProps = {
@@ -20,6 +21,8 @@ export function SendToCancellationRowAction({
 }: SendToCancellationRowActionProps) {
   const [open, setOpen] = useState(false);
   const mutation = useSendCaseToCancellation(caseId);
+  const agentsQuery = useCancellationAgents(open);
+  const agents = agentsQuery.data?.items ?? [];
 
   return (
     <>
@@ -44,8 +47,10 @@ export function SendToCancellationRowAction({
         confirmLabel="Confirmar encaminhamento"
         pendingLabel="Encaminhando..."
         isPending={mutation.isPending}
-        onConfirm={async (reason, notes) => {
-          await mutation.mutateAsync({ reason, notes });
+        agents={agents}
+        agentsLoading={agentsQuery.isLoading}
+        onConfirm={async (reason, notes, assignedUserId) => {
+          await mutation.mutateAsync({ reason, notes, assignedUserId });
           toast.success('Caso encaminhado para cancelamento.');
         }}
       />

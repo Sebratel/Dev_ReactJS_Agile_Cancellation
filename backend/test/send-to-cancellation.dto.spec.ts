@@ -7,11 +7,24 @@ describe('SendToCancellationDto', () => {
     const dto = plainToInstance(SendToCancellationDto, {
       reason: 'Cliente recusou acordo.',
       notes: 'Encaminhado apos tentativas.',
+      assignedUserId: 'user-cancellation',
     });
 
     const errors = await validate(dto);
 
     expect(errors).toHaveLength(0);
+  });
+
+  it('rejeita quando falta o agente de cancelamento (assignedUserId)', async () => {
+    const dto = plainToInstance(SendToCancellationDto, {
+      reason: 'Cliente recusou acordo.',
+    });
+
+    const errors = await validate(dto);
+
+    expect(errors.some((error) => error.property === 'assignedUserId')).toBe(
+      true,
+    );
   });
 
   it('rejeita reason vazio', async () => {

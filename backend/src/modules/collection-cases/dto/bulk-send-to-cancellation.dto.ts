@@ -24,4 +24,9 @@ export class BulkSendToCancellationDto {
   @IsString()
   @MaxLength(1000)
   notes?: string;
+
+  // Agente de cancelamento que recebera os casos (obrigatorio).
+  @IsString()
+  @IsNotEmpty()
+  assignedUserId!: string;
 }

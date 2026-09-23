@@ -17,6 +17,22 @@ vi.mock(
   }),
 );
 
+vi.mock('@/features/cancellations/hooks/use-cancellation-agents', () => ({
+  useCancellationAgents: () => ({
+    data: {
+      items: [{ id: 'user-cancellation', name: 'Rafael Costa' }],
+    },
+    isLoading: false,
+  }),
+}));
+
+async function selectAgent(user: ReturnType<typeof userEvent.setup>) {
+  await user.selectOptions(
+    screen.getByLabelText('Atendente do cancelamento'),
+    'user-cancellation',
+  );
+}
+
 function renderAction() {
   const wrapper = createQueryWrapper();
 
@@ -32,7 +48,7 @@ describe('SendToCancellationAction', () => {
     ).toBeInTheDocument();
   });
 
-  it('exige motivo antes de confirmar', async () => {
+  it('exige atendente antes de confirmar', async () => {
     const user = userEvent.setup();
     renderAction();
 
@@ -44,12 +60,30 @@ describe('SendToCancellationAction', () => {
     );
 
     expect(
+      screen.getByText('Selecione o atendente do cancelamento.'),
+    ).toBeInTheDocument();
+    expect(mutateAsync).not.toHaveBeenCalled();
+  });
+
+  it('exige motivo apos escolher o atendente', async () => {
+    const user = userEvent.setup();
+    renderAction();
+
+    await user.click(
+      screen.getByRole('button', { name: 'Encaminhar para cancelamento' }),
+    );
+    await selectAgent(user);
+    await user.click(
+      screen.getByRole('button', { name: 'Confirmar encaminhamento' }),
+    );
+
+    expect(
       screen.getByText('Informe o motivo do encaminhamento.'),
     ).toBeInTheDocument();
     expect(mutateAsync).not.toHaveBeenCalled();
   });
 
-  it('confirma mutation com motivo valido', async () => {
+  it('confirma mutation com atendente e motivo validos', async () => {
     const user = userEvent.setup();
     mutateAsync.mockResolvedValue({
       id: 'can_0001',
@@ -62,6 +96,7 @@ describe('SendToCancellationAction', () => {
     await user.click(
       screen.getByRole('button', { name: 'Encaminhar para cancelamento' }),
     );
+    await selectAgent(user);
     await user.type(screen.getByLabelText('Motivo'), 'Cliente recusou acordo.');
     await user.click(
       screen.getByRole('button', { name: 'Confirmar encaminhamento' }),
@@ -70,6 +105,7 @@ describe('SendToCancellationAction', () => {
     expect(mutateAsync).toHaveBeenCalledWith({
       reason: 'Cliente recusou acordo.',
       notes: undefined,
+      assignedUserId: 'user-cancellation',
     });
     expect(
       await screen.findByText('Caso encaminhado para cancelamento.'),
@@ -87,13 +123,14 @@ describe('SendToCancellationAction', () => {
     await user.click(
       screen.getByRole('button', { name: 'Encaminhar para cancelamento' }),
     );
+    await selectAgent(user);
     await user.type(screen.getByLabelText('Motivo'), 'Motivo valido.');
     await user.click(
       screen.getByRole('button', { name: 'Confirmar encaminhamento' }),
     );
 
     expect(
-      await screen.findByText('Falha ao encaminhar caso'),
+      await screen.findByText('Falha ao encaminhar'),
     ).toBeInTheDocument();
     expect(
       screen.getByText('Caso ja possui cancelamento.'),
