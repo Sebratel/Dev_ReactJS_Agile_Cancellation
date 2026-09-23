@@ -166,6 +166,7 @@ type ErpContractReconcileStatusRow = {
 export class ErpSyncService {
   private readonly logger = new Logger(ErpSyncService.name);
   private pool: Pool | null = null;
+  private isScheduledSyncRunning = false;
 
   constructor(
     private readonly webhooksService: WebhooksService,
@@ -174,9 +175,21 @@ export class ErpSyncService {
     private readonly recoveryNotifier: RecoveryNotifierService,
   ) {}
 
-  @Cron('*/30 * * * *')
+  @Cron('*/10 * * * *')
   handleScheduledSync(): void {
-    void this.runSync();
+    // Evita sobreposicao: se a rodada anterior ainda nao terminou, pula esta
+    // (nao adianta empilhar consultas pesadas no ERP a cada 10 min).
+    if (this.isScheduledSyncRunning) {
+      this.logger.warn(
+        'Sincronizacao ERP anterior ainda em andamento — pulando esta rodada.',
+      );
+      return;
+    }
+
+    this.isScheduledSyncRunning = true;
+    void this.runSync().finally(() => {
+      this.isScheduledSyncRunning = false;
+    });
   }
 
   async runSync(): Promise<void> {
