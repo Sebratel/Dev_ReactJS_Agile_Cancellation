@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import {
   AlertTriangle,
+  BadgeCheck,
   ChevronRight,
   Clock,
   MessageSquareDashed,
@@ -149,8 +150,21 @@ function PortfolioCard({
             ) : null}
           </div>
           <div className="mt-0.5 text-xs text-neutral">
-            {formatInteger(portfolio.totalActive)}{' '}
-            {portfolio.totalActive === 1 ? 'caso ativo' : 'casos ativos'}
+            {unassigned ? (
+              <>
+                {formatInteger(portfolio.totalActive)}{' '}
+                {portfolio.totalActive === 1 ? 'caso ativo' : 'casos ativos'}
+              </>
+            ) : (
+              <>
+                {formatInteger(portfolio.totalAssigned)}{' '}
+                {portfolio.totalAssigned === 1
+                  ? 'caso na carteira'
+                  : 'casos na carteira'}{' '}
+                · {formatInteger(portfolio.totalActive)}{' '}
+                {portfolio.totalActive === 1 ? 'ativo' : 'ativos'}
+              </>
+            )}
           </div>
         </div>
         <ChevronRight
@@ -160,12 +174,21 @@ function PortfolioCard({
       </div>
 
       <div className="grid grid-cols-2 gap-x-3 gap-y-3 border-t border-border pt-3">
-        <Indicator
-          icon={AlertTriangle}
-          label="SLA vencido"
-          value={formatInteger(portfolio.slaOverdue)}
-          tone="danger"
-        />
+        {unassigned ? (
+          <Indicator
+            icon={AlertTriangle}
+            label="SLA vencido"
+            value={formatInteger(portfolio.slaOverdue)}
+            tone="danger"
+          />
+        ) : (
+          <Indicator
+            icon={BadgeCheck}
+            label="Interagidos"
+            value={formatInteger(portfolio.interacted)}
+            tone="neutral"
+          />
+        )}
         <Indicator
           icon={Clock}
           label="Aguardando resposta"
@@ -175,7 +198,11 @@ function PortfolioCard({
         <Indicator
           icon={MessageSquareDashed}
           label="Sem interação"
-          value={formatInteger(portfolio.noManualInteraction)}
+          value={formatInteger(
+            unassigned
+              ? portfolio.noManualInteraction
+              : Math.max(0, portfolio.totalAssigned - portfolio.interacted),
+          )}
           tone="neutral"
         />
         <Indicator
@@ -213,6 +240,8 @@ export function SupervisionPortfolios({
             avatarUrl: agent.avatarUrl ?? null,
           },
           totalActive: 0,
+          totalAssigned: 0,
+          interacted: 0,
           slaOverdue: 0,
           awaitingReply: 0,
           noManualInteraction: 0,

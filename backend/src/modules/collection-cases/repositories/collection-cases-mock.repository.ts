@@ -148,10 +148,25 @@ export class CollectionCasesMockRepository implements CollectionCasesRepository 
     ]);
     const now = Date.now();
 
-    type Bucket = Omit<CollectionCasePortfolioSummary, 'totalOutstanding'> & {
+    type Bucket = Omit<
+      CollectionCasePortfolioSummary,
+      'totalOutstanding' | 'totalAssigned' | 'interacted'
+    > & {
       outstanding: number;
     };
     const buckets = new Map<string | null, Bucket>();
+
+    // Total atribuido (qualquer status) e interagidos (contato manual =
+    // totalAttempts > 1, alem da automatica inicial) por atendente.
+    const assignedByKey = new Map<string | null, number>();
+    const interactedByKey = new Map<string | null, number>();
+    for (const record of mockCollectionCaseListRecords) {
+      const key = record.assignedUserId;
+      assignedByKey.set(key, (assignedByKey.get(key) ?? 0) + 1);
+      if (record.totalAttempts > 1) {
+        interactedByKey.set(key, (interactedByKey.get(key) ?? 0) + 1);
+      }
+    }
 
     for (const record of mockCollectionCaseListRecords) {
       if (!ACTIVE_STATUSES.has(record.status)) {
@@ -196,10 +211,12 @@ export class CollectionCasesMockRepository implements CollectionCasesRepository 
     }
 
     const portfolios: CollectionCasePortfolioSummary[] = Array.from(
-      buckets.values(),
-    ).map((bucket) => ({
+      buckets.entries(),
+    ).map(([key, bucket]) => ({
       agent: bucket.agent,
       totalActive: bucket.totalActive,
+      totalAssigned: assignedByKey.get(key) ?? bucket.totalActive,
+      interacted: interactedByKey.get(key) ?? 0,
       slaOverdue: bucket.slaOverdue,
       awaitingReply: bucket.awaitingReply,
       noManualInteraction: bucket.noManualInteraction,

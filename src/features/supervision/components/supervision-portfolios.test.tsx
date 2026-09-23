@@ -9,6 +9,8 @@ const portfolios: CollectionCasePortfolioSummary[] = [
   {
     agent: { id: 'usr_marina', name: 'Marina Lopes', avatarUrl: null },
     totalActive: 12,
+    totalAssigned: 30,
+    interacted: 20,
     slaOverdue: 3,
     awaitingReply: 2,
     noManualInteraction: 5,
@@ -17,6 +19,8 @@ const portfolios: CollectionCasePortfolioSummary[] = [
   {
     agent: null,
     totalActive: 40,
+    totalAssigned: 40,
+    interacted: 0,
     slaOverdue: 0,
     awaitingReply: 0,
     noManualInteraction: 39,
@@ -95,12 +99,24 @@ describe('SupervisionPortfolios', () => {
     const marinaCard = screen.getByRole('button', {
       name: 'Ver casos de Marina Lopes',
     });
-    expect(within(marinaCard).getByText('SLA vencido')).toBeInTheDocument();
+    // Card do atendente: total na carteira + ativos, e "Interagidos".
+    expect(
+      within(marinaCard).getByText(/30 casos na carteira/),
+    ).toBeInTheDocument();
+    expect(within(marinaCard).getByText('Interagidos')).toBeInTheDocument();
     expect(
       within(marinaCard).getByText('Aguardando resposta'),
     ).toBeInTheDocument();
     expect(within(marinaCard).getByText('Sem interação')).toBeInTheDocument();
     expect(within(marinaCard).getByText('Em aberto')).toBeInTheDocument();
+
+    // Card "Sem responsável" mantém "SLA vencido".
+    const unassignedCard = screen.getByRole('button', {
+      name: 'Ver casos de Sem responsável',
+    });
+    expect(
+      within(unassignedCard).getByText('SLA vencido'),
+    ).toBeInTheDocument();
   });
 
   it('chama onSelectAgent com o id ao clicar; null para a carteira sem responsável', async () => {

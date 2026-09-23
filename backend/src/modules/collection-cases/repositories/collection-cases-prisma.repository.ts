@@ -383,34 +383,51 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
       },
     } satisfies Prisma.CollectionCaseWhereInput;
 
-    const [totals, slaOverdue, awaitingReply, noManualInteraction] =
-      await Promise.all([
-        this.prisma.collectionCase.groupBy({
-          by: ['assignedUserId'],
-          where: activeStatus,
-          _count: { _all: true },
-          _sum: { outstandingAmount: true },
-        }),
-        this.prisma.collectionCase.groupBy({
-          by: ['assignedUserId'],
-          where: { ...activeStatus, slaDueAt: { lt: now } },
-          _count: { _all: true },
-        }),
-        this.prisma.collectionCase.groupBy({
-          by: ['assignedUserId'],
-          where: { ...activeStatus, matrixAwaitingReply: true },
-          _count: { _all: true },
-        }),
-        this.prisma.collectionCase.groupBy({
-          by: ['assignedUserId'],
-          where: {
-            ...activeStatus,
-            // Sem nenhuma tentativa manual — so a automatica inicial existe.
-            collectionAttempts: { none: { isAutomatic: false } },
-          },
-          _count: { _all: true },
-        }),
-      ]);
+    const [
+      totals,
+      slaOverdue,
+      awaitingReply,
+      noManualInteraction,
+      assignedTotals,
+      interactedTotals,
+    ] = await Promise.all([
+      this.prisma.collectionCase.groupBy({
+        by: ['assignedUserId'],
+        where: activeStatus,
+        _count: { _all: true },
+        _sum: { outstandingAmount: true },
+      }),
+      this.prisma.collectionCase.groupBy({
+        by: ['assignedUserId'],
+        where: { ...activeStatus, slaDueAt: { lt: now } },
+        _count: { _all: true },
+      }),
+      this.prisma.collectionCase.groupBy({
+        by: ['assignedUserId'],
+        where: { ...activeStatus, matrixAwaitingReply: true },
+        _count: { _all: true },
+      }),
+      this.prisma.collectionCase.groupBy({
+        by: ['assignedUserId'],
+        where: {
+          ...activeStatus,
+          // Sem nenhuma tentativa manual — so a automatica inicial existe.
+          collectionAttempts: { none: { isAutomatic: false } },
+        },
+        _count: { _all: true },
+      }),
+      // Total atribuido ao atendente em QUALQUER status (inclui finalizados).
+      this.prisma.collectionCase.groupBy({
+        by: ['assignedUserId'],
+        _count: { _all: true },
+      }),
+      // Casos atribuidos com ao menos um contato manual do atendente.
+      this.prisma.collectionCase.groupBy({
+        by: ['assignedUserId'],
+        where: { collectionAttempts: { some: { isAutomatic: false } } },
+        _count: { _all: true },
+      }),
+    ]);
 
     const countByUser = (
       rows: Array<{ assignedUserId: string | null; _count: { _all: number } }>,
@@ -425,6 +442,8 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
     const slaMap = countByUser(slaOverdue);
     const replyMap = countByUser(awaitingReply);
     const noInteractionMap = countByUser(noManualInteraction);
+    const assignedMap = countByUser(assignedTotals);
+    const interactedMap = countByUser(interactedTotals);
 
     // Nomes/avatares dos atendentes que possuem casos ativos atribuidos.
     const assignedUserIds = totals
@@ -450,6 +469,8 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
           ? { id: user.id, name: user.name, avatarUrl: user.avatarUrl }
           : null,
         totalActive: row._count._all,
+        totalAssigned: assignedMap.get(row.assignedUserId) ?? row._count._all,
+        interacted: interactedMap.get(row.assignedUserId) ?? 0,
         slaOverdue: slaMap.get(row.assignedUserId) ?? 0,
         awaitingReply: replyMap.get(row.assignedUserId) ?? 0,
         noManualInteraction: noInteractionMap.get(row.assignedUserId) ?? 0,

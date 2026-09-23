@@ -193,6 +193,8 @@ export type CollectionCasePortfolioAgentSummary = {
 export type CollectionCasePortfolioSummary = {
   agent: CollectionCasePortfolioAgentSummary | null;
   totalActive: number;
+  totalAssigned: number;
+  interacted: number;
   slaOverdue: number;
   awaitingReply: number;
   noManualInteraction: number;

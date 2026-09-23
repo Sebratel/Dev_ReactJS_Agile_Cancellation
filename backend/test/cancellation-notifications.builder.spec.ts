@@ -13,8 +13,8 @@ describe('buildCancellationNotifications', () => {
       ]);
 
     expect(agentNotifications).toHaveLength(1);
-    expect(agentNotifications[0].userId).toBe('u1');
-    expect(agentNotifications[0].body).toContain('não foi pagamento');
+    expect(agentNotifications[0]?.userId).toBe('u1');
+    expect(agentNotifications[0]?.body).toContain('não foi pagamento');
     expect(supervisorSummary?.count).toBe(2);
     expect(supervisorSummary?.title).toBe('2 clientes cancelaram o contrato');
   });
