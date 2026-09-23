@@ -260,6 +260,10 @@ model CollectionCase {
   externalId           String?          @unique
   slaDueAt             DateTime?
   recoveredAt          DateTime?
+  // Inicio do ciclo de cobranca atual. Setado na criacao e a cada reabertura
+  // (contrato finalizado que volta a ficar elegivel). Usado para classificar
+  // Recuperado x Pagamento realizado olhando so as tentativas do ciclo atual.
+  cycleStartedAt       DateTime?
   matrixAttendanceCode String?          @unique
   matrixMessageCode    String?          @unique
   matrixAwaitingReply  Boolean          @default(false)

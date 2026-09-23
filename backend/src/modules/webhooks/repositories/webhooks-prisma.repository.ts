@@ -1,5 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { AuditAction, IntegrationEventStatus, Prisma } from '@prisma/client';
+import {
+  AuditAction,
+  CancellationStatus,
+  CollectionStatus,
+  IntegrationEventStatus,
+  PaymentPromiseStatus,
+  Prisma,
+} from '@prisma/client';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import type { IngestCollectionEventDto } from '@/modules/webhooks/dto/ingest-collection-cases.dto';
 import type { MatrixReplyDto } from '@/modules/webhooks/dto/matrix-reply.dto';
@@ -8,6 +15,14 @@ import type {
   MatrixReplyResult,
   WebhooksRepository,
 } from '@/modules/webhooks/repositories/webhooks.repository';
+
+// Um caso nesses status ja foi finalizado; se o contrato volta a ficar
+// elegivel, o ingest reabre esse mesmo caso (novo ciclo de cobranca).
+const REOPENABLE_FINALIZED_STATUSES: CollectionStatus[] = [
+  CollectionStatus.RECOVERED,
+  CollectionStatus.PAYMENT_MADE,
+  CollectionStatus.CLOSED,
+];
 
 @Injectable()
 export class WebhooksPrismaRepository implements WebhooksRepository {
@@ -94,8 +109,16 @@ export class WebhooksPrismaRepository implements WebhooksRepository {
 
         const existingCase = await tx.collectionCase.findUnique({
           where: { externalId: event.externalId },
-          select: { id: true },
+          select: { id: true, status: true },
         });
+
+        // Reabertura: o contrato voltou a ficar elegivel e ja existia um caso
+        // FINALIZADO (recuperado/pago/encerrado). E um novo ciclo de cobranca —
+        // limpamos as marcas do ciclo anterior para nao contaminar o novo.
+        const isReopening =
+          existingCase !== null &&
+          REOPENABLE_FINALIZED_STATUSES.includes(existingCase.status);
+        const now = new Date();
 
         const collectionCase = await tx.collectionCase.upsert({
           where: { externalId: event.externalId },
@@ -106,6 +129,16 @@ export class WebhooksPrismaRepository implements WebhooksRepository {
             priority: event.case.priority ?? undefined,
             outstandingAmount: event.case.outstandingAmount,
             daysOverdue: event.case.daysOverdue ?? 0,
+            ...(isReopening
+              ? {
+                  cycleStartedAt: now,
+                  recoveredAt: null,
+                  assignedUserId: null,
+                  matrixAwaitingReply: false,
+                  matrixLastOutboundAt: null,
+                  matrixLastReplyAt: null,
+                }
+              : {}),
           },
           create: {
             contractId: contract.id,
@@ -115,14 +148,61 @@ export class WebhooksPrismaRepository implements WebhooksRepository {
             outstandingAmount: event.case.outstandingAmount,
             daysOverdue: event.case.daysOverdue ?? 0,
             externalId: event.externalId,
+            cycleStartedAt: now,
           },
         });
         summary.casesUpserted += 1;
 
-        // Tentativa inicial automatica: criada apenas uma vez, quando o caso
-        // e novo. Representa o contato via mensagem (WhatsApp/HSM) enviado
-        // pelo sistema antes de o caso entrar na plataforma.
-        if (!existingCase) {
+        if (isReopening && existingCase) {
+          // Encerra promessas antigas ainda ativas e cancela qualquer processo
+          // de cancelamento pendente do ciclo anterior.
+          await tx.paymentPromise.updateMany({
+            where: {
+              collectionCaseId: collectionCase.id,
+              status: PaymentPromiseStatus.ACTIVE,
+            },
+            data: { status: PaymentPromiseStatus.CANCELLED },
+          });
+
+          await tx.cancellationProcess.updateMany({
+            where: {
+              collectionCaseId: collectionCase.id,
+              status: {
+                in: [
+                  CancellationStatus.PENDING,
+                  CancellationStatus.IN_PROGRESS,
+                  CancellationStatus.AWAITING_PROTOCOL,
+                  CancellationStatus.AWAITING_PICKUP,
+                ],
+              },
+            },
+            data: { status: CancellationStatus.CANCELLED, completedAt: now },
+          });
+
+          // Registra a reabertura na auditoria (o upsert por si so nao audita).
+          await tx.auditLog.create({
+            data: {
+              entityType: 'COLLECTION_CASE',
+              entityId: collectionCase.id,
+              action: AuditAction.STATUS_CHANGE,
+              beforeSnapshot: { status: existingCase.status },
+              afterSnapshot: { status: collectionCase.status },
+              metadata: {
+                resourceType: 'COLLECTION_CASE',
+                action: 'ERP_SYNC_CASE_REOPENED',
+                source,
+                reason:
+                  'Contrato voltou a ficar elegivel no ERP (reabertura de ciclo).',
+                externalId: event.externalId,
+              },
+            },
+          });
+        }
+
+        // Tentativa inicial automatica: criada quando o caso e novo OU quando e
+        // reaberto (novo ciclo). Representa o contato via mensagem (WhatsApp/HSM)
+        // enviado pelo sistema antes de o caso entrar/voltar na plataforma.
+        if (!existingCase || isReopening) {
           await tx.collectionAttempt.create({
             data: {
               collectionCaseId: collectionCase.id,
@@ -130,7 +210,7 @@ export class WebhooksPrismaRepository implements WebhooksRepository {
               channel: 'WHATSAPP',
               result: 'NO_ANSWER',
               notes: 'Mensagem automática enviada ao cliente antes da entrada na plataforma.',
-              attemptedAt: new Date(),
+              attemptedAt: now,
               isAutomatic: true,
             },
           });

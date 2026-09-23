@@ -39,6 +39,7 @@ import {
 } from '@/modules/erp-sync/cancellation-notifications.builder';
 import {
   isContractRegularized,
+  resolveRecoveredCaseIds,
   type ErpContractReconcileStatus,
 } from '@/modules/erp-sync/reconcile-classification';
 
@@ -288,6 +289,7 @@ export class ErpSyncService {
         outstandingAmount: true,
         daysOverdue: true,
         contractId: true,
+        cycleStartedAt: true,
         assignedUser: {
           select: { id: true, name: true, email: true },
         },
@@ -556,11 +558,20 @@ export class ErpSyncService {
       // pagamento espontaneo.
       const manualAttempts = await tx.collectionAttempt.findMany({
         where: { collectionCaseId: { in: caseIds }, isAutomatic: false },
-        select: { collectionCaseId: true },
-        distinct: ['collectionCaseId'],
+        select: { collectionCaseId: true, attemptedAt: true },
       });
-      const recoveredIds = new Set(
-        manualAttempts.map((attempt) => attempt.collectionCaseId),
+      // Conta só as tentativas manuais do ciclo ATUAL (a partir do
+      // cycleStartedAt), para não creditar recuperação por tentativas herdadas
+      // de um ciclo anterior (caso reaberto).
+      const cycleStartByCase = new Map<string, Date | null>(
+        paidCases.map((collectionCase) => [
+          collectionCase.id,
+          collectionCase.cycleStartedAt ?? null,
+        ]),
+      );
+      const recoveredIds = resolveRecoveredCaseIds(
+        manualAttempts,
+        cycleStartByCase,
       );
       const recoveredCaseIds = caseIds.filter((id) => recoveredIds.has(id));
       const paidCaseIds = caseIds.filter((id) => !recoveredIds.has(id));

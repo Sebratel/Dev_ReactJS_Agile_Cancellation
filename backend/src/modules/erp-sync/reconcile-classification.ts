@@ -34,3 +34,32 @@ export function isContractRegularized(
     ERP_ELIGIBLE_CONTRACT_STATUSES.has(status.erpContractStatus)
   );
 }
+
+export type ManualAttemptForClassification = {
+  collectionCaseId: string;
+  attemptedAt: Date;
+};
+
+/**
+ * Um caso foi RECUPERADO (esforço de atendente) só se teve ao menos uma
+ * tentativa manual DENTRO do ciclo atual — ou seja, com `attemptedAt` a partir
+ * do `cycleStartedAt` do caso. Isso evita creditar recuperação ao atendente por
+ * tentativas herdadas de um ciclo anterior (quando o mesmo caso é reaberto).
+ * Caso sem `cycleStartedAt` (dados legados) conta qualquer tentativa manual.
+ */
+export function resolveRecoveredCaseIds(
+  attempts: ManualAttemptForClassification[],
+  cycleStartByCase: Map<string, Date | null>,
+): Set<string> {
+  const recovered = new Set<string>();
+
+  for (const attempt of attempts) {
+    const cycleStart = cycleStartByCase.get(attempt.collectionCaseId) ?? null;
+
+    if (!cycleStart || attempt.attemptedAt.getTime() >= cycleStart.getTime()) {
+      recovered.add(attempt.collectionCaseId);
+    }
+  }
+
+  return recovered;
+}
