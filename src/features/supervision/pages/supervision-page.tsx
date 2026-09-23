@@ -24,8 +24,10 @@ import { SupervisionCasesTable } from '@/features/supervision/components/supervi
 import { SyncHealthBanner } from '@/features/supervision/components/sync-health-banner';
 import { RecoveryNotificationsInfo } from '@/features/supervision/components/recovery-notifications-info';
 import { SupervisionPortfolios } from '@/features/supervision/components/supervision-portfolios';
+import { SupervisionCharts } from '@/features/supervision/components/supervision-charts';
 import { SupervisionFilters } from '@/features/supervision/components/supervision-filters';
 import { useCollectionCasePortfolios } from '@/features/collection-cases/hooks/use-collection-case-portfolios';
+import { useCollectionCasesStatusSummary } from '@/features/collection-cases/hooks/use-collection-cases-status-summary';
 import { useSupervisionSearchParams } from '@/features/supervision/hooks/use-supervision-search-params';
 import {
   hasActiveSupervisionFilters,
@@ -89,6 +91,7 @@ export default function SupervisionPage() {
   const casesQuery = useCollectionCases(listParams);
 
   const portfoliosQuery = useCollectionCasePortfolios(canDistribute);
+  const statusSummaryQuery = useCollectionCasesStatusSummary(canDistribute);
 
   const handleSelectPortfolio = useCallback(
     (agentId: string | null) => {
@@ -270,12 +273,21 @@ export default function SupervisionPage() {
             }}
           />
         ) : (
-          <SupervisionPortfolios
-            portfolios={portfoliosQuery.data?.portfolios ?? []}
-            agents={agents}
-            isLoading={portfoliosQuery.isLoading}
-            onSelectAgent={handleSelectPortfolio}
-          />
+          <div className="space-y-4">
+            <SupervisionPortfolios
+              portfolios={portfoliosQuery.data?.portfolios ?? []}
+              agents={agents}
+              isLoading={portfoliosQuery.isLoading}
+              onSelectAgent={handleSelectPortfolio}
+            />
+            <SupervisionCharts
+              portfolios={portfoliosQuery.data?.portfolios ?? []}
+              byStatus={statusSummaryQuery.data?.byStatus}
+              isLoading={
+                portfoliosQuery.isLoading || statusSummaryQuery.isLoading
+              }
+            />
+          </div>
         )
       ) : null}
 

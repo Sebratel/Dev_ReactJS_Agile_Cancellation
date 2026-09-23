@@ -19,6 +19,7 @@ import {
   type CreateCollectionAttemptPayload,
   type OverdueDateSummaryResponse,
   type CollectionCasePortfoliosResponse,
+  type CollectionCasesStatusSummaryResponse,
   type CreatePaymentPromisePayload,
   type PaymentPromiseResponse,
   type RevertCancellationPayload,
@@ -103,6 +104,15 @@ export async function getCollectionCasePortfolios() {
   const response = await httpClient.request<CollectionCasePortfoliosResponse>({
     path: '/collection-cases/portfolios',
   });
+
+  return response.data;
+}
+
+export async function getCollectionCasesStatusSummary() {
+  const response =
+    await httpClient.request<CollectionCasesStatusSummaryResponse>({
+      path: '/collection-cases/status-summary',
+    });
 
   return response.data;
 }

@@ -481,6 +481,20 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
     return { portfolios };
   }
 
+  async getStatusSummary(): Promise<Record<string, number>> {
+    const rows = await this.prisma.collectionCase.groupBy({
+      by: ['status'],
+      _count: { _all: true },
+    });
+
+    const byStatus: Record<string, number> = {};
+    for (const row of rows) {
+      byStatus[row.status] = row._count._all;
+    }
+
+    return byStatus;
+  }
+
   async getCaseById(id: string) {
     const record = await this.prisma.collectionCase.findUnique({
       where: { id },

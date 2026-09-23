@@ -60,6 +60,13 @@ export class CollectionCasesController {
     return this.collectionCasesService.getPortfolios();
   }
 
+  // Contagem de casos por status (para o grafico de desfecho da supervisao).
+  @Roles('ADMIN', 'SUPERVISOR')
+  @Get('status-summary')
+  getStatusSummary() {
+    return this.collectionCasesService.getStatusSummary();
+  }
+
   @Roles('COLLECTION_AGENT', 'SUPERVISOR', 'ADMIN')
   @Post(':id/attempts')
   createAttempt(

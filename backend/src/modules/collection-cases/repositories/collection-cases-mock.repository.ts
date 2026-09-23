@@ -226,6 +226,14 @@ export class CollectionCasesMockRepository implements CollectionCasesRepository 
     return Promise.resolve({ portfolios });
   }
 
+  getStatusSummary(): Promise<Record<string, number>> {
+    const byStatus: Record<string, number> = {};
+    for (const record of mockCollectionCaseListRecords) {
+      byStatus[record.status] = (byStatus[record.status] ?? 0) + 1;
+    }
+    return Promise.resolve(byStatus);
+  }
+
   getCaseById(id: string) {
     return Promise.resolve(mockCollectionCaseDetails[id] ?? null);
   }

@@ -201,6 +201,10 @@ export type CollectionCasePortfolioSummary = {
   totalOutstanding: string;
 };
 
+export type CollectionCasesStatusSummaryResponse = {
+  byStatus: Record<string, number>;
+};
+
 export type CollectionCasePortfoliosResponse = {
   portfolios: CollectionCasePortfolioSummary[];
 };

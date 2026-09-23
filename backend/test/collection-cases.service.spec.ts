@@ -74,6 +74,7 @@ function createRepository(
     listCaseIds: jest.fn(),
     getOverdueDateSummary: jest.fn(),
     getPortfolios: jest.fn(),
+    getStatusSummary: jest.fn(),
     getCaseById: jest.fn(),
     getCaseTimeline: jest.fn(),
     createAttempt: jest.fn(),

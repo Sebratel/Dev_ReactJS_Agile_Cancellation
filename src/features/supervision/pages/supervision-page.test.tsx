@@ -13,6 +13,9 @@ vi.mock(
     getCollectionCases: vi.fn(),
     getCollectionCaseById: vi.fn(),
     getCollectionCasePortfolios: vi.fn().mockResolvedValue({ portfolios: [] }),
+    getCollectionCasesStatusSummary: vi
+      .fn()
+      .mockResolvedValue({ byStatus: {} }),
     bulkAssignCases: vi.fn().mockResolvedValue({ assigned: 0, skipped: 0 }),
     autoDistribute: vi.fn().mockResolvedValue({ distributed: 0, agents: 0 }),
   }),

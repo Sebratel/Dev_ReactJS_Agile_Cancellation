@@ -149,6 +149,12 @@ export class CollectionCasesService {
     return createApiResponse(portfolios);
   }
 
+  async getStatusSummary() {
+    const byStatus = await this.collectionCasesRepository.getStatusSummary();
+
+    return createApiResponse({ byStatus });
+  }
+
   async getCaseById(id: string, user?: AuthenticatedUser) {
     const details = await this.collectionCasesRepository.getCaseById(id);
 

@@ -208,6 +208,9 @@ export interface CollectionCasesRepository {
   // painel de carteiras da supervisao.
   getPortfolios(): Promise<CollectionCasePortfoliosResponse>;
 
+  // Contagem de casos por status (chave = CollectionStatus).
+  getStatusSummary(): Promise<Record<string, number>>;
+
   getCaseById(id: string): Promise<CollectionCaseDetailsResponse | null>;
 
   getCaseTimeline(id: string): Promise<CollectionCaseTimelineResponse | null>;

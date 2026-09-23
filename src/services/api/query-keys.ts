@@ -39,6 +39,7 @@ export const queryKeys = {
     overdueDateSummary: (params: CollectionCasesListParams) =>
       ['collection-cases', 'overdue-date-summary', params] as const,
     portfolios: ['collection-cases', 'portfolios'] as const,
+    statusSummary: ['collection-cases', 'status-summary'] as const,
     bulkContactWhatsAppJob: (jobId: string) =>
       ['collection-cases', 'bulk-contact-whatsapp-job', jobId] as const,
     bulkContactWhatsAppJobsList: (page: number) =>
