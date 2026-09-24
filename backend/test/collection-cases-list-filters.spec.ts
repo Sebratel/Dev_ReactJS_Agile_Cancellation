@@ -58,13 +58,37 @@ describe('collection-cases list filters', () => {
     );
   });
 
-  it('filtra casos sem interacao no Prisma where', () => {
+  it('filtra "nao contatados" (sem tentativa manual) no Prisma where', () => {
+    const where = buildCollectionCasesWhere(
+      { page: 1, limit: 10, interactionStatus: 'not_contacted' },
+      now,
+    );
+
+    expect(where.collectionAttempts).toEqual({
+      none: { isAutomatic: false },
+    });
+  });
+
+  it('filtra "ja contatados" (com tentativa manual) no Prisma where', () => {
+    const where = buildCollectionCasesWhere(
+      { page: 1, limit: 10, interactionStatus: 'contacted' },
+      now,
+    );
+
+    expect(where.collectionAttempts).toEqual({
+      some: { isAutomatic: false },
+    });
+  });
+
+  it('mantem o legado "none" como "nao contatados"', () => {
     const where = buildCollectionCasesWhere(
       { page: 1, limit: 10, interactionStatus: 'none' },
       now,
     );
 
-    expect(where.collectionAttempts).toEqual({ none: {} });
+    expect(where.collectionAttempts).toEqual({
+      none: { isAutomatic: false },
+    });
   });
 
   it('filtra casos com promessa ativa no Prisma where', () => {
@@ -99,19 +123,34 @@ describe('collection-cases list filters', () => {
     expect(filtered.map((record) => record.id)).toEqual(['case_today']);
   });
 
-  it('filtra casos sem interacao no mock', () => {
+  it('filtra "nao contatados" (so tentativa automatica) no mock', () => {
     const records = [
-      createRecord({ id: 'case_with', hasCollectionAttempts: true }),
-      createRecord({ id: 'case_without', hasCollectionAttempts: false }),
+      createRecord({ id: 'case_manual', totalAttempts: 3 }),
+      createRecord({ id: 'case_auto', totalAttempts: 1 }),
     ];
 
     const filtered = filterMockCollectionCases(
       records,
-      { page: 1, limit: 10, interactionStatus: 'none' },
+      { page: 1, limit: 10, interactionStatus: 'not_contacted' },
       now,
     );
 
-    expect(filtered.map((record) => record.id)).toEqual(['case_without']);
+    expect(filtered.map((record) => record.id)).toEqual(['case_auto']);
+  });
+
+  it('filtra "ja contatados" (com tentativa manual) no mock', () => {
+    const records = [
+      createRecord({ id: 'case_manual', totalAttempts: 3 }),
+      createRecord({ id: 'case_auto', totalAttempts: 1 }),
+    ];
+
+    const filtered = filterMockCollectionCases(
+      records,
+      { page: 1, limit: 10, interactionStatus: 'contacted' },
+      now,
+    );
+
+    expect(filtered.map((record) => record.id)).toEqual(['case_manual']);
   });
 
   it('filtra casos com promessa quebrada no mock', () => {

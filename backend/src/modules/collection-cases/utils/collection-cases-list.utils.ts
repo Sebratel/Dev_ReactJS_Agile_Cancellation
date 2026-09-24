@@ -243,8 +243,16 @@ export function buildCollectionCasesWhere(
     };
   }
 
-  if (params.interactionStatus === 'none') {
-    where.collectionAttempts = { none: {} };
+  // "Contatado" = teve ao menos uma tentativa MANUAL do atendente (isAutomatic
+  // false). "Nao contatado" (ou o legado 'none') = so a tentativa automatica
+  // inicial existe.
+  if (params.interactionStatus === 'contacted') {
+    where.collectionAttempts = { some: { isAutomatic: false } };
+  } else if (
+    params.interactionStatus === 'not_contacted' ||
+    params.interactionStatus === 'none'
+  ) {
+    where.collectionAttempts = { none: { isAutomatic: false } };
   }
 
   if (params.promiseStatus) {
@@ -495,7 +503,15 @@ export function filterMockCollectionCases(
       }
     }
 
-    if (params.interactionStatus === 'none' && record.hasCollectionAttempts) {
+    // Mock: totalAttempts > 1 = teve tentativa manual (alem da automatica).
+    if (params.interactionStatus === 'contacted' && record.totalAttempts <= 1) {
+      return false;
+    }
+    if (
+      (params.interactionStatus === 'not_contacted' ||
+        params.interactionStatus === 'none') &&
+      record.totalAttempts > 1
+    ) {
       return false;
     }
 

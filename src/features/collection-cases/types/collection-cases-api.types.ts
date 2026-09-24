@@ -339,7 +339,7 @@ export type CollectionCasesListParams = {
   secondDueDate?: string;
   slaStatus?: CollectionCasesSlaStatus;
   createdToday?: boolean;
-  interactionStatus?: 'none';
+  interactionStatus?: 'none' | 'contacted' | 'not_contacted';
   promiseStatus?: CollectionCasesPromiseStatus;
   sortBy?: CollectionCasesSortBy;
   sortDirection?: CollectionCasesSortDirection;

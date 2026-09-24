@@ -8,6 +8,7 @@ import { StatusBadge } from '@/components/data-display/status-badge';
 import { EmptyState } from '@/components/feedback/empty-state';
 import { ErrorState } from '@/components/feedback/error-state';
 import { TableSkeleton } from '@/components/feedback/table-skeleton';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Pagination } from '@/components/ui/pagination';
 import {
@@ -37,18 +38,33 @@ import {
 
 const PAGE_SIZE = 10;
 
+const SEGMENTS = [
+  { key: 'all', label: 'Todos' },
+  { key: 'contacted', label: 'Já contatados' },
+  { key: 'not_contacted', label: 'Não contatados' },
+] as const;
+
+type SegmentKey = (typeof SEGMENTS)[number]['key'];
+
 export default function MyCollectionPage() {
   const { session } = useAuth();
   const userId = session?.user.id ?? '';
   const [page, setPage] = useState(1);
+  const [segment, setSegment] = useState<SegmentKey>('all');
 
   const casesQuery = useCollectionCases({
     page,
     limit: PAGE_SIZE,
     assignedToId: userId,
+    interactionStatus: segment === 'all' ? undefined : segment,
     sortBy: 'daysOverdue',
     sortDirection: 'desc',
   });
+
+  const handleSegmentChange = (next: SegmentKey) => {
+    setSegment(next);
+    setPage(1);
+  };
 
   const items = casesQuery.data?.items ?? [];
   const totalPages = Math.max(casesQuery.data?.pagination.totalPages ?? 1, 1);
@@ -71,6 +87,33 @@ export default function MyCollectionPage() {
         }
       />
 
+      <div
+        role="tablist"
+        aria-label="Segmento da carteira"
+        className="flex flex-wrap gap-2"
+      >
+        {SEGMENTS.map((option) => {
+          const active = segment === option.key;
+          return (
+            <button
+              key={option.key}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => handleSegmentChange(option.key)}
+              className={cn(
+                'rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors',
+                active
+                  ? 'border-primary bg-primary/10 text-foreground'
+                  : 'border-border bg-card text-neutral hover:border-primary/40 hover:text-foreground',
+              )}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+
       {casesQuery.isLoading ? <TableSkeleton rows={6} columns={6} /> : null}
 
       {casesQuery.isError ? (
@@ -84,8 +127,18 @@ export default function MyCollectionPage() {
 
       {!casesQuery.isLoading && !casesQuery.isError && items.length === 0 ? (
         <EmptyState
-          title="Nenhum caso atribuído"
-          description="Você ainda não possui casos de cobrança na sua fila."
+          title={
+            segment === 'all'
+              ? 'Nenhum caso atribuído'
+              : 'Nenhum caso neste grupo'
+          }
+          description={
+            segment === 'contacted'
+              ? 'Você ainda não registrou contato manual em nenhum caso da sua fila.'
+              : segment === 'not_contacted'
+                ? 'Todos os casos da sua fila já tiveram ao menos um contato seu.'
+                : 'Você ainda não possui casos de cobrança na sua fila.'
+          }
         />
       ) : null}
 

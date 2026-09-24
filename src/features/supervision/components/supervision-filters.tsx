@@ -204,7 +204,10 @@ export function SupervisionFilters({
   if (filters.interactionStatus) {
     chips.push({
       key: 'interactionStatus',
-      label: 'Sem tentativa de contato',
+      label:
+        filters.interactionStatus === 'contacted'
+          ? 'Já contatados'
+          : 'Não contatados',
       onRemove: () => clearFilter({ interactionStatus: '' }),
     });
   }
@@ -409,7 +412,8 @@ export function SupervisionFilters({
               }
             >
               <option value="">Qualquer interação</option>
-              <option value="none">Sem tentativa de contato</option>
+              <option value="contacted">Já contatados</option>
+              <option value="not_contacted">Não contatados</option>
             </Select>
           </label>
 

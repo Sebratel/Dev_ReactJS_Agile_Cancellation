@@ -271,7 +271,7 @@ describe('SupervisionPage', () => {
 
   it('restaura filtros operacionais da URL', async () => {
     await renderSupervision(
-      '/supervisao?slaStatus=overdue&interactionStatus=none&promiseStatus=ACTIVE&createdToday=true',
+      '/supervisao?slaStatus=overdue&interactionStatus=not_contacted&promiseStatus=ACTIVE&createdToday=true',
     );
 
     await screen.findByText('Casos de cobrança');
@@ -283,7 +283,7 @@ describe('SupervisionPage', () => {
       'true',
     );
     expect(screen.getByRole('combobox', { name: 'Interação' })).toHaveValue(
-      'none',
+      'not_contacted',
     );
     expect(screen.getByRole('combobox', { name: 'Promessa' })).toHaveValue(
       'ACTIVE',
@@ -293,7 +293,7 @@ describe('SupervisionPage', () => {
   it('limpar filtros remove filtros operacionais da URL', async () => {
     const user = userEvent.setup();
     await renderSupervision(
-      '/supervisao?interactionStatus=none&promiseStatus=ACTIVE&createdToday=true',
+      '/supervisao?interactionStatus=not_contacted&promiseStatus=ACTIVE&createdToday=true',
     );
 
     await screen.findByText('Casos de cobrança');

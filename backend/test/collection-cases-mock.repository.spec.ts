@@ -97,16 +97,25 @@ describe('CollectionCasesMockRepository', () => {
     ).toBe(true);
   });
 
-  it('filtra por casos sem interacao — retorna 0 pois todos os casos tem tentativa automatica inicial', async () => {
+  it('filtra "nao contatados" (so a tentativa automatica inicial)', async () => {
     const result = await repository.listCases({
       page: 1,
       limit: 100,
-      interactionStatus: 'none',
+      interactionStatus: 'not_contacted',
     });
 
-    // Todos os casos entram na plataforma com 1 tentativa automatica inicial,
-    // logo nenhum caso atende ao filtro "sem interacao".
-    expect(result.items.length).toBe(0);
+    expect(result.items.length).toBeGreaterThan(0);
+    expect(result.items.every((item) => item.totalAttempts <= 1)).toBe(true);
+  });
+
+  it('filtra "ja contatados" (com tentativa manual do atendente)', async () => {
+    const result = await repository.listCases({
+      page: 1,
+      limit: 100,
+      interactionStatus: 'contacted',
+    });
+
+    expect(result.items.every((item) => item.totalAttempts > 1)).toBe(true);
   });
 
   it('filtra por promessa ativa', async () => {
@@ -124,14 +133,13 @@ describe('CollectionCasesMockRepository', () => {
       page: 1,
       limit: 5,
       promiseStatus: 'ACTIVE',
-      interactionStatus: 'none',
+      interactionStatus: 'not_contacted',
     });
 
-    // Todos os casos tem tentativa automatica inicial, entao interactionStatus=none
-    // nao encontra nada mesmo com promiseStatus ativo.
-    expect(result.items.length).toBe(0);
     expect(result.pagination.page).toBe(1);
     expect(result.pagination.limit).toBe(5);
+    expect(result.items.length).toBeLessThanOrEqual(5);
+    expect(result.items.every((item) => item.totalAttempts <= 1)).toBe(true);
   });
 
   it('filtra por range de dias em atraso', async () => {

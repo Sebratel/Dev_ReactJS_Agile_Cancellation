@@ -36,7 +36,11 @@ export const COLLECTION_CASES_SLA_STATUS = [
   'ok',
 ] as const;
 
-export const COLLECTION_CASES_INTERACTION_STATUS = ['none'] as const;
+export const COLLECTION_CASES_INTERACTION_STATUS = [
+  'none',
+  'contacted',
+  'not_contacted',
+] as const;
 
 export const COLLECTION_CASES_PROMISE_STATUS = [
   PaymentPromiseStatus.ACTIVE,
