@@ -185,6 +185,25 @@ describe('SupervisionPage', () => {
     );
   });
 
+  it('segmento "Já contatados" filtra por contato manual', async () => {
+    const user = userEvent.setup();
+    await renderSupervision('/supervisao');
+
+    await screen.findByText('Casos de cobrança');
+
+    await user.click(screen.getByRole('tab', { name: 'Já contatados' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('location-search')).toHaveTextContent(
+        'interactionStatus=contacted',
+      );
+    });
+
+    expect(getCollectionCases).toHaveBeenCalledWith(
+      expect.objectContaining({ interactionStatus: 'contacted', page: 1 }),
+    );
+  });
+
   it('limpar filtros remove query params', async () => {
     const user = userEvent.setup();
     await renderSupervision('/supervisao?status=NO_RESPONSE&search=Horizonte');

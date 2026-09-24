@@ -40,6 +40,12 @@ import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import { ApiError } from '@/services/api/api-error';
 
+const INTERACTION_SEGMENTS = [
+  { value: '', label: 'Todos' },
+  { value: 'contacted', label: 'Já contatados' },
+  { value: 'not_contacted', label: 'Não contatados' },
+] as const;
+
 export default function SupervisionPage() {
   const { session } = useAuth();
   const canDistribute =
@@ -318,6 +324,38 @@ export default function SupervisionPage() {
             onClearFilters={handleClearFilters}
             hasActiveFilters={hasActiveFilters}
           />
+
+          <div
+            role="tablist"
+            aria-label="Segmento por contato do atendente"
+            className="flex flex-wrap gap-2"
+          >
+            {INTERACTION_SEGMENTS.map((option) => {
+              const active = filters.interactionStatus === option.value;
+              return (
+                <button
+                  key={option.value || 'all'}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() =>
+                    updateFilters({
+                      interactionStatus: option.value,
+                      page: 1,
+                    })
+                  }
+                  className={cn(
+                    'rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors',
+                    active
+                      ? 'border-primary bg-primary/10 text-foreground'
+                      : 'border-border bg-card text-neutral hover:border-primary/40 hover:text-foreground',
+                  )}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
 
           {!casesQuery.isLoading && !casesQuery.isError ? (
             <CollectionCaseSnapshotStrip
