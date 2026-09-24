@@ -98,6 +98,10 @@ export function mapContractStatus(
     return ContractStatus.SUSPENDED;
   }
 
+  if (status === 'Cancelado') {
+    return ContractStatus.CANCELLED;
+  }
+
   return ContractStatus.ACTIVE;
 }
 

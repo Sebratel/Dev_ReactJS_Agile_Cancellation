@@ -1,5 +1,6 @@
 import {
   type ErpEligibleRow,
+  mapContractStatus,
   mapErpRowsToIngestPayload,
 } from '@/modules/erp-sync/erp-sync.mapper';
 
@@ -212,5 +213,15 @@ describe('mapErpRowsToIngestPayload', () => {
 
     expect(skippedContracts).toBe(1);
     expect(payload.events).toHaveLength(0);
+  });
+});
+
+describe('mapContractStatus', () => {
+  it('mapeia os v_status do ERP para o enum do contrato', () => {
+    expect(mapContractStatus('Normal')).toBe('ACTIVE');
+    expect(mapContractStatus('Bloqueio Financeiro')).toBe('SUSPENDED');
+    expect(mapContractStatus('Cancelado')).toBe('CANCELLED');
+    expect(mapContractStatus(null)).toBe('ACTIVE');
+    expect(mapContractStatus(undefined)).toBe('ACTIVE');
   });
 });

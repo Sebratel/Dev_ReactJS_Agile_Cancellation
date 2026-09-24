@@ -538,6 +538,24 @@ export class ErpSyncService {
         });
       }
 
+      // Atualiza o status do contrato tambem para os casos que sairam da regra
+      // (pagos/cancelados), usando o v_status atual do ERP — senao ficaria
+      // preso no valor antigo (ex.: pagou, saiu do Bloqueio Financeiro no ERP,
+      // mas continuava SUSPENDED na plataforma).
+      for (const collectionCase of casesToRecover) {
+        const erpStatus = collectionCase.externalId
+          ? contractStatusByExternalId.get(collectionCase.externalId)
+              ?.erpContractStatus
+          : null;
+
+        if (erpStatus) {
+          await tx.contract.update({
+            where: { id: collectionCase.contractId },
+            data: { status: mapContractStatus(erpStatus), updatedAt: now },
+          });
+        }
+      }
+
       const invoicesToMarkAsPaid = await tx.invoice.findMany({
         where: {
           contractId: { in: contractIds },
