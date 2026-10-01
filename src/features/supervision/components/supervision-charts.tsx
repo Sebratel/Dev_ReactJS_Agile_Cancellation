@@ -116,6 +116,11 @@ export function SupervisionCharts({
         color: chartColors.primary,
       },
       {
+        label: 'Renegociado',
+        count: byStatus.RENEGOTIATED ?? 0,
+        color: 'hsl(var(--warning) / 0.6)',
+      },
+      {
         label: 'Encerrado',
         count: byStatus.CLOSED ?? 0,
         color: chartColors.danger,

@@ -10,6 +10,7 @@ const STATUS_LABELS: Record<string, string> = {
   CLOSED: 'Encerrado',
   RECOVERED: 'Recuperado',
   PAYMENT_MADE: 'Pagamento realizado',
+  RENEGOTIATED: 'Renegociado',
 };
 
 const PRIORITY_LABELS: Record<string, string> = {
@@ -23,6 +24,10 @@ const DANGER_STATUSES = new Set(['NO_RESPONSE', 'ELIGIBLE_FOR_CANCELLATION']);
 
 const SUCCESS_STATUSES = new Set(['RECOVERED', 'PAYMENT_MADE']);
 
+// Renegociado não é pagamento (o cliente ainda deve) — sinaliza como atenção,
+// não como sucesso.
+const WARNING_STATUSES = new Set(['RENEGOTIATED']);
+
 export function getCollectionStatusLabel(status: string) {
   return STATUS_LABELS[status] ?? status;
 }
@@ -34,6 +39,10 @@ export function getPriorityLabel(priority: string) {
 export function getCollectionStatusVariant(status: string): StatusVariant {
   if (SUCCESS_STATUSES.has(status)) {
     return 'success';
+  }
+
+  if (WARNING_STATUSES.has(status)) {
+    return 'warning';
   }
 
   if (DANGER_STATUSES.has(status)) {
@@ -196,6 +205,7 @@ const BLOCKED_SEND_TO_CANCELLATION_STATUSES = new Set([
   'CLOSED',
   'RECOVERED',
   'PAYMENT_MADE',
+  'RENEGOTIATED',
   'CANCELLATION_IN_PROGRESS',
 ]);
 

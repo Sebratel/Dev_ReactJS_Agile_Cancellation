@@ -39,6 +39,7 @@ import {
 } from '@/modules/erp-sync/cancellation-notifications.builder';
 import {
   isContractRegularized,
+  isContractRenegotiated,
   resolveRecoveredCaseIds,
   type ErpContractReconcileStatus,
 } from '@/modules/erp-sync/reconcile-classification';
@@ -148,9 +149,22 @@ SELECT
       AND fr.deleted IS false
       AND x.client_paid_date IS NULL
       AND DATE(fr.expiration_date) < CURRENT_DATE
-  )::int AS open_overdue_titles
+  )::int AS open_overdue_titles,
+  -- Houve renegociacao no contrato (titulo original vira renegotiated=true).
+  BOOL_OR(fr.renegotiated IS true) AS has_renegotiation,
+  -- Saldo em aberto: titulos nao renegociados, nao pagos, com saldo > 0,
+  -- qualquer vencimento, fora as tarifas de baixa de titulo.
+  COALESCE(SUM(fr.balance) FILTER (
+    WHERE fr.bill_title_id IS NULL
+      AND fr.renegotiated IS false
+      AND fr.deleted IS false
+      AND x.client_paid_date IS NULL
+      AND COALESCE(fn.title, '') <> 'DF - TARIFA BAIXA DE TÍTULO'
+      AND fr.balance > 0
+  ), 0)::float8 AS open_unpaid_balance
 FROM erp.contracts c
 LEFT JOIN erp.financial_receivable_titles fr ON fr.contract_id = c.id
+LEFT JOIN erp.financers_natures fn ON fn.id = fr.financer_nature_id
 LEFT JOIN erp.financial_receipt_titles x ON x.financial_receivable_title_id = fr.id
 WHERE c.public_id = ANY($1::uuid[])
 GROUP BY c.public_id, c.v_status;
@@ -160,6 +174,8 @@ type ErpContractReconcileStatusRow = {
   contract_external_id: string;
   erp_contract_status: string | null;
   open_overdue_titles: number;
+  has_renegotiation: boolean | null;
+  open_unpaid_balance: number | string | null;
 };
 
 @Injectable()
@@ -480,6 +496,8 @@ export class ErpSyncService {
           contractStatusByExternalId.set(row.contract_external_id, {
             erpContractStatus: row.erp_contract_status,
             openOverdueTitles: Number(row.open_overdue_titles),
+            hasRenegotiation: row.has_renegotiation === true,
+            openUnpaidBalance: Number(row.open_unpaid_balance ?? 0),
           });
         }
       } catch (error) {
@@ -491,16 +509,31 @@ export class ErpSyncService {
       }
     }
 
+    const statusFor = (collectionCase: { externalId: string | null }) =>
+      collectionCase.externalId
+        ? contractStatusByExternalId.get(collectionCase.externalId)
+        : undefined;
+
     const paidCases = casesToRecover.filter((collectionCase) =>
-      isContractRegularized(
-        collectionCase.externalId
-          ? contractStatusByExternalId.get(collectionCase.externalId)
-          : undefined,
-      ),
+      isContractRegularized(statusFor(collectionCase)),
     );
     const paidCaseIdSet = new Set(paidCases.map((c) => c.id));
+
+    // Renegociacao (nao e pagamento): renegociou a fatura e ainda deve. Nao
+    // credita recuperacao nem notifica "regularizou"; fica com desfecho proprio
+    // RENEGOTIATED. Se cancelar depois, cai no bucket de cancelados.
+    const renegotiatedCases = casesToRecover.filter(
+      (collectionCase) =>
+        !paidCaseIdSet.has(collectionCase.id) &&
+        isContractRenegotiated(statusFor(collectionCase)),
+    );
+    const renegotiatedCaseIdSet = new Set(renegotiatedCases.map((c) => c.id));
+    const renegotiatedCaseIds = renegotiatedCases.map((c) => c.id);
+
     const cancelledCases = casesToRecover.filter(
-      (collectionCase) => !paidCaseIdSet.has(collectionCase.id),
+      (collectionCase) =>
+        !paidCaseIdSet.has(collectionCase.id) &&
+        !renegotiatedCaseIdSet.has(collectionCase.id),
     );
 
     // Efeitos de "recuperado" valem SÓ para quem pagou de fato.
@@ -719,6 +752,46 @@ export class ErpSyncService {
         }
       }
 
+      // Casos que sairam da regra por RENEGOCIACAO (nao pagamento): encerra o
+      // caso como RENEGOTIATED, SEM creditar recuperacao (recoveredAt nulo). O
+      // status do contrato ja foi atualizado no loop de casesToRecover acima.
+      if (renegotiatedCaseIds.length > 0) {
+        await tx.collectionCase.updateMany({
+          where: { id: { in: renegotiatedCaseIds } },
+          data: {
+            status: CollectionStatus.RENEGOTIATED,
+            recoveredAt: null,
+            updatedAt: now,
+          },
+        });
+
+        for (const collectionCase of renegotiatedCases) {
+          await tx.auditLog.create({
+            data: {
+              entityType: 'COLLECTION_CASE',
+              entityId: collectionCase.id,
+              action: AuditAction.STATUS_CHANGE,
+              beforeSnapshot: {
+                status: collectionCase.status,
+                outstandingAmount: collectionCase.outstandingAmount.toString(),
+                daysOverdue: collectionCase.daysOverdue,
+              },
+              afterSnapshot: {
+                status: CollectionStatus.RENEGOTIATED,
+              },
+              metadata: {
+                resourceType: 'COLLECTION_CASE',
+                action: 'ERP_SYNC_RENEGOTIATION_RECONCILIATION',
+                source: ERP_SYNC_SOURCE,
+                reason:
+                  'Contrato saiu da regra do ERP por renegociacao (titulo renegociado + saldo em aberto). Nao houve pagamento.',
+                externalId: collectionCase.externalId,
+              },
+            },
+          });
+        }
+      }
+
       await tx.integrationEvent.create({
         data: {
           source: ERP_SYNC_SOURCE,
@@ -726,12 +799,16 @@ export class ErpSyncService {
           status: IntegrationEventStatus.COMPLETED,
           payload: {
             recoveredCases: paidCases.length,
+            renegotiatedCases: renegotiatedCases.length,
             cancelledCases: cancelledCases.length,
             refreshedCases: casesToRefresh.length,
             refreshedContracts: casesToRefresh.length,
             checkedCases: syncedCases.length,
             openTitles: openTitleRows.length,
             recoveredExternalIds: paidCases.map(
+              (collectionCase) => collectionCase.externalId,
+            ),
+            renegotiatedExternalIds: renegotiatedCases.map(
               (collectionCase) => collectionCase.externalId,
             ),
             cancelledExternalIds: cancelledCases.map(
@@ -747,7 +824,7 @@ export class ErpSyncService {
     });
 
     this.logger.log(
-      `Reconciliacao ERP concluida: ${paidCases.length} recuperado(s), ${cancelledCases.length} cancelado(s).`,
+      `Reconciliacao ERP concluida: ${paidCases.length} recuperado(s), ${renegotiatedCases.length} renegociado(s), ${cancelledCases.length} cancelado(s).`,
     );
 
     // Notifica apos o commit — nunca dentro da transacao. Falhas aqui sao

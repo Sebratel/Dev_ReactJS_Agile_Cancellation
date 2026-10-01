@@ -17,6 +17,7 @@ const FINALIZED_STATUSES: CollectionStatus[] = [
   CollectionStatus.CLOSED,
   CollectionStatus.RECOVERED,
   CollectionStatus.PAYMENT_MADE,
+  CollectionStatus.RENEGOTIATED,
 ];
 
 export const OPEN_INVOICE_STATUSES: InvoiceStatus[] = [

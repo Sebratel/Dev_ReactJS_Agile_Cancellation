@@ -22,6 +22,7 @@ const REOPENABLE_FINALIZED_STATUSES: CollectionStatus[] = [
   CollectionStatus.RECOVERED,
   CollectionStatus.PAYMENT_MADE,
   CollectionStatus.CLOSED,
+  CollectionStatus.RENEGOTIATED,
 ];
 
 @Injectable()

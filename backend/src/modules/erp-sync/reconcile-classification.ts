@@ -13,13 +13,53 @@ export const ERP_ELIGIBLE_CONTRACT_STATUSES = new Set([
 export type ErpContractReconcileStatus = {
   erpContractStatus: string | null;
   openOverdueTitles: number;
+  // Houve renegociação no contrato (algum título com renegotiated=true). A
+  // renegociação some da visão da plataforma (todas as queries filtram
+  // renegotiated=false) e o novo título consolidado costuma ter vencimento
+  // futuro — então o contrato "sai da regra" sem que tenha havido pagamento.
+  hasRenegotiation: boolean;
+  // Saldo em aberto (títulos não renegociados, não pagos, com saldo > 0,
+  // qualquer vencimento, fora tarifas de baixa). > 0 = ainda deve.
+  openUnpaidBalance: number;
 };
+
+function isEligibleContractStatus(
+  status: ErpContractReconcileStatus,
+): boolean {
+  return (
+    status.erpContractStatus !== null &&
+    ERP_ELIGIBLE_CONTRACT_STATUSES.has(status.erpContractStatus)
+  );
+}
+
+/**
+ * RENEGOCIAÇÃO (não é pagamento): o contrato continua num status elegível, sem
+ * títulos vencidos em aberto (por isso saiu da regra), MAS teve uma
+ * renegociação e ainda resta saldo em aberto. É o caso que a cobrança
+ * descreveu — renegociam a fatura no ERP e cancelam o contrato depois; antes,
+ * isso era creditado como "regularizado" por engano.
+ */
+export function isContractRenegotiated(
+  status: ErpContractReconcileStatus | undefined,
+): boolean {
+  if (!status) {
+    return false;
+  }
+
+  return (
+    isEligibleContractStatus(status) &&
+    status.openOverdueTitles === 0 &&
+    status.hasRenegotiation &&
+    status.openUnpaidBalance > 0
+  );
+}
 
 /**
  * Só é regularização (pagamento) quando o contrato continua num status
- * elegível E não tem mais nenhum título vencido em aberto. Qualquer outro caso
- * (status não elegível = cancelado/encerrado, ou ainda com título vencido, ou
- * contrato não encontrado) NÃO é pagamento.
+ * elegível, não tem mais nenhum título vencido em aberto E não é uma
+ * renegociação pendente (renegociado com saldo). Qualquer outro caso (status
+ * não elegível = cancelado/encerrado, ainda com título vencido, renegociação
+ * em aberto, ou contrato não encontrado) NÃO é pagamento.
  */
 export function isContractRegularized(
   status: ErpContractReconcileStatus | undefined,
@@ -29,9 +69,9 @@ export function isContractRegularized(
   }
 
   return (
+    isEligibleContractStatus(status) &&
     status.openOverdueTitles === 0 &&
-    status.erpContractStatus !== null &&
-    ERP_ELIGIBLE_CONTRACT_STATUSES.has(status.erpContractStatus)
+    !isContractRenegotiated(status)
   );
 }
 

@@ -42,6 +42,7 @@ const STATUS_LABELS: Record<CollectionStatus, string> = {
   CLOSED: 'Encerrado',
   RECOVERED: 'Recuperado',
   PAYMENT_MADE: 'Pagamento realizado',
+  RENEGOTIATED: 'Renegociado',
 };
 
 const ACTIVE_CANCELLATION_STATUSES: CancellationStatus[] = [
@@ -55,6 +56,7 @@ const CLOSED_COLLECTION_STATUSES: CollectionStatus[] = [
   CollectionStatus.CLOSED,
   CollectionStatus.RECOVERED,
   CollectionStatus.PAYMENT_MADE,
+  CollectionStatus.RENEGOTIATED,
 ];
 
 @Injectable()
