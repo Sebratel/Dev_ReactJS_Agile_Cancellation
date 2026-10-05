@@ -103,6 +103,8 @@ export class DashboardPrismaRepository implements DashboardRepository {
       promisesDueToday,
       activeAgentsCount,
       agentsWithActivityToday,
+      assignedActiveCases,
+      contactedCases,
     ] = await Promise.all([
       params.assignedUserId
         ? this.countScopedDelinquentCustomers(scopedCaseWhere)
@@ -244,6 +246,19 @@ export class DashboardPrismaRepository implements DashboardRepository {
               attemptedAt: { gte: todayStart, lt: todayEnd },
             },
           }),
+      this.prisma.collectionCase.count({
+        where: {
+          ...scopedCaseWhere,
+          status: { notIn: CLOSED_COLLECTION_STATUSES },
+        },
+      }),
+      this.prisma.collectionCase.count({
+        where: {
+          ...scopedCaseWhere,
+          status: { notIn: CLOSED_COLLECTION_STATUSES },
+          collectionAttempts: { some: { isAutomatic: false } },
+        },
+      }),
     ]);
 
     const inactiveAgents = Math.max(
@@ -326,6 +341,8 @@ export class DashboardPrismaRepository implements DashboardRepository {
         activePromises,
         overduePromises,
         cancellationsInProgress,
+        assignedActiveCases,
+        contactedCases,
       },
       statusDistribution,
       recoveryTrend,

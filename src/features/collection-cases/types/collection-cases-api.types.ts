@@ -209,6 +209,50 @@ export type CollectionCasePortfoliosResponse = {
   portfolios: CollectionCasePortfolioSummary[];
 };
 
+export type RenegotiatedHistoryItem = {
+  caseId: string;
+  customerName: string;
+  customerDocument: string;
+  contractCode: string | null;
+  contractExternalId: string | null;
+  renegotiationCount: number;
+  firstRenegotiatedAt: string;
+  lastRenegotiatedAt: string;
+  currentStatus: string;
+  isCurrentlyRenegotiated: boolean;
+  outstandingAmount: string;
+  assignedToName: string | null;
+};
+
+export type RenegotiatedHistorySummary = {
+  totalCases: number;
+  totalRenegotiations: number;
+  currentlyRenegotiated: number;
+  totalOutstanding: string;
+};
+
+export type RenegotiatedHistoryResponse = {
+  items: RenegotiatedHistoryItem[];
+  summary: RenegotiatedHistorySummary;
+};
+
+export type RenegotiationTitle = {
+  invoiceNumber: string | null;
+  nature: string | null;
+  renegotiated: boolean;
+  paid: boolean;
+  titleAmount: string;
+  balance: string;
+  expiration: string | null;
+};
+
+export type RenegotiationDetailResponse = {
+  available: boolean;
+  renegotiatedTitles: RenegotiationTitle[];
+  openTitles: RenegotiationTitle[];
+  openBalanceTotal: string;
+};
+
 export type SendToCancellationPayload = {
   reason: string;
   notes?: string;

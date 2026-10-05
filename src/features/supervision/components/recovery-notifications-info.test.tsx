@@ -4,28 +4,38 @@ import { describe, expect, it } from 'vitest';
 import { RecoveryNotificationsInfo } from '@/features/supervision/components/recovery-notifications-info';
 
 describe('RecoveryNotificationsInfo', () => {
-  it('começa recolhida (só o título visível)', () => {
+  it('mostra só o botão (popup fechado por padrão)', () => {
     render(<RecoveryNotificationsInfo />);
 
-    const toggle = screen.getByRole('button', {
-      name: /Sobre as notificações de regularização/,
-    });
-    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(
+      screen.getByRole('button', { name: /Sobre as notificações/ }),
+    ).toBeInTheDocument();
     expect(screen.queryByText(/quita o débito/)).not.toBeInTheDocument();
   });
 
-  it('expande ao clicar e explica quando e para quem', async () => {
+  it('abre o popup ao clicar e explica quando e para quem', async () => {
     const user = userEvent.setup();
     render(<RecoveryNotificationsInfo />);
 
     await user.click(
-      screen.getByRole('button', {
-        name: /Sobre as notificações de regularização/,
-      }),
+      screen.getByRole('button', { name: /Sobre as notificações/ }),
     );
 
-    expect(screen.getByText(/quita o débito/)).toBeInTheDocument();
+    expect(await screen.findByText(/quita o débito/)).toBeInTheDocument();
     expect(screen.getByText(/A supervisão/)).toBeInTheDocument();
     expect(screen.getByText(/O atendente responsável/)).toBeInTheDocument();
+  });
+
+  it('fecha o popup ao clicar em Entendi', async () => {
+    const user = userEvent.setup();
+    render(<RecoveryNotificationsInfo />);
+
+    await user.click(
+      screen.getByRole('button', { name: /Sobre as notificações/ }),
+    );
+    expect(await screen.findByText(/quita o débito/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Entendi' }));
+    expect(screen.queryByText(/quita o débito/)).not.toBeInTheDocument();
   });
 });

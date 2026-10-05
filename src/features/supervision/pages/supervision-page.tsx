@@ -4,6 +4,7 @@ import {
   LayoutGrid,
   List,
   RefreshCw,
+  Repeat,
   Shuffle,
   X,
 } from 'lucide-react';
@@ -24,10 +25,10 @@ import { SupervisionCasesTable } from '@/features/supervision/components/supervi
 import { SyncHealthBanner } from '@/features/supervision/components/sync-health-banner';
 import { RecoveryNotificationsInfo } from '@/features/supervision/components/recovery-notifications-info';
 import { SupervisionPortfolios } from '@/features/supervision/components/supervision-portfolios';
-import { SupervisionCharts } from '@/features/supervision/components/supervision-charts';
+import { SupervisionRenegotiated } from '@/features/supervision/components/supervision-renegotiated';
 import { SupervisionFilters } from '@/features/supervision/components/supervision-filters';
 import { useCollectionCasePortfolios } from '@/features/collection-cases/hooks/use-collection-case-portfolios';
-import { useCollectionCasesStatusSummary } from '@/features/collection-cases/hooks/use-collection-cases-status-summary';
+import { useRenegotiatedHistory } from '@/features/collection-cases/hooks/use-renegotiated-history';
 import { useSupervisionSearchParams } from '@/features/supervision/hooks/use-supervision-search-params';
 import {
   hasActiveSupervisionFilters,
@@ -63,7 +64,9 @@ export default function SupervisionPage() {
   // A view padrao e Carteiras, mas quem nao pode distribuir so ve a Lista
   // (derivamos a view efetiva em vez de travar no init, pois a sessao — e
   // portanto canDistribute — pode nao estar pronta no primeiro render).
-  const [view, setView] = useState<'portfolios' | 'list'>('portfolios');
+  const [view, setView] = useState<'portfolios' | 'list' | 'renegotiated'>(
+    'portfolios',
+  );
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const effectiveView = canDistribute ? view : 'list';
 
@@ -97,7 +100,9 @@ export default function SupervisionPage() {
   const casesQuery = useCollectionCases(listParams);
 
   const portfoliosQuery = useCollectionCasePortfolios(canDistribute);
-  const statusSummaryQuery = useCollectionCasesStatusSummary(canDistribute);
+  const renegotiatedQuery = useRenegotiatedHistory(
+    canDistribute && view === 'renegotiated',
+  );
 
   const handleSelectPortfolio = useCallback(
     (agentId: string | null) => {
@@ -207,6 +212,7 @@ export default function SupervisionPage() {
         description="Painel de distribuição, acompanhamento e governança operacional da carteira de cobrança."
         actions={
           <>
+            {canDistribute ? <RecoveryNotificationsInfo /> : null}
             {canDistribute ? (
               <Button
                 variant="secondary"
@@ -234,8 +240,6 @@ export default function SupervisionPage() {
       />
 
       {canDistribute ? <SyncHealthBanner /> : null}
-
-      {canDistribute ? <RecoveryNotificationsInfo /> : null}
 
       {canDistribute ? (
         <div className="flex self-start rounded-lg border border-border bg-card p-1">
@@ -265,7 +269,31 @@ export default function SupervisionPage() {
             <List className="h-4 w-4" />
             Lista
           </button>
+          <button
+            type="button"
+            onClick={() => setView('renegotiated')}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+              effectiveView === 'renegotiated'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-neutral hover:text-foreground',
+            )}
+          >
+            <Repeat className="h-4 w-4" />
+            Renegociados
+          </button>
         </div>
+      ) : null}
+
+      {canDistribute && effectiveView === 'renegotiated' ? (
+        <SupervisionRenegotiated
+          data={renegotiatedQuery.data}
+          isLoading={renegotiatedQuery.isLoading}
+          isError={renegotiatedQuery.isError}
+          onRetry={() => {
+            void renegotiatedQuery.refetch();
+          }}
+        />
       ) : null}
 
       {canDistribute && effectiveView === 'portfolios' ? (
@@ -279,21 +307,12 @@ export default function SupervisionPage() {
             }}
           />
         ) : (
-          <div className="space-y-4">
-            <SupervisionPortfolios
-              portfolios={portfoliosQuery.data?.portfolios ?? []}
-              agents={agents}
-              isLoading={portfoliosQuery.isLoading}
-              onSelectAgent={handleSelectPortfolio}
-            />
-            <SupervisionCharts
-              portfolios={portfoliosQuery.data?.portfolios ?? []}
-              byStatus={statusSummaryQuery.data?.byStatus}
-              isLoading={
-                portfoliosQuery.isLoading || statusSummaryQuery.isLoading
-              }
-            />
-          </div>
+          <SupervisionPortfolios
+            portfolios={portfoliosQuery.data?.portfolios ?? []}
+            agents={agents}
+            isLoading={portfoliosQuery.isLoading}
+            onSelectAgent={handleSelectPortfolio}
+          />
         )
       ) : null}
 

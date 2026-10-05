@@ -75,6 +75,42 @@ export function isContractRegularized(
   );
 }
 
+/**
+ * Desfecho de um caso que saiu da regra de elegibilidade do ERP:
+ * - `paid`: foi regularizado E há PROVA de pagamento real (client_paid_date).
+ * - `renegotiated`: renegociou e ainda deve (sem pagamento).
+ * - `cancelled`: contrato com status não elegível (cancelado/encerrado) ou não
+ *   encontrado no ERP.
+ * - `unresolved`: saiu da regra (sem vencidos) mas SEM pagamento e SEM
+ *   renegociação — ex.: vencimento adiado ou título apagado. NÃO é recuperação
+ *   (evita receita falsa) nem cancelamento; o caso não é finalizado.
+ */
+export type ReconcileOutcome =
+  | 'paid'
+  | 'renegotiated'
+  | 'cancelled'
+  | 'unresolved';
+
+export function resolveReconcileOutcome(
+  status: ErpContractReconcileStatus | undefined,
+  hasPaymentEvidence: boolean,
+): ReconcileOutcome {
+  if (!status || !isEligibleContractStatus(status)) {
+    return 'cancelled';
+  }
+
+  if (isContractRenegotiated(status)) {
+    return 'renegotiated';
+  }
+
+  // Só credita recuperação com regularização E prova de pagamento real.
+  if (isContractRegularized(status) && hasPaymentEvidence) {
+    return 'paid';
+  }
+
+  return 'unresolved';
+}
+
 export type ManualAttemptForClassification = {
   collectionCaseId: string;
   attemptedAt: Date;

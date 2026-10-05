@@ -54,7 +54,7 @@ const agents: UserResponse[] = [
 ];
 
 describe('SupervisionPortfolios', () => {
-  it('renderiza uma carteira por atendente, com a de "Sem responsável" em primeiro', () => {
+  it('renderiza um card por atendente e um destaque para "Sem responsável"', () => {
     render(
       <SupervisionPortfolios
         portfolios={portfolios}
@@ -64,11 +64,14 @@ describe('SupervisionPortfolios', () => {
       />,
     );
 
-    const cards = screen.getAllByRole('button', { name: /Ver casos de/ });
-    // Marina + Carlos (mesclado, 0 casos) + Sem responsável = 3 carteiras.
-    expect(cards).toHaveLength(3);
-    // "Sem responsável" ordenado primeiro (exige acao da supervisao).
-    expect(cards[0]).toHaveAccessibleName('Ver casos de Sem responsável');
+    // Marina + Carlos (mesclado, 0 casos) = 2 cards de atendente.
+    const agentCards = screen.getAllByRole('button', { name: /^Ver casos de / });
+    expect(agentCards).toHaveLength(2);
+
+    // "Sem responsável" tem um card de destaque próprio.
+    expect(
+      screen.getByRole('button', { name: 'Ver casos sem responsável' }),
+    ).toBeInTheDocument();
   });
 
   it('inclui atendente sem casos ativos (carteira vazia = ocioso)', () => {
@@ -86,7 +89,7 @@ describe('SupervisionPortfolios', () => {
     ).toBeInTheDocument();
   });
 
-  it('mostra os indicadores da carteira', () => {
+  it('mostra os indicadores e o progresso de contato da carteira', () => {
     render(
       <SupervisionPortfolios
         portfolios={portfolios}
@@ -99,24 +102,23 @@ describe('SupervisionPortfolios', () => {
     const marinaCard = screen.getByRole('button', {
       name: 'Ver casos de Marina Lopes',
     });
-    // Card do atendente: total na carteira + ativos, e "Interagidos".
     expect(
       within(marinaCard).getByText(/30 casos na carteira/),
     ).toBeInTheDocument();
-    expect(within(marinaCard).getByText('Interagidos')).toBeInTheDocument();
+    // Barra de progresso: 20 de 30 interagidos = 67% contatados.
+    expect(within(marinaCard).getByText(/67% contatados/)).toBeInTheDocument();
     expect(
       within(marinaCard).getByText('Aguardando resposta'),
     ).toBeInTheDocument();
     expect(within(marinaCard).getByText('Sem interação')).toBeInTheDocument();
+    expect(within(marinaCard).getByText('SLA vencido')).toBeInTheDocument();
     expect(within(marinaCard).getByText('Em aberto')).toBeInTheDocument();
 
-    // Card "Sem responsável" mantém "SLA vencido".
+    // Card "Sem responsável" tem o botão de distribuir.
     const unassignedCard = screen.getByRole('button', {
-      name: 'Ver casos de Sem responsável',
+      name: 'Ver casos sem responsável',
     });
-    expect(
-      within(unassignedCard).getByText('SLA vencido'),
-    ).toBeInTheDocument();
+    expect(within(unassignedCard).getByText('Distribuir')).toBeInTheDocument();
   });
 
   it('chama onSelectAgent com o id ao clicar; null para a carteira sem responsável', async () => {
@@ -138,7 +140,7 @@ describe('SupervisionPortfolios', () => {
     expect(onSelectAgent).toHaveBeenCalledWith('usr_marina');
 
     await user.click(
-      screen.getByRole('button', { name: 'Ver casos de Sem responsável' }),
+      screen.getByRole('button', { name: 'Ver casos sem responsável' }),
     );
     expect(onSelectAgent).toHaveBeenCalledWith(null);
   });

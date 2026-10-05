@@ -20,6 +20,8 @@ import {
   type OverdueDateSummaryResponse,
   type CollectionCasePortfoliosResponse,
   type CollectionCasesStatusSummaryResponse,
+  type RenegotiatedHistoryResponse,
+  type RenegotiationDetailResponse,
   type CreatePaymentPromisePayload,
   type PaymentPromiseResponse,
   type RevertCancellationPayload,
@@ -113,6 +115,22 @@ export async function getCollectionCasesStatusSummary() {
     await httpClient.request<CollectionCasesStatusSummaryResponse>({
       path: '/collection-cases/status-summary',
     });
+
+  return response.data;
+}
+
+export async function getRenegotiatedHistory() {
+  const response = await httpClient.request<RenegotiatedHistoryResponse>({
+    path: '/collection-cases/renegotiated',
+  });
+
+  return response.data;
+}
+
+export async function getRenegotiationDetail(contractExternalId: string) {
+  const response = await httpClient.request<RenegotiationDetailResponse>({
+    path: `/erp/renegotiation-detail/${contractExternalId}`,
+  });
 
   return response.data;
 }

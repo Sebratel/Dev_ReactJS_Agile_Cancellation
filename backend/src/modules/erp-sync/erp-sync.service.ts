@@ -14,6 +14,44 @@ import { validateSync } from 'class-validator';
 import { Pool } from 'pg';
 import { getDataSourceMode } from '@/common/data-source/data-source.config';
 import { getErpSyncConfig, type ErpSyncDbConfig } from '@/config/erp-sync.config';
+import type {
+  RenegotiationDetailResponse,
+  RenegotiationTitle,
+} from '@/modules/erp-sync/dto/renegotiation-detail.response';
+
+const RENEGOTIATION_DETAIL_QUERY = `
+SELECT
+  fr.title                  AS invoice_number,
+  fn.title                  AS nature,
+  fr.renegotiated           AS renegotiated,
+  (x.client_paid_date IS NOT NULL) AS paid,
+  fr.title_amount::text     AS title_amount,
+  fr.balance::text          AS balance,
+  fr.expiration_date        AS expiration
+FROM erp.contracts c
+JOIN erp.financial_receivable_titles fr ON fr.contract_id = c.id
+LEFT JOIN erp.financers_natures fn ON fn.id = fr.financer_nature_id
+LEFT JOIN erp.financial_receipt_titles x ON x.financial_receivable_title_id = fr.id
+WHERE c.public_id = $1::uuid
+  AND fr.bill_title_id IS NULL
+  AND fr.deleted IS false
+  AND COALESCE(fn.title, '') <> 'DF - TARIFA BAIXA DE TÍTULO'
+  AND (fr.renegotiated IS true OR (x.client_paid_date IS NULL AND fr.balance > 0))
+ORDER BY fr.renegotiated DESC, fr.expiration_date;
+`;
+
+type RenegotiationDetailRow = {
+  invoice_number: string | null;
+  nature: string | null;
+  renegotiated: boolean | null;
+  paid: boolean | null;
+  title_amount: string | null;
+  balance: string | null;
+  expiration: Date | null;
+};
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 import { PrismaService } from '@/database/prisma/prisma.service';
 import {
   IngestCollectionCasesDto,
@@ -38,11 +76,22 @@ import {
   type CancelledCaseForNotification,
 } from '@/modules/erp-sync/cancellation-notifications.builder';
 import {
-  isContractRegularized,
-  isContractRenegotiated,
+  resolveReconcileOutcome,
   resolveRecoveredCaseIds,
   type ErpContractReconcileStatus,
+  type ReconcileOutcome,
 } from '@/modules/erp-sync/reconcile-classification';
+
+// Confirma PAGAMENTO REAL: dos titulos informados, quais tem baixa
+// (client_paid_date). Usado como prova de que o caso foi de fato recuperado —
+// e nao apenas "sumiu da regra" por adiamento/apagamento de titulo.
+const PAID_TITLES_QUERY = `
+SELECT fr.id::text AS id
+FROM erp.financial_receivable_titles fr
+JOIN erp.financial_receipt_titles x ON x.financial_receivable_title_id = fr.id
+WHERE fr.id = ANY($1::bigint[])
+  AND x.client_paid_date IS NOT NULL;
+`;
 
 /**
  * Elegibilidade: contratos com 2 vencimentos consecutivos em aberto (ontem e
@@ -514,26 +563,94 @@ export class ErpSyncService {
         ? contractStatusByExternalId.get(collectionCase.externalId)
         : undefined;
 
-    const paidCases = casesToRecover.filter((collectionCase) =>
-      isContractRegularized(statusFor(collectionCase)),
-    );
-    const paidCaseIdSet = new Set(paidCases.map((c) => c.id));
+    // EVIDENCIA DE PAGAMENTO (anti falso positivo de receita): so conta como
+    // recuperado/pago quem teve PAGAMENTO REAL (client_paid_date) em algum dos
+    // titulos-gatilho do caso. Sem isso, um titulo com vencimento adiado ou
+    // apagado "sai da regra" sem ter sido pago e seria contado como receita
+    // falsa. As faturas-gatilho ficam guardadas na plataforma (invoice.externalId
+    // = id do titulo no ERP).
+    const recoverContractIds = [
+      ...new Set(casesToRecover.map((collectionCase) => collectionCase.contractId)),
+    ];
+    const triggerInvoices =
+      recoverContractIds.length > 0
+        ? await this.prisma.invoice.findMany({
+            where: {
+              contractId: { in: recoverContractIds },
+              externalId: { not: null },
+            },
+            select: { contractId: true, externalId: true },
+          })
+        : [];
 
-    // Renegociacao (nao e pagamento): renegociou a fatura e ainda deve. Nao
-    // credita recuperacao nem notifica "regularizou"; fica com desfecho proprio
-    // RENEGOTIATED. Se cancelar depois, cai no bucket de cancelados.
+    const titleIdsByContract = new Map<string, string[]>();
+    for (const invoice of triggerInvoices) {
+      const externalId = invoice.externalId;
+      if (!externalId || !/^[0-9]+$/.test(externalId)) {
+        continue;
+      }
+      const bucket = titleIdsByContract.get(invoice.contractId);
+      if (bucket) {
+        bucket.push(externalId);
+      } else {
+        titleIdsByContract.set(invoice.contractId, [externalId]);
+      }
+    }
+
+    const allTriggerTitleIds = [
+      ...new Set(Array.from(titleIdsByContract.values()).flat()),
+    ];
+
+    const paidTitleIds = new Set<string>();
+    if (allTriggerTitleIds.length > 0) {
+      try {
+        const pool = this.getPool(config.db);
+        const paidResult = await pool.query<{ id: string }>(PAID_TITLES_QUERY, [
+          allTriggerTitleIds,
+        ]);
+        for (const row of paidResult.rows) {
+          paidTitleIds.add(row.id);
+        }
+      } catch (error) {
+        this.logger.error(
+          'Falha ao confirmar pagamento dos titulos no ERP. Reconciliacao abortada nesta rodada (nao credita recuperacao sem prova).',
+          error instanceof Error ? error.stack : String(error),
+        );
+        return;
+      }
+    }
+
+    const hasPaymentEvidence = (collectionCase: { contractId: string }) => {
+      const ids = titleIdsByContract.get(collectionCase.contractId);
+      return Boolean(ids && ids.some((id) => paidTitleIds.has(id)));
+    };
+
+    // Desfecho por caso (função pura testável). PAGO exige regularização E prova
+    // de pagamento real; sem isso vira "unresolved" (não conta como receita).
+    const outcomeByCase = new Map<string, ReconcileOutcome>();
+    for (const collectionCase of casesToRecover) {
+      outcomeByCase.set(
+        collectionCase.id,
+        resolveReconcileOutcome(
+          statusFor(collectionCase),
+          hasPaymentEvidence(collectionCase),
+        ),
+      );
+    }
+
+    const paidCases = casesToRecover.filter(
+      (collectionCase) => outcomeByCase.get(collectionCase.id) === 'paid',
+    );
     const renegotiatedCases = casesToRecover.filter(
       (collectionCase) =>
-        !paidCaseIdSet.has(collectionCase.id) &&
-        isContractRenegotiated(statusFor(collectionCase)),
+        outcomeByCase.get(collectionCase.id) === 'renegotiated',
     );
-    const renegotiatedCaseIdSet = new Set(renegotiatedCases.map((c) => c.id));
     const renegotiatedCaseIds = renegotiatedCases.map((c) => c.id);
-
     const cancelledCases = casesToRecover.filter(
-      (collectionCase) =>
-        !paidCaseIdSet.has(collectionCase.id) &&
-        !renegotiatedCaseIdSet.has(collectionCase.id),
+      (collectionCase) => outcomeByCase.get(collectionCase.id) === 'cancelled',
+    );
+    const unresolvedCases = casesToRecover.filter(
+      (collectionCase) => outcomeByCase.get(collectionCase.id) === 'unresolved',
     );
 
     // Efeitos de "recuperado" valem SÓ para quem pagou de fato.
@@ -589,22 +706,31 @@ export class ErpSyncService {
         }
       }
 
-      const invoicesToMarkAsPaid = await tx.invoice.findMany({
-        where: {
-          contractId: { in: contractIds },
-          status: {
-            in: [
-              InvoiceStatus.OPEN,
-              InvoiceStatus.OVERDUE,
-              InvoiceStatus.PARTIALLY_PAID,
-            ],
-          },
-        },
-        select: {
-          id: true,
-          amount: true,
-        },
-      });
+      // Marca como PAGA SOMENTE as faturas cujos titulos foram de fato pagos no
+      // ERP (externalId em paidTitleIds). Antes marcava TODAS as faturas em
+      // aberto do contrato — inclusive mensalidades futuras nao pagas —, o que
+      // inflava a receita recuperada. Agora reflete so o que foi efetivamente
+      // quitado.
+      const invoicesToMarkAsPaid =
+        paidTitleIds.size > 0
+          ? await tx.invoice.findMany({
+              where: {
+                contractId: { in: contractIds },
+                externalId: { in: [...paidTitleIds] },
+                status: {
+                  in: [
+                    InvoiceStatus.OPEN,
+                    InvoiceStatus.OVERDUE,
+                    InvoiceStatus.PARTIALLY_PAID,
+                  ],
+                },
+              },
+              select: {
+                id: true,
+                amount: true,
+              },
+            })
+          : [];
 
       for (const invoice of invoicesToMarkAsPaid) {
         await tx.invoice.update({
@@ -801,6 +927,10 @@ export class ErpSyncService {
             recoveredCases: paidCases.length,
             renegotiatedCases: renegotiatedCases.length,
             cancelledCases: cancelledCases.length,
+            unresolvedCases: unresolvedCases.length,
+            unresolvedExternalIds: unresolvedCases.map(
+              (collectionCase) => collectionCase.externalId,
+            ),
             refreshedCases: casesToRefresh.length,
             refreshedContracts: casesToRefresh.length,
             checkedCases: syncedCases.length,
@@ -824,7 +954,7 @@ export class ErpSyncService {
     });
 
     this.logger.log(
-      `Reconciliacao ERP concluida: ${paidCases.length} recuperado(s), ${renegotiatedCases.length} renegociado(s), ${cancelledCases.length} cancelado(s).`,
+      `Reconciliacao ERP concluida: ${paidCases.length} recuperado(s), ${renegotiatedCases.length} renegociado(s), ${cancelledCases.length} cancelado(s), ${unresolvedCases.length} sem pagamento (nao finalizado).`,
     );
 
     // Notifica apos o commit — nunca dentro da transacao. Falhas aqui sao
@@ -971,6 +1101,72 @@ export class ErpSyncService {
     return users
       .map((user) => user.email)
       .filter((email): email is string => Boolean(email));
+  }
+
+  // Busca AO VIVO no ERP os titulos renegociados e o saldo em aberto de um
+  // contrato (sem o filtro renegotiated=false). Usado pela aba Renegociados.
+  async getRenegotiationDetail(
+    contractExternalId: string,
+  ): Promise<RenegotiationDetailResponse> {
+    const empty: RenegotiationDetailResponse = {
+      available: false,
+      renegotiatedTitles: [],
+      openTitles: [],
+      openBalanceTotal: '0.00',
+    };
+
+    if (!UUID_PATTERN.test(contractExternalId)) {
+      return empty;
+    }
+
+    const config = getErpSyncConfig();
+    if (!config.db) {
+      return empty;
+    }
+
+    let rows: RenegotiationDetailRow[];
+    try {
+      const pool = this.getPool(config.db);
+      const result = await pool.query<RenegotiationDetailRow>(
+        RENEGOTIATION_DETAIL_QUERY,
+        [contractExternalId],
+      );
+      rows = result.rows;
+    } catch (error) {
+      this.logger.error(
+        'Falha ao buscar detalhe de renegociacao no ERP.',
+        error instanceof Error ? error.stack : String(error),
+      );
+      return empty;
+    }
+
+    const toTitle = (row: RenegotiationDetailRow): RenegotiationTitle => ({
+      invoiceNumber: row.invoice_number,
+      nature: row.nature,
+      renegotiated: row.renegotiated === true,
+      paid: row.paid === true,
+      titleAmount: Number(row.title_amount ?? 0).toFixed(2),
+      balance: Number(row.balance ?? 0).toFixed(2),
+      expiration: row.expiration
+        ? row.expiration.toISOString().slice(0, 10)
+        : null,
+    });
+
+    const titles = rows.map(toTitle);
+    const renegotiatedTitles = titles.filter((title) => title.renegotiated);
+    const openTitles = titles.filter(
+      (title) => !title.renegotiated && !title.paid,
+    );
+    const openBalanceTotal = openTitles
+      .reduce((total, title) => total + Number(title.balance), 0)
+      .toFixed(2);
+
+    return {
+      available: true,
+      renegotiatedTitles,
+      openTitles,
+      openBalanceTotal,
+    };
   }
 
   private getPool(db: ErpSyncDbConfig): Pool {

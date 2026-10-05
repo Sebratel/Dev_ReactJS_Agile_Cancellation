@@ -6,7 +6,9 @@ export type DashboardMetricKey =
   | 'recoveredMonth'
   | 'activePromises'
   | 'overduePromises'
-  | 'cancellationsInProgress';
+  | 'cancellationsInProgress'
+  | 'assignedActiveCases'
+  | 'contactedCases';
 
 export type DashboardSummaryMetrics = Record<
   DashboardMetricKey,

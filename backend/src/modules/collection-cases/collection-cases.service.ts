@@ -155,6 +155,13 @@ export class CollectionCasesService {
     return createApiResponse({ byStatus });
   }
 
+  async getRenegotiatedHistory() {
+    const history =
+      await this.collectionCasesRepository.getRenegotiatedHistory();
+
+    return createApiResponse(history);
+  }
+
   async getCaseById(id: string, user?: AuthenticatedUser) {
     const details = await this.collectionCasesRepository.getCaseById(id);
 

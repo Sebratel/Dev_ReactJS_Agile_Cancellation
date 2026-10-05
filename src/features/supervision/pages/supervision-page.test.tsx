@@ -16,6 +16,15 @@ vi.mock(
     getCollectionCasesStatusSummary: vi
       .fn()
       .mockResolvedValue({ byStatus: {} }),
+    getRenegotiatedHistory: vi.fn().mockResolvedValue({
+      items: [],
+      summary: {
+        totalCases: 0,
+        totalRenegotiations: 0,
+        currentlyRenegotiated: 0,
+        totalOutstanding: '0.00',
+      },
+    }),
     bulkAssignCases: vi.fn().mockResolvedValue({ assigned: 0, skipped: 0 }),
     autoDistribute: vi.fn().mockResolvedValue({ distributed: 0, agents: 0 }),
   }),

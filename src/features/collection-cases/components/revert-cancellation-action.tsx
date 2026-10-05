@@ -54,7 +54,7 @@ export function RevertCancellationAction({
       setOpen(false);
       setReason('');
       setNotes('');
-      toast.success('Cancelamento revertido. Receita recuperada registrada.');
+      toast.success('Cancelamento revertido. O caso voltou para a cobrança.');
     } catch (error) {
       // Mantém o dialog aberto para preservar o contexto e o que foi digitado
       setErrorMessage(getErrorMessage(error));
@@ -84,9 +84,9 @@ export function RevertCancellationAction({
               Reverter cancelamento
             </AlertDialog.Title>
             <AlertDialog.Description className="mt-2 text-sm text-neutral">
-              Confirme que o cliente foi retido. O caso será marcado como
-              recuperado, o valor em aberto contará como receita salva e o
-              processo de cancelamento em andamento será encerrado.
+              O caso sai da esteira de cancelamento e volta para a cobrança. Ele
+              só será contado como recuperado quando o pagamento for confirmado
+              no ERP — a reversão em si não registra receita.
             </AlertDialog.Description>
 
             <div className="mt-4 space-y-4">
@@ -146,7 +146,7 @@ export function RevertCancellationAction({
                   void handleConfirm();
                 }}
               >
-                {mutation.isPending ? 'Revertendo...' : 'Confirmar recuperação'}
+                {mutation.isPending ? 'Revertendo...' : 'Confirmar reversão'}
               </Button>
             </div>
           </AlertDialog.Content>

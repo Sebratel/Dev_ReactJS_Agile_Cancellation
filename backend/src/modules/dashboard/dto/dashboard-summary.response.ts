@@ -6,7 +6,11 @@ export type DashboardMetricKey =
   | 'recoveredMonth'
   | 'activePromises'
   | 'overduePromises'
-  | 'cancellationsInProgress';
+  | 'cancellationsInProgress'
+  // Carteira ativa (não finalizada) no escopo — para o atendente, a dele.
+  | 'assignedActiveCases'
+  // Casos da carteira ativa com ao menos uma tentativa manual (já contatados).
+  | 'contactedCases';
 
 export type DashboardSummaryMetrics = Record<
   DashboardMetricKey,

@@ -1,6 +1,7 @@
 import {
   isContractRegularized,
   isContractRenegotiated,
+  resolveReconcileOutcome,
   resolveRecoveredCaseIds,
   type ErpContractReconcileStatus,
 } from '@/modules/erp-sync/reconcile-classification';
@@ -102,6 +103,43 @@ describe('isContractRenegotiated', () => {
     const reneg = status({ hasRenegotiation: true, openUnpaidBalance: 99.9 });
     expect(isContractRenegotiated(reneg)).toBe(true);
     expect(isContractRegularized(reneg)).toBe(false);
+  });
+});
+
+describe('resolveReconcileOutcome (anti falso positivo de receita)', () => {
+  it('PAGO só quando regularizado E há prova de pagamento', () => {
+    expect(resolveReconcileOutcome(status({}), true)).toBe('paid');
+  });
+
+  it('NÃO é pago quando regularizado MAS sem prova de pagamento → unresolved', () => {
+    // Título com vencimento adiado/apagado: saiu da regra sem ter sido pago.
+    expect(resolveReconcileOutcome(status({}), false)).toBe('unresolved');
+  });
+
+  it('renegociado (reneg + saldo) independe de prova de pagamento', () => {
+    const reneg = status({ hasRenegotiation: true, openUnpaidBalance: 200 });
+    expect(resolveReconcileOutcome(reneg, false)).toBe('renegotiated');
+    expect(resolveReconcileOutcome(reneg, true)).toBe('renegotiated');
+  });
+
+  it('cancelado quando o contrato não está mais elegível', () => {
+    const cancelado = status({ erpContractStatus: 'Cancelado' });
+    expect(resolveReconcileOutcome(cancelado, true)).toBe('cancelled');
+    expect(resolveReconcileOutcome(cancelado, false)).toBe('cancelled');
+  });
+
+  it('cancelado quando o contrato não foi encontrado no ERP', () => {
+    expect(resolveReconcileOutcome(undefined, true)).toBe('cancelled');
+  });
+
+  it('renegociado que quitou tudo (sem saldo) + prova de pagamento = pago', () => {
+    const quitou = status({ hasRenegotiation: true, openUnpaidBalance: 0 });
+    expect(resolveReconcileOutcome(quitou, true)).toBe('paid');
+  });
+
+  it('renegociado que quitou tudo MAS sem prova de pagamento = unresolved', () => {
+    const quitou = status({ hasRenegotiation: true, openUnpaidBalance: 0 });
+    expect(resolveReconcileOutcome(quitou, false)).toBe('unresolved');
   });
 });
 

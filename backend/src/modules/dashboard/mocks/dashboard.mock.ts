@@ -12,6 +12,8 @@ export const mockDashboardSummary: DashboardSummaryResponse = {
     activePromises: 34,
     overduePromises: 9,
     cancellationsInProgress: 15,
+    assignedActiveCases: 54,
+    contactedCases: 31,
   },
   statusDistribution: [
     {

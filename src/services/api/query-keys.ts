@@ -40,6 +40,9 @@ export const queryKeys = {
       ['collection-cases', 'overdue-date-summary', params] as const,
     portfolios: ['collection-cases', 'portfolios'] as const,
     statusSummary: ['collection-cases', 'status-summary'] as const,
+    renegotiatedHistory: ['collection-cases', 'renegotiated'] as const,
+    renegotiationDetail: (externalId: string) =>
+      ['collection-cases', 'renegotiation-detail', externalId] as const,
     bulkContactWhatsAppJob: (jobId: string) =>
       ['collection-cases', 'bulk-contact-whatsapp-job', jobId] as const,
     bulkContactWhatsAppJobsList: (page: number) =>

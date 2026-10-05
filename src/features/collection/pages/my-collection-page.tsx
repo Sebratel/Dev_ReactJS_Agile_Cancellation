@@ -1,6 +1,6 @@
 import { ArrowRight, BookUser } from 'lucide-react';
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { MetricCard } from '@/components/data-display/metric-card';
 import { PageHeader } from '@/components/data-display/page-header';
 import { PageContainer } from '@/components/navigation/page-container';
@@ -46,11 +46,19 @@ const SEGMENTS = [
 
 type SegmentKey = (typeof SEGMENTS)[number]['key'];
 
+function isSegmentKey(value: string | null): value is SegmentKey {
+  return SEGMENTS.some((option) => option.key === value);
+}
+
 export default function MyCollectionPage() {
   const { session } = useAuth();
   const userId = session?.user.id ?? '';
+  const [searchParams] = useSearchParams();
+  const initialSegment = searchParams.get('interactionStatus');
   const [page, setPage] = useState(1);
-  const [segment, setSegment] = useState<SegmentKey>('all');
+  const [segment, setSegment] = useState<SegmentKey>(
+    isSegmentKey(initialSegment) ? initialSegment : 'all',
+  );
 
   const casesQuery = useCollectionCases({
     page,

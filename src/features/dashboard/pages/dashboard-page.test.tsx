@@ -27,10 +27,14 @@ vi.mock(
   () => ({
     getCollectionCases: vi.fn(),
     getCollectionCaseById: vi.fn(),
+    getCollectionCasePortfolios: vi.fn(),
   }),
 );
 
-import { getCollectionCases } from '@/features/collection-cases/services/collection-cases.service';
+import {
+  getCollectionCases,
+  getCollectionCasePortfolios,
+} from '@/features/collection-cases/services/collection-cases.service';
 import {
   getDashboardOperations,
   getDashboardSummary,
@@ -39,9 +43,10 @@ import {
 describe('DashboardPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(getCollectionCasePortfolios).mockResolvedValue({ portfolios: [] });
   });
 
-  it('renderiza briefing e triagem operacional com dados da API', async () => {
+  it('renderiza o painel da supervisão com dados da API', async () => {
     vi.mocked(getDashboardSummary).mockResolvedValue(
       mockDashboardSummaryResponse,
     );
@@ -50,13 +55,12 @@ describe('DashboardPage', () => {
       session: createMockSession(),
     });
 
-    expect(await screen.findByText('Briefing da operação')).toBeInTheDocument();
-    expect(screen.getByText('Triagem operacional')).toBeInTheDocument();
-    expect(screen.getAllByText('Prioridades do dia').length).toBeGreaterThan(0);
-    expect(screen.getByText('Carteira da equipe')).toBeInTheDocument();
-    expect(screen.getByText('Janela selecionada')).toBeInTheDocument();
+    expect(await screen.findByText('Supervisão')).toBeInTheDocument();
+    expect(screen.getByText('Visão geral da operação')).toBeInTheDocument();
+    expect(screen.getByText('Precisa de ação')).toBeInTheDocument();
+    expect(screen.getByText('Carga por atendente')).toBeInTheDocument();
     expect(
-      screen.getAllByText('Elegíveis para cancelamento').length,
+      screen.getAllByText('Elegíveis p/ cancelamento').length,
     ).toBeGreaterThan(0);
     expect(screen.getAllByText('R$ 184.750,42').length).toBeGreaterThan(0);
     expect(getDashboardOperations).not.toHaveBeenCalled();
@@ -75,5 +79,4 @@ describe('DashboardPage', () => {
       await screen.findByText('Não foi possível carregar o dashboard'),
     ).toBeInTheDocument();
   });
-
 });

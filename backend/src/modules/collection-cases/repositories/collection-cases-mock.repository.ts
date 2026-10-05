@@ -55,6 +55,7 @@ import type {
   CollectionCasePortfolioSummary,
   CollectionCasePortfoliosResponse,
 } from '@/modules/collection-cases/dto/collection-case-portfolio.response';
+import type { RenegotiatedHistoryResponse } from '@/modules/collection-cases/dto/renegotiated-history.response';
 import {
   filterMockCollectionCases,
   normalizeListParams,
@@ -232,6 +233,18 @@ export class CollectionCasesMockRepository implements CollectionCasesRepository 
       byStatus[record.status] = (byStatus[record.status] ?? 0) + 1;
     }
     return Promise.resolve(byStatus);
+  }
+
+  getRenegotiatedHistory(): Promise<RenegotiatedHistoryResponse> {
+    return Promise.resolve({
+      items: [],
+      summary: {
+        totalCases: 0,
+        totalRenegotiations: 0,
+        currentlyRenegotiated: 0,
+        totalOutstanding: '0.00',
+      },
+    });
   }
 
   getCaseById(id: string) {
@@ -786,9 +799,10 @@ export class CollectionCasesMockRepository implements CollectionCasesRepository 
     const now = new Date().toISOString();
     const previousStatus = details.status;
     const previousAssignee = details.assignedTo;
-    const creditedUserId = details.assignedTo?.id ?? performedByUserId;
+    const assignedUserId = details.assignedTo?.id ?? performedByUserId;
 
-    details.status = 'RECOVERED';
+    // Reverter devolve o caso para cobranca (nao credita recuperacao).
+    details.status = 'IN_COLLECTION';
 
     if (
       details.cancellationProcess &&
@@ -801,10 +815,10 @@ export class CollectionCasesMockRepository implements CollectionCasesRepository 
       };
     }
 
-    if (!details.assignedTo && creditedUserId) {
+    if (!details.assignedTo && assignedUserId) {
       details.assignedTo = {
-        id: creditedUserId,
-        name: resolveMockActorName(creditedUserId) ?? creditedUserId,
+        id: assignedUserId,
+        name: resolveMockActorName(assignedUserId) ?? assignedUserId,
       };
     }
 
@@ -815,8 +829,8 @@ export class CollectionCasesMockRepository implements CollectionCasesRepository 
     );
 
     if (record) {
-      record.status = 'RECOVERED';
-      record.assignedUserId = creditedUserId;
+      record.status = 'IN_COLLECTION';
+      record.assignedUserId = assignedUserId;
       record.assignedTo = details.assignedTo ?? null;
       record.updatedAt = now;
     }
@@ -831,16 +845,16 @@ export class CollectionCasesMockRepository implements CollectionCasesRepository 
         assignedUserId: previousAssignee?.id ?? null,
       },
       afterSnapshot: {
-        status: 'RECOVERED',
-        recoveredAt: now,
-        assignedUserId: creditedUserId,
+        status: 'IN_COLLECTION',
+        recoveredAt: null,
+        assignedUserId,
       },
       metadata: {
         resourceType: 'COLLECTION_CASE',
         action: 'REVERT_CANCELLATION',
         reason: input.reason,
         notes: input.notes ?? null,
-        recoveredAmount: details.outstandingAmount,
+        outstandingAmount: details.outstandingAmount,
       },
     });
 

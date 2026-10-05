@@ -1,13 +1,17 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
+  Activity,
   AlertTriangle,
-  BadgeCheck,
+  ArrowRight,
   ChevronRight,
   Clock,
   MessageSquareDashed,
   UserRound,
   Users,
+  UserX,
+  Wallet,
 } from 'lucide-react';
+import { MetricCard } from '@/components/data-display/metric-card';
 import { SectionCard } from '@/components/data-display/section-card';
 import { cn } from '@/lib/utils';
 import { type CollectionCasePortfolioSummary } from '@/features/collection-cases/types/collection-cases-api.types';
@@ -24,8 +28,14 @@ type SupervisionPortfoliosProps = {
   onSelectAgent: (agentId: string | null) => void;
 };
 
-// Chave usada para agrupar/deduplicar carteiras: id do atendente ou o balde
-// "sem responsavel".
+type SortKey = 'load' | 'outstanding' | 'noInteraction';
+
+const SORT_OPTIONS: Array<{ key: SortKey; label: string }> = [
+  { key: 'load', label: 'Carga' },
+  { key: 'outstanding', label: 'Em aberto' },
+  { key: 'noInteraction', label: 'Sem interação' },
+];
+
 const UNASSIGNED_KEY = '__unassigned__';
 
 function portfolioKey(portfolio: CollectionCasePortfolioSummary) {
@@ -39,23 +49,19 @@ function getInitials(name: string) {
   return `${first}${last}`.toUpperCase() || '?';
 }
 
+function noInteractionCount(portfolio: CollectionCasePortfolioSummary) {
+  return portfolio.agent === null
+    ? portfolio.noManualInteraction
+    : Math.max(0, portfolio.totalAssigned - portfolio.interacted);
+}
+
 function PortfolioAvatar({
   name,
   avatarUrl,
-  unassigned,
 }: {
   name: string;
   avatarUrl: string | null;
-  unassigned: boolean;
 }) {
-  if (unassigned) {
-    return (
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-neutral">
-        <UserRound className="h-5 w-5" aria-hidden="true" />
-      </span>
-    );
-  }
-
   if (avatarUrl) {
     return (
       <img
@@ -112,6 +118,46 @@ function Indicator({
   );
 }
 
+// Progresso de contato: casos da carteira já trabalhados (contato manual) sobre
+// o total da carteira. Verde = bom ritmo, âmbar = atenção, vermelho = parado.
+function ContactProgress({
+  interacted,
+  total,
+}: {
+  interacted: number;
+  total: number;
+}) {
+  const pct = total > 0 ? Math.round((Math.min(interacted, total) / total) * 100) : 0;
+  const tone =
+    pct >= 60 ? 'success' : pct >= 30 ? 'warning' : 'danger';
+  const barClass =
+    tone === 'success'
+      ? 'bg-success'
+      : tone === 'warning'
+        ? 'bg-warning'
+        : 'bg-danger';
+  const textClass =
+    tone === 'success'
+      ? 'text-success'
+      : tone === 'warning'
+        ? 'text-warning'
+        : 'text-danger';
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+        <div
+          className={cn('h-full rounded-full', total > 0 ? barClass : 'bg-transparent')}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <span className={cn('shrink-0 text-xs font-semibold', total > 0 ? textClass : 'text-neutral')}>
+        {total > 0 ? `${pct}% contatados` : 'carteira vazia'}
+      </span>
+    </div>
+  );
+}
+
 function PortfolioCard({
   portfolio,
   onSelect,
@@ -119,52 +165,24 @@ function PortfolioCard({
   portfolio: CollectionCasePortfolioSummary;
   onSelect: () => void;
 }) {
-  const unassigned = portfolio.agent === null;
   const name = portfolio.agent?.name ?? 'Sem responsável';
 
   return (
     <button
       type="button"
       onClick={onSelect}
-      className={cn(
-        'group flex flex-col gap-4 rounded-xl border bg-card p-4 text-left transition-colors hover:border-primary/40 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
-        unassigned && portfolio.totalActive > 0
-          ? 'border-warning/40'
-          : 'border-border',
-      )}
+      className="group flex flex-col gap-3 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-primary/40 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       aria-label={`Ver casos de ${name}`}
     >
       <div className="flex items-center gap-3">
-        <PortfolioAvatar
-          name={name}
-          avatarUrl={portfolio.agent?.avatarUrl ?? null}
-          unassigned={unassigned}
-        />
+        <PortfolioAvatar name={name} avatarUrl={portfolio.agent?.avatarUrl ?? null} />
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <span className="min-w-0 truncate font-semibold">{name}</span>
-            {unassigned && portfolio.totalActive > 0 ? (
-              <span className="shrink-0 rounded-full bg-warning/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-warning">
-                Distribuir
-              </span>
-            ) : null}
-          </div>
+          <span className="block min-w-0 truncate font-semibold">{name}</span>
           <div className="mt-0.5 text-xs text-neutral">
-            {unassigned ? (
-              <>
-                {formatInteger(portfolio.totalActive)}{' '}
-                {portfolio.totalActive === 1 ? 'caso ativo' : 'casos ativos'}
-              </>
-            ) : (
-              <>
-                {formatInteger(portfolio.totalAssigned)}{' '}
-                {portfolio.totalAssigned === 1
-                  ? 'caso na carteira'
-                  : 'casos na carteira'}{' '}
-                · {formatInteger(portfolio.totalActive)}{' '}
-                {portfolio.totalActive === 1 ? 'ativo' : 'ativos'}
-              </>
-            )}
+            {formatInteger(portfolio.totalAssigned)}{' '}
+            {portfolio.totalAssigned === 1 ? 'caso na carteira' : 'casos na carteira'}{' '}
+            · {formatInteger(portfolio.totalActive)}{' '}
+            {portfolio.totalActive === 1 ? 'ativo' : 'ativos'}
           </div>
         </div>
         <ChevronRight
@@ -173,22 +191,18 @@ function PortfolioCard({
         />
       </div>
 
+      <ContactProgress
+        interacted={portfolio.interacted}
+        total={portfolio.totalAssigned}
+      />
+
       <div className="grid grid-cols-2 gap-x-3 gap-y-3 border-t border-border pt-3">
-        {unassigned ? (
-          <Indicator
-            icon={AlertTriangle}
-            label="SLA vencido"
-            value={formatInteger(portfolio.slaOverdue)}
-            tone="danger"
-          />
-        ) : (
-          <Indicator
-            icon={BadgeCheck}
-            label="Interagidos"
-            value={formatInteger(portfolio.interacted)}
-            tone="neutral"
-          />
-        )}
+        <Indicator
+          icon={MessageSquareDashed}
+          label="Sem interação"
+          value={formatInteger(noInteractionCount(portfolio))}
+          tone="neutral"
+        />
         <Indicator
           icon={Clock}
           label="Aguardando resposta"
@@ -196,21 +210,77 @@ function PortfolioCard({
           tone="warning"
         />
         <Indicator
-          icon={MessageSquareDashed}
-          label="Sem interação"
-          value={formatInteger(
-            unassigned
-              ? portfolio.noManualInteraction
-              : Math.max(0, portfolio.totalAssigned - portfolio.interacted),
-          )}
-          tone="neutral"
+          icon={AlertTriangle}
+          label="SLA vencido"
+          value={formatInteger(portfolio.slaOverdue)}
+          tone="danger"
         />
         <Indicator
-          icon={Users}
+          icon={Wallet}
           label="Em aberto"
           value={formatCurrencyFromDecimalString(portfolio.totalOutstanding)}
           tone="neutral"
         />
+      </div>
+    </button>
+  );
+}
+
+function UnassignedCard({
+  portfolio,
+  onSelect,
+}: {
+  portfolio: CollectionCasePortfolioSummary;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className="group flex w-full flex-col gap-3 rounded-xl border border-warning/50 border-l-4 border-l-warning bg-card p-4 text-left transition-colors hover:bg-warning/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-warning/40"
+      aria-label="Ver casos sem responsável"
+    >
+      <div className="flex items-center gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-warning/15 text-warning">
+          <UserRound className="h-5 w-5" aria-hidden="true" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <span className="font-semibold">Sem responsável</span>
+          <div className="mt-0.5 text-xs text-neutral">
+            {formatInteger(portfolio.totalActive)}{' '}
+            {portfolio.totalActive === 1 ? 'caso ativo' : 'casos ativos'} · fila
+            esperando distribuição
+          </div>
+        </div>
+        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-warning px-3 py-1.5 text-sm font-semibold text-white">
+          Distribuir
+          <ArrowRight className="h-4 w-4" aria-hidden="true" />
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-x-6 gap-y-1.5 border-t border-border pt-3 text-xs text-neutral">
+        <span>
+          <strong className="font-semibold text-foreground tabular-nums">
+            {formatInteger(portfolio.noManualInteraction)}
+          </strong>{' '}
+          sem interação
+        </span>
+        <span>
+          <strong
+            className={cn(
+              'font-semibold tabular-nums',
+              portfolio.slaOverdue > 0 ? 'text-danger' : 'text-foreground',
+            )}
+          >
+            {formatInteger(portfolio.slaOverdue)}
+          </strong>{' '}
+          SLA vencido
+        </span>
+        <span>
+          <strong className="font-semibold text-foreground tabular-nums">
+            {formatCurrencyFromDecimalString(portfolio.totalOutstanding)}
+          </strong>{' '}
+          em aberto
+        </span>
       </div>
     </button>
   );
@@ -222,8 +292,8 @@ export function SupervisionPortfolios({
   isLoading,
   onSelectAgent,
 }: SupervisionPortfoliosProps) {
-  // Mescla as carteiras vindas da API com a lista de atendentes ativos, para
-  // que agentes sem nenhum caso ativo tambem aparecam (carteira vazia = ocioso).
+  const [sortBy, setSortBy] = useState<SortKey>('load');
+
   const merged = useMemo(() => {
     const byKey = new Map<string, CollectionCasePortfolioSummary>();
 
@@ -250,21 +320,59 @@ export function SupervisionPortfolios({
       }
     }
 
-    return Array.from(byKey.values()).sort((left, right) => {
-      // "Sem responsavel" sempre no topo — e o que exige acao da supervisao.
-      const leftUnassigned = left.agent === null;
-      const rightUnassigned = right.agent === null;
-      if (leftUnassigned !== rightUnassigned) {
-        return leftUnassigned ? -1 : 1;
-      }
+    return Array.from(byKey.values());
+  }, [portfolios, agents]);
 
-      if (right.totalActive !== left.totalActive) {
+  const unassigned = useMemo(
+    () => merged.find((portfolio) => portfolio.agent === null),
+    [merged],
+  );
+
+  const agentCards = useMemo(() => {
+    const onlyAgents = merged.filter((portfolio) => portfolio.agent !== null);
+
+    return onlyAgents.sort((left, right) => {
+      if (sortBy === 'outstanding') {
+        const diff = Number(right.totalOutstanding) - Number(left.totalOutstanding);
+        if (diff !== 0) return diff;
+      } else if (sortBy === 'noInteraction') {
+        const diff = noInteractionCount(right) - noInteractionCount(left);
+        if (diff !== 0) return diff;
+      } else if (right.totalActive !== left.totalActive) {
         return right.totalActive - left.totalActive;
       }
 
       return (left.agent?.name ?? '').localeCompare(right.agent?.name ?? '');
     });
-  }, [portfolios, agents]);
+  }, [merged, sortBy]);
+
+  const totals = useMemo(() => {
+    let activeTotal = 0;
+    let assignedAgents = 0;
+    let interactedAgents = 0;
+    let outstandingTotal = 0;
+
+    for (const portfolio of merged) {
+      activeTotal += portfolio.totalActive;
+      outstandingTotal += Number(portfolio.totalOutstanding);
+      if (portfolio.agent !== null) {
+        assignedAgents += portfolio.totalAssigned;
+        interactedAgents += portfolio.interacted;
+      }
+    }
+
+    const interactedPct =
+      assignedAgents > 0
+        ? Math.round((interactedAgents / assignedAgents) * 100)
+        : 0;
+
+    return {
+      activeTotal,
+      interactedPct,
+      outstandingTotal,
+      unassignedActive: unassigned?.totalActive ?? 0,
+    };
+  }, [merged, unassigned]);
 
   return (
     <SectionCard
@@ -276,7 +384,7 @@ export function SupervisionPortfolios({
           {Array.from({ length: 6 }).map((_, index) => (
             <div
               key={index}
-              className="h-40 animate-pulse rounded-xl border border-border bg-muted/40"
+              className="h-44 animate-pulse rounded-xl border border-border bg-muted/40"
             />
           ))}
         </div>
@@ -285,14 +393,88 @@ export function SupervisionPortfolios({
           Nenhuma carteira para exibir.
         </p>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {merged.map((portfolio) => (
-            <PortfolioCard
-              key={portfolioKey(portfolio)}
-              portfolio={portfolio}
-              onSelect={() => onSelectAgent(portfolio.agent?.id ?? null)}
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <MetricCard
+              title="Carteira ativa"
+              value={formatInteger(totals.activeTotal)}
+              description="casos ativos na operação"
+              icon={Users}
+              variant="neutral"
+              density="compact"
             />
-          ))}
+            <MetricCard
+              title="Interagidos"
+              value={`${totals.interactedPct}%`}
+              description="da carteira com contato"
+              icon={Activity}
+              variant="success"
+              density="compact"
+            />
+            <MetricCard
+              title="Em aberto"
+              value={formatCurrencyFromDecimalString(
+                totals.outstandingTotal.toFixed(2),
+              )}
+              description="valor total da carteira"
+              icon={Wallet}
+              variant="warning"
+              density="compact"
+            />
+            <MetricCard
+              title="Sem responsável"
+              value={formatInteger(totals.unassignedActive)}
+              description="aguardando distribuição"
+              icon={UserX}
+              variant={totals.unassignedActive > 0 ? 'warning' : 'neutral'}
+              density="compact"
+            />
+          </div>
+
+          {unassigned && unassigned.totalActive > 0 ? (
+            <UnassignedCard
+              portfolio={unassigned}
+              onSelect={() => onSelectAgent(null)}
+            />
+          ) : null}
+
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm font-semibold">Atendentes</span>
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="text-neutral">Ordenar:</span>
+              {SORT_OPTIONS.map((option) => (
+                <button
+                  key={option.key}
+                  type="button"
+                  onClick={() => setSortBy(option.key)}
+                  className={cn(
+                    'rounded-full px-3 py-1 transition-colors',
+                    sortBy === option.key
+                      ? 'bg-primary text-foreground'
+                      : 'border border-border text-neutral hover:bg-muted/50',
+                  )}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {agentCards.length === 0 ? (
+            <p className="py-6 text-center text-sm text-neutral">
+              Nenhum atendente com carteira para exibir.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {agentCards.map((portfolio) => (
+                <PortfolioCard
+                  key={portfolioKey(portfolio)}
+                  portfolio={portfolio}
+                  onSelect={() => onSelectAgent(portfolio.agent?.id ?? null)}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </SectionCard>
