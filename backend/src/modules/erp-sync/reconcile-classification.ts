@@ -74,14 +74,37 @@ export function resolveReconcileOutcome(
 export type ManualAttemptForClassification = {
   collectionCaseId: string;
   attemptedAt: Date;
+  // Resultado da tentativa (AttemptResult). Só conta recuperação quando houve
+  // CONTATO EFETIVO (abaixo) — "não atendeu"/caixa postal/número errado não
+  // comprovam esforço que levou ao pagamento.
+  result: string;
 };
 
 /**
+ * Resultados de tentativa que representam CONTATO EFETIVO com o cliente (o
+ * atendente de fato falou/interagiu). Só esses creditam recuperação:
+ * - CONTACTED: falou com o cliente
+ * - PROMISE_MADE: cliente prometeu pagar
+ * - CALLBACK_REQUESTED: cliente pediu retorno (houve interação)
+ * - REFUSED: cliente atendeu e se recusou (houve contato)
+ * Ficam DE FORA (não creditam): NO_ANSWER, VOICEMAIL, WRONG_NUMBER, OTHER.
+ */
+export const EFFECTIVE_ATTEMPT_RESULTS = new Set([
+  'CONTACTED',
+  'PROMISE_MADE',
+  'CALLBACK_REQUESTED',
+  'REFUSED',
+]);
+
+/**
  * Um caso foi RECUPERADO (esforço de atendente) só se teve ao menos uma
- * tentativa manual DENTRO do ciclo atual — ou seja, com `attemptedAt` a partir
- * do `cycleStartedAt` do caso. Isso evita creditar recuperação ao atendente por
- * tentativas herdadas de um ciclo anterior (quando o mesmo caso é reaberto).
- * Caso sem `cycleStartedAt` (dados legados) conta qualquer tentativa manual.
+ * tentativa manual com CONTATO EFETIVO (ver EFFECTIVE_ATTEMPT_RESULTS) DENTRO do
+ * ciclo atual — ou seja, com `attemptedAt` a partir do `cycleStartedAt` do caso.
+ * Exigir contato efetivo evita creditar recuperação por um simples "não
+ * atendeu" quando, na prática, o cliente pagou sozinho (boleto/Pix). Exigir o
+ * ciclo atual evita creditar por tentativas herdadas de um ciclo anterior (caso
+ * reaberto). Caso sem `cycleStartedAt` (dados legados) conta qualquer tentativa
+ * manual efetiva.
  */
 export function resolveRecoveredCaseIds(
   attempts: ManualAttemptForClassification[],
@@ -90,6 +113,10 @@ export function resolveRecoveredCaseIds(
   const recovered = new Set<string>();
 
   for (const attempt of attempts) {
+    if (!EFFECTIVE_ATTEMPT_RESULTS.has(attempt.result)) {
+      continue;
+    }
+
     const cycleStart = cycleStartByCase.get(attempt.collectionCaseId) ?? null;
 
     if (!cycleStart || attempt.attemptedAt.getTime() >= cycleStart.getTime()) {

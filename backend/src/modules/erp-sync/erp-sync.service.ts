@@ -760,7 +760,7 @@ export class ErpSyncService {
       // pagamento espontaneo.
       const manualAttempts = await tx.collectionAttempt.findMany({
         where: { collectionCaseId: { in: caseIds }, isAutomatic: false },
-        select: { collectionCaseId: true, attemptedAt: true },
+        select: { collectionCaseId: true, attemptedAt: true, result: true },
       });
       // Conta só as tentativas manuais do ciclo ATUAL (a partir do
       // cycleStartedAt), para não creditar recuperação por tentativas herdadas
