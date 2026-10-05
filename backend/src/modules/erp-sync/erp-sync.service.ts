@@ -41,35 +41,47 @@ WHERE c.public_id = ANY($1::uuid[]) AND r.deleted IS false
 GROUP BY c.public_id;
 `;
 
+// Detalhe da renegociação a partir da FONTE REAL: `financial_renegotiation_titles`
+// (type=0 = título CONSUMIDO/renegociado; type=1 = título GERADO). NÃO usa o flag
+// `fr.renegotiated`, que marca resquícios órfãos que nem o Elleven mostra
+// (ex.: contrato 269033: títulos "renegociados" pelo flag não aparecem em
+// Todos/Baixado/Recebido e o Elleven mostra "Renegociado: 0").
 const RENEGOTIATION_DETAIL_QUERY = `
 SELECT
-  fr.title                  AS invoice_number,
-  fn.title                  AS nature,
-  fr.renegotiated           AS renegotiated,
-  (x.client_paid_date IS NOT NULL) AS paid,
-  fr.title_amount::text     AS title_amount,
-  fr.balance::text          AS balance,
-  fr.expiration_date        AS expiration
+  fr.title                         AS invoice_number,
+  MAX(fn.title)                    AS nature,
+  fr.title_amount::text            AS title_amount,
+  fr.balance::text                 AS balance,
+  fr.expiration_date               AS expiration,
+  BOOL_OR(x.id IS NOT NULL)        AS paid,
+  BOOL_OR(rt.type = 0)             AS was_consumed,
+  BOOL_OR(rt.type = 1)             AS was_generated
 FROM erp.contracts c
 JOIN erp.financial_receivable_titles fr ON fr.contract_id = c.id
+JOIN erp.financial_renegotiation_titles rt
+  ON rt.financial_receivable_title_id = fr.id AND rt.deleted IS false
+JOIN erp.financial_renegotiations r
+  ON r.id = rt.financial_renegotiation_id AND r.deleted IS false
 LEFT JOIN erp.financers_natures fn ON fn.id = fr.financer_nature_id
-LEFT JOIN erp.financial_receipt_titles x ON x.financial_receivable_title_id = fr.id
+LEFT JOIN erp.financial_receipt_titles x
+  ON x.financial_receivable_title_id = fr.id
+ AND x.deleted IS false
+ AND x.payment_form_id IS NOT NULL
 WHERE c.public_id = $1::uuid
-  AND fr.bill_title_id IS NULL
   AND fr.deleted IS false
-  AND COALESCE(fn.title, '') <> 'DF - TARIFA BAIXA DE TÍTULO'
-  AND (fr.renegotiated IS true OR (x.client_paid_date IS NULL AND fr.balance > 0))
-ORDER BY fr.renegotiated DESC, fr.expiration_date;
+GROUP BY fr.id, fr.title, fr.title_amount, fr.balance, fr.expiration_date
+ORDER BY fr.expiration_date;
 `;
 
 type RenegotiationDetailRow = {
   invoice_number: string | null;
   nature: string | null;
-  renegotiated: boolean | null;
-  paid: boolean | null;
   title_amount: string | null;
   balance: string | null;
   expiration: Date | null;
+  paid: boolean | null;
+  was_consumed: boolean | null;
+  was_generated: boolean | null;
 };
 
 const UUID_PATTERN =
@@ -1256,7 +1268,7 @@ export class ErpSyncService {
     const toTitle = (row: RenegotiationDetailRow): RenegotiationTitle => ({
       invoiceNumber: row.invoice_number,
       nature: row.nature,
-      renegotiated: row.renegotiated === true,
+      renegotiated: row.was_consumed === true,
       paid: row.paid === true,
       titleAmount: Number(row.title_amount ?? 0).toFixed(2),
       balance: Number(row.balance ?? 0).toFixed(2),
@@ -1265,11 +1277,22 @@ export class ErpSyncService {
         : null,
     });
 
-    const titles = rows.map(toTitle);
-    const renegotiatedTitles = titles.filter((title) => title.renegotiated);
-    const openTitles = titles.filter(
-      (title) => !title.renegotiated && !title.paid,
-    );
+    // Títulos RENEGOCIADOS = os que foram CONSUMIDOS numa renegociação (type=0).
+    // Em aberto = os GERADOS (type=1) que NÃO foram consumidos depois e ainda têm
+    // saldo sem baixa real — é o que o cliente de fato ainda deve. (Um título
+    // gerado e depois renegociado de novo entra só em "renegociados".)
+    const renegotiatedTitles = rows
+      .filter((row) => row.was_consumed === true)
+      .map(toTitle);
+    const openTitles = rows
+      .filter(
+        (row) =>
+          row.was_generated === true &&
+          row.was_consumed !== true &&
+          row.paid !== true &&
+          Number(row.balance ?? 0) > 0,
+      )
+      .map(toTitle);
     const openBalanceTotal = openTitles
       .reduce((total, title) => total + Number(title.balance), 0)
       .toFixed(2);
