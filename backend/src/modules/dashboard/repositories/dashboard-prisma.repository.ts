@@ -206,6 +206,7 @@ export class DashboardPrismaRepository implements DashboardRepository {
               CollectionStatus.CLOSED,
               CollectionStatus.RECOVERED,
               CollectionStatus.PAYMENT_MADE,
+              CollectionStatus.RENEGOTIATED,
             ],
           },
         },

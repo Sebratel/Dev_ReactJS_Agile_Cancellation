@@ -502,15 +502,22 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
   }
 
   async getRenegotiatedHistory(): Promise<RenegotiatedHistoryResponse> {
-    // Cada renegociacao grava um audit log com afterSnapshot.status =
-    // 'RENEGOTIATED'. Agrupamos por caso para contar quantas vezes e quando.
-    const audits = await this.prisma.auditLog.findMany({
+    // Conta só as TRANSICOES reais para RENEGOTIATED (afterSnapshot = RENEGOTIATED
+    // E beforeSnapshot != RENEGOTIATED). Uma re-deteccao do mesmo caso ja
+    // renegociado (before == after) nao conta, para a contagem refletir quantas
+    // vezes o cliente de fato renegociou, nao quantas rodadas o reconcile viu.
+    const auditRows = await this.prisma.auditLog.findMany({
       where: {
         entityType: 'COLLECTION_CASE',
         afterSnapshot: { path: '$.status', equals: CollectionStatus.RENEGOTIATED },
       },
-      select: { entityId: true, createdAt: true },
+      select: { entityId: true, createdAt: true, beforeSnapshot: true },
       orderBy: { createdAt: 'asc' },
+    });
+
+    const audits = auditRows.filter((row) => {
+      const before = row.beforeSnapshot as { status?: string } | null;
+      return before?.status !== CollectionStatus.RENEGOTIATED;
     });
 
     const byCase = new Map<string, { count: number; first: Date; last: Date }>();

@@ -349,11 +349,16 @@ export class ErpSyncService {
     const activeSyncedCases = await this.prisma.collectionCase.findMany({
       where: {
         externalId: { not: null },
+        // Exclui TODOS os finalizados — inclusive RENEGOTIATED. Sem isso, um
+        // caso renegociado (finalizado) era reprocessado a cada rodada e
+        // re-marcado como renegociado, gerando auditoria duplicada e contagem
+        // falsa. Ele so volta a ser avaliado se reabrir (ingest).
         status: {
           notIn: [
             CollectionStatus.CLOSED,
             CollectionStatus.RECOVERED,
             CollectionStatus.PAYMENT_MADE,
+            CollectionStatus.RENEGOTIATED,
           ],
         },
         contract: {
