@@ -107,12 +107,20 @@ import {
 // Confirma PAGAMENTO REAL: dos titulos informados, quais tem baixa
 // (client_paid_date). Usado como prova de que o caso foi de fato recuperado —
 // e nao apenas "sumiu da regra" por adiamento/apagamento de titulo.
+// IMPORTANTE: só conta como PAGAMENTO REAL a baixa que tem forma de pagamento
+// (`payment_form_id`: Pix, boleto, cartão, dinheiro...). Baixa de RENEGOCIAÇÃO /
+// QUITAÇÃO vem com `origin=5` e SEM forma de pagamento — não é dinheiro que o
+// cliente pagou, é o título antigo sendo substituído/quitado. Sem este filtro,
+// uma renegociação virava "Pagamento realizado" (receita falsa). Também
+// desconsidera baixas deletadas.
 const PAID_TITLES_QUERY = `
 SELECT fr.id::text AS id, MIN(x.client_paid_date) AS paid_date
 FROM erp.financial_receivable_titles fr
 JOIN erp.financial_receipt_titles x ON x.financial_receivable_title_id = fr.id
 WHERE fr.id = ANY($1::bigint[])
   AND x.client_paid_date IS NOT NULL
+  AND x.payment_form_id IS NOT NULL
+  AND x.deleted IS false
 GROUP BY fr.id;
 `;
 
