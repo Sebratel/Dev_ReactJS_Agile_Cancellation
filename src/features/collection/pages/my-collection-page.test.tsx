@@ -22,6 +22,7 @@ const page = {
       customerPhone: '(51) 99911-2233',
       contractCode: 'CTR-10428',
       contractStatus: 'ACTIVE',
+      contractErpStatus: 'Normal',
       firstOverdueDate: '2026-06-28T00:00:00.000Z',
       secondOverdueDate: '2026-07-28T00:00:00.000Z',
       status: 'IN_COLLECTION',

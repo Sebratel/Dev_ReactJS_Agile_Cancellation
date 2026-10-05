@@ -16,6 +16,8 @@ export const mockDashboardSummaryResponse: DashboardSummaryResponse = {
     activePromises: 34,
     overduePromises: 9,
     cancellationsInProgress: 15,
+    assignedActiveCases: 54,
+    contactedCases: 31,
   },
   statusDistribution: [
     {
@@ -126,6 +128,7 @@ export const mockCollectionCaseListItems: CollectionCaseListItemResponse[] = [
     customerPhone: '(51) 99911-2233',
     contractCode: 'CTR-10428',
     contractStatus: 'ACTIVE',
+    contractErpStatus: 'Normal',
     firstOverdueDate: new Date(Date.now() - 119 * 86_400_000).toISOString(),
     secondOverdueDate: new Date(Date.now() - 89 * 86_400_000).toISOString(),
     status: 'NO_RESPONSE',
@@ -145,6 +148,7 @@ export const mockCollectionCaseListItems: CollectionCaseListItemResponse[] = [
     customerPhone: '(51) 99944-5566',
     contractCode: 'CTR-10311',
     contractStatus: 'SUSPENDED',
+    contractErpStatus: 'Bloqueio Financeiro',
     firstOverdueDate: new Date(Date.now() - 133 * 86_400_000).toISOString(),
     secondOverdueDate: new Date(Date.now() - 103 * 86_400_000).toISOString(),
     status: 'ELIGIBLE_FOR_CANCELLATION',
@@ -210,6 +214,7 @@ export const mockCollectionCaseDetails: CollectionCaseDetailsResponse = {
     id: 'ctr_10428',
     code: 'CTR-10428',
     status: 'ACTIVE',
+    erpStatus: 'Normal',
   },
   status: 'NO_RESPONSE',
   priority: 'HIGH',
