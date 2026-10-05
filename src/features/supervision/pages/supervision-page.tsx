@@ -143,7 +143,25 @@ export default function SupervisionPage() {
   const autoDistributeMutation = useAutoDistribute();
   const { exportCsv, isExporting } = useExportCasesCsv();
 
-  const handleRetry = () => { void casesQuery.refetch(); };
+  // Atualiza a VISAO ATIVA: carteiras, lista ou renegociados — nao so a lista.
+  const handleRetry = () => {
+    if (canDistribute && effectiveView === 'portfolios') {
+      void portfoliosQuery.refetch();
+      return;
+    }
+    if (canDistribute && effectiveView === 'renegotiated') {
+      void renegotiatedQuery.refetch();
+      return;
+    }
+    void casesQuery.refetch();
+  };
+
+  const isRefreshing =
+    effectiveView === 'portfolios'
+      ? portfoliosQuery.isFetching
+      : effectiveView === 'renegotiated'
+        ? renegotiatedQuery.isFetching
+        : casesQuery.isFetching;
 
   const items = useMemo(() => casesQuery.data?.items ?? [], [casesQuery.data]);
   const totalPages = Math.max(casesQuery.data?.pagination.totalPages ?? 1, 1);
@@ -231,9 +249,11 @@ export default function SupervisionPage() {
               <Download className="h-4 w-4" />
               {isExporting ? 'Exportando...' : 'Exportar CSV'}
             </Button>
-            <Button onClick={handleRetry} disabled={casesQuery.isLoading}>
-              <RefreshCw className="h-4 w-4" />
-              Atualizar carteira
+            <Button onClick={handleRetry} disabled={isRefreshing}>
+              <RefreshCw
+                className={cn('h-4 w-4', isRefreshing && 'animate-spin')}
+              />
+              {isRefreshing ? 'Atualizando...' : 'Atualizar carteira'}
             </Button>
           </>
         }
