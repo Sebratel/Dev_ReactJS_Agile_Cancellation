@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom';
 import {
+  ArrowRight,
   CalendarClock,
   ChevronRight,
   Hourglass,
+  ListChecks,
   PhoneOff,
   TrendingUp,
   User,
@@ -10,6 +12,7 @@ import {
 import { SectionCard } from '@/components/data-display/section-card';
 import RecoveryTrendChart from '@/features/dashboard/components/recovery-trend-chart';
 import { mapDashboardSummaryToRecoveryTrend } from '@/features/dashboard/utils/dashboard.mapper';
+import { useCollectionCases } from '@/features/collection-cases/hooks/use-collection-cases';
 import { type DashboardSummaryResponse } from '@/features/dashboard/types/dashboard-api.types';
 import { type AuthUser } from '@/types/auth';
 import {
@@ -46,6 +49,20 @@ const WORK_HREF = '/minha-cobranca';
 export function DashboardAgentPanel({ user, summary }: DashboardAgentPanelProps) {
   const isCancellationAgent = user.roles.includes('CANCELLATION_AGENT');
   const workHref = isCancellationAgent ? '/cancelamentos' : WORK_HREF;
+
+  // Próximos a contatar: casos DELE ainda sem contato manual, do mais crítico
+  // (maior atraso) para o menor. Só faz sentido para o atendente de cobrança.
+  const nextToContactQuery = useCollectionCases(
+    {
+      assignedToId: user.id,
+      interactionStatus: 'not_contacted',
+      limit: 4,
+      sortBy: 'daysOverdue',
+      sortDirection: 'desc',
+    },
+    { enabled: !isCancellationAgent && Boolean(user.id) },
+  );
+  const nextToContact = nextToContactQuery.data?.items ?? [];
 
   const active = Number(summary.metrics.assignedActiveCases);
   const contacted = Number(summary.metrics.contactedCases);
@@ -238,6 +255,56 @@ export function DashboardAgentPanel({ user, summary }: DashboardAgentPanelProps)
           </div>
         </SectionCard>
       </div>
+
+      {!isCancellationAgent ? (
+        <SectionCard
+          title="Próximos a contatar"
+          description="Seus casos ainda sem contato, do maior atraso para o menor."
+          contentClassName="p-0"
+        >
+          {nextToContactQuery.isLoading ? (
+            <p className="px-4 py-6 text-sm text-neutral">Carregando sua fila…</p>
+          ) : nextToContact.length === 0 ? (
+            <div className="flex items-center gap-2 px-4 py-6 text-sm text-success">
+              <ListChecks className="h-4 w-4 shrink-0" aria-hidden="true" />
+              Nenhum caso pendente de contato. Carteira em dia!
+            </div>
+          ) : (
+            <>
+              <ul className="divide-y divide-border">
+                {nextToContact.map((item) => (
+                  <li
+                    key={item.id}
+                    className="flex items-center gap-3 px-4 py-2.5"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">
+                        {item.customerName}
+                      </span>
+                      <span className="block truncate text-xs text-neutral">
+                        {formatInteger(item.daysOverdue)} dias em atraso ·{' '}
+                        {item.contractCode}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-sm font-semibold tabular-nums">
+                      {formatCurrencyFromDecimalString(item.outstandingAmount)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <div className="border-t border-border px-4 py-3">
+                <Link
+                  to={`${WORK_HREF}?interactionStatus=not_contacted`}
+                  className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+                >
+                  Abrir minha fila
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
+              </div>
+            </>
+          )}
+        </SectionCard>
+      ) : null}
 
       {recoveryTrend.length > 0 ? (
         <RecoveryTrendChart data={recoveryTrend} />

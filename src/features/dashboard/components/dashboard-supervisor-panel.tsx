@@ -5,6 +5,7 @@ import {
   Headphones,
   Hourglass,
   Inbox,
+  Repeat,
   ShieldAlert,
   TrendingUp,
   Users,
@@ -65,6 +66,10 @@ export function DashboardSupervisorPanel({
     summary.operationalAlerts.find((alert) => alert.key === 'inactiveAgents')
       ?.count ?? 0;
 
+  const renegotiatedOpen =
+    summary.statusDistribution.find((item) => item.status === 'RENEGOTIATED')
+      ?.count ?? 0;
+
   const actions: Array<{
     label: string;
     helper: string;
@@ -95,6 +100,14 @@ export function DashboardSupervisorPanel({
       value: inactiveAgents,
       tone: 'neutral',
       icon: UserX,
+      href: '/supervisao',
+    },
+    {
+      label: 'Renegociados em aberto',
+      helper: 'renegociaram e ainda devem',
+      value: renegotiatedOpen,
+      tone: 'warning',
+      icon: Repeat,
       href: '/supervisao',
     },
     {
