@@ -609,6 +609,7 @@ export function toListItemResponse(
     customerPhone: record.customerPhone,
     contractCode: record.contractCode,
     contractStatus: record.contractStatus,
+    contractErpStatus: record.contractErpStatus ?? null,
     firstOverdueDate: record.firstOverdueDate,
     secondOverdueDate: record.firstOverdueDate
       ? getSecondOverdueDate(record)

@@ -37,6 +37,8 @@ export type CollectionCaseContractSummary = {
   id: string;
   code: string;
   status: string;
+  // Status bruto do ERP (v_status do Elleven), para exibicao fiel.
+  erpStatus: string | null;
 };
 
 export type CollectionCaseAssigneeSummary = {

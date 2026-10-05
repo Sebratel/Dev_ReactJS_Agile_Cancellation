@@ -58,6 +58,12 @@ export class IngestContractDto {
   @IsEnum(ContractStatus)
   status?: ContractStatus;
 
+  // Status bruto do ERP (v_status), para exibicao fiel.
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  erpStatus?: string;
+
   @IsISO8601()
   startDate!: string;
 

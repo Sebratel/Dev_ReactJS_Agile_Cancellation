@@ -497,6 +497,7 @@ export class ErpSyncService {
           id: collectionCase.id,
           contractId: collectionCase.contractId,
           contractStatus: mapContractStatus(openTitles[0]?.erp_contract_status),
+          contractErpStatus: openTitles[0]?.erp_contract_status ?? null,
           outstandingAmount,
           daysOverdue,
         };
@@ -508,6 +509,7 @@ export class ErpSyncService {
           id: string;
           contractId: string;
           contractStatus: ReturnType<typeof mapContractStatus>;
+          contractErpStatus: string | null;
           outstandingAmount: number;
           daysOverdue: number;
         } => collectionCase !== null,
@@ -674,6 +676,7 @@ export class ErpSyncService {
           where: { id: collectionCase.contractId },
           data: {
             status: collectionCase.contractStatus,
+            erpStatus: collectionCase.contractErpStatus ?? undefined,
             updatedAt: now,
           },
         });
@@ -701,7 +704,11 @@ export class ErpSyncService {
         if (erpStatus) {
           await tx.contract.update({
             where: { id: collectionCase.contractId },
-            data: { status: mapContractStatus(erpStatus), updatedAt: now },
+            data: {
+              status: mapContractStatus(erpStatus),
+              erpStatus,
+              updatedAt: now,
+            },
           });
         }
       }

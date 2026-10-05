@@ -6,6 +6,8 @@ export type CollectionCaseListItemResponse = {
   customerPhone: string | null;
   contractCode: string;
   contractStatus: string;
+  // Status bruto do ERP (v_status do Elleven), para exibicao fiel.
+  contractErpStatus: string | null;
   firstOverdueDate: string | null;
   secondOverdueDate: string | null;
   status: string;

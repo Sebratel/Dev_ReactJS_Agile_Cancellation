@@ -293,7 +293,10 @@ function SupervisionCaseCards({
                 </div>
                 <div className="pt-1">
                   <StatusBadge
-                    label={getContractStatusLabel(item.contractStatus)}
+                    label={
+                      item.contractErpStatus ??
+                      getContractStatusLabel(item.contractStatus)
+                    }
                     variant={getContractStatusVariant(item.contractStatus)}
                   />
                 </div>
@@ -578,7 +581,8 @@ export function SupervisionCasesTable({
                       </div>
                       <div className="text-xs text-neutral">
                         {matrixReply.label} ·{' '}
-                        {getContractStatusLabel(item.contractStatus)}
+                        {item.contractErpStatus ??
+                          getContractStatusLabel(item.contractStatus)}
                       </div>
                     </div>
                   </TableCell>

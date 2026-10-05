@@ -14,6 +14,7 @@ function createRecord(
     customerPhone: '(51) 99999-0000',
     contractCode: 'CTR-1',
     contractStatus: 'ACTIVE',
+    contractErpStatus: 'Normal',
     firstOverdueDate: null,
     secondOverdueDate: null,
     status: 'IN_COLLECTION',

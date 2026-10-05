@@ -156,6 +156,7 @@ export function mapErpRowsToIngestPayload(
       contract: {
         code: first.contract_number,
         status: mapContractStatus(first.erp_contract_status),
+        erpStatus: toOptionalString(first.erp_contract_status),
         startDate: first.contract_date.toISOString(),
         monthlyValue:
           first.contract_monthly_amount !== null

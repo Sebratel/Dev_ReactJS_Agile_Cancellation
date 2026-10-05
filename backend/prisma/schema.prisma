@@ -210,6 +210,10 @@ model Contract {
   customerId   String
   code         String         @unique
   status       ContractStatus @default(ACTIVE)
+  // Status BRUTO do ERP (v_status do Elleven) para exibicao fiel — ex.:
+  // "Normal", "Suspenso", "Bloqueio Financeiro", "Cancelado". O enum `status`
+  // acima (mapeado) continua para a logica interna.
+  erpStatus    String?
   startDate    DateTime
   endDate      DateTime?
   totalValue   Decimal?       @db.Decimal(15, 2)

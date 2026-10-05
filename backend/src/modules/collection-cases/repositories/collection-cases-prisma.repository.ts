@@ -158,6 +158,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
             select: {
               code: true,
               status: true,
+              erpStatus: true,
               invoices: {
                 where: {
                   dueDate: { lt: now },
@@ -191,6 +192,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
         customerPhone: record.customer.phone,
         contractCode: record.contract.code,
         contractStatus: record.contract.status,
+        contractErpStatus: record.contract.erpStatus,
         firstOverdueDate:
           record.contract.invoices[0]?.dueDate.toISOString() ?? null,
         secondOverdueDate:
@@ -1547,6 +1549,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
         id: record.contract.id,
         code: record.contract.code,
         status: record.contract.status,
+        erpStatus: record.contract.erpStatus,
       },
       status: record.status,
       priority: record.priority,

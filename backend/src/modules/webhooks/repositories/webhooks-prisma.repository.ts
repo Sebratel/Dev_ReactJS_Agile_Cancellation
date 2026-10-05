@@ -67,6 +67,7 @@ export class WebhooksPrismaRepository implements WebhooksRepository {
           update: {
             customerId: customer.id,
             status: event.contract.status ?? undefined,
+            erpStatus: event.contract.erpStatus ?? undefined,
             startDate: new Date(event.contract.startDate),
             totalValue: event.contract.totalValue ?? null,
             monthlyValue: event.contract.monthlyValue ?? null,
@@ -76,6 +77,7 @@ export class WebhooksPrismaRepository implements WebhooksRepository {
             customerId: customer.id,
             code: event.contract.code,
             status: event.contract.status ?? undefined,
+            erpStatus: event.contract.erpStatus ?? null,
             startDate: new Date(event.contract.startDate),
             totalValue: event.contract.totalValue ?? null,
             monthlyValue: event.contract.monthlyValue ?? null,

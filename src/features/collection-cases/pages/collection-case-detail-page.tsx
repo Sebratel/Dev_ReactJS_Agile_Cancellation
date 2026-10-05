@@ -423,7 +423,8 @@ export default function CollectionCaseDetailPage() {
                       Status do contrato
                     </dt>
                     <dd className="mt-1">
-                      {getContractStatusLabel(caseQuery.data.contract.status)}
+                      {caseQuery.data.contract.erpStatus ??
+                        getContractStatusLabel(caseQuery.data.contract.status)}
                     </dd>
                   </div>
                   <div>

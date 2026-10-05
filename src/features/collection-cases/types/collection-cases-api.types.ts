@@ -25,6 +25,7 @@ export type CollectionCaseListItemResponse = {
   customerPhone: string | null;
   contractCode: string;
   contractStatus: string;
+  contractErpStatus: string | null;
   firstOverdueDate: string | null;
   secondOverdueDate: string | null;
   status: string;
@@ -78,6 +79,7 @@ export type CollectionCaseContractSummary = {
   id: string;
   code: string;
   status: string;
+  erpStatus: string | null;
 };
 
 export type CollectionCaseAssigneeSummary = {
