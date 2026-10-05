@@ -96,19 +96,31 @@ export const EFFECTIVE_ATTEMPT_RESULTS = new Set([
   'REFUSED',
 ]);
 
+/** Dia (00:00 UTC) de uma data — para comparar contato x pagamento por dia. */
+function toDayUtc(date: Date): number {
+  return Date.UTC(
+    date.getUTCFullYear(),
+    date.getUTCMonth(),
+    date.getUTCDate(),
+  );
+}
+
 /**
  * Um caso foi RECUPERADO (esforço de atendente) só se teve ao menos uma
- * tentativa manual com CONTATO EFETIVO (ver EFFECTIVE_ATTEMPT_RESULTS) DENTRO do
- * ciclo atual — ou seja, com `attemptedAt` a partir do `cycleStartedAt` do caso.
- * Exigir contato efetivo evita creditar recuperação por um simples "não
- * atendeu" quando, na prática, o cliente pagou sozinho (boleto/Pix). Exigir o
- * ciclo atual evita creditar por tentativas herdadas de um ciclo anterior (caso
- * reaberto). Caso sem `cycleStartedAt` (dados legados) conta qualquer tentativa
- * manual efetiva.
+ * tentativa manual com CONTATO EFETIVO (ver EFFECTIVE_ATTEMPT_RESULTS) que:
+ *  1. está DENTRO do ciclo atual (`attemptedAt >= cycleStartedAt`) — evita
+ *     creditar por tentativas herdadas de um ciclo anterior (caso reaberto);
+ *  2. aconteceu ATÉ O DIA do pagamento (`attemptedAt <= dia da baixa`) — evita
+ *     creditar quando o cliente já tinha pago sozinho (boleto/Pix) e a ligação
+ *     veio depois. Comparação por DIA (contato no mesmo dia da baixa conta).
+ * Exigir contato efetivo evita creditar por um simples "não atendeu". Caso sem
+ * `cycleStartedAt` (legado) não aplica (1); caso sem data de pagamento conhecida
+ * não aplica (2) — mantém o comportamento da Fase 1.
  */
 export function resolveRecoveredCaseIds(
   attempts: ManualAttemptForClassification[],
   cycleStartByCase: Map<string, Date | null>,
+  paymentDayByCase?: Map<string, Date | null>,
 ): Set<string> {
   const recovered = new Set<string>();
 
@@ -118,10 +130,20 @@ export function resolveRecoveredCaseIds(
     }
 
     const cycleStart = cycleStartByCase.get(attempt.collectionCaseId) ?? null;
-
-    if (!cycleStart || attempt.attemptedAt.getTime() >= cycleStart.getTime()) {
-      recovered.add(attempt.collectionCaseId);
+    if (cycleStart && attempt.attemptedAt.getTime() < cycleStart.getTime()) {
+      continue;
     }
+
+    const paymentDate =
+      paymentDayByCase?.get(attempt.collectionCaseId) ?? null;
+    if (
+      paymentDate &&
+      toDayUtc(attempt.attemptedAt) > toDayUtc(paymentDate)
+    ) {
+      continue;
+    }
+
+    recovered.add(attempt.collectionCaseId);
   }
 
   return recovered;

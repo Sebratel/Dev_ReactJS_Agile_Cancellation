@@ -108,11 +108,12 @@ import {
 // (client_paid_date). Usado como prova de que o caso foi de fato recuperado —
 // e nao apenas "sumiu da regra" por adiamento/apagamento de titulo.
 const PAID_TITLES_QUERY = `
-SELECT fr.id::text AS id
+SELECT fr.id::text AS id, MIN(x.client_paid_date) AS paid_date
 FROM erp.financial_receivable_titles fr
 JOIN erp.financial_receipt_titles x ON x.financial_receivable_title_id = fr.id
 WHERE fr.id = ANY($1::bigint[])
-  AND x.client_paid_date IS NOT NULL;
+  AND x.client_paid_date IS NOT NULL
+GROUP BY fr.id;
 `;
 
 /**
@@ -614,14 +615,21 @@ export class ErpSyncService {
     ];
 
     const paidTitleIds = new Set<string>();
+    // Data da baixa (client_paid_date) por título pago — usado p/ a Fase 2 do
+    // crédito de recuperação (contato efetivo tem de ser até o dia do pagamento).
+    const paidDateByTitle = new Map<string, Date>();
     if (allTriggerTitleIds.length > 0) {
       try {
         const pool = this.getPool(config.db);
-        const paidResult = await pool.query<{ id: string }>(PAID_TITLES_QUERY, [
-          allTriggerTitleIds,
-        ]);
+        const paidResult = await pool.query<{ id: string; paid_date: Date }>(
+          PAID_TITLES_QUERY,
+          [allTriggerTitleIds],
+        );
         for (const row of paidResult.rows) {
           paidTitleIds.add(row.id);
+          if (row.paid_date) {
+            paidDateByTitle.set(row.id, new Date(row.paid_date));
+          }
         }
       } catch (error) {
         this.logger.error(
@@ -771,9 +779,27 @@ export class ErpSyncService {
           collectionCase.cycleStartedAt ?? null,
         ]),
       );
+      // Data da baixa por caso = menor client_paid_date entre os títulos-gatilho
+      // pagos do contrato. Usada p/ exigir que o contato efetivo seja até o dia
+      // do pagamento (Fase 2) — senão o crédito vai pra quem ligou DEPOIS de o
+      // cliente já ter pago sozinho.
+      const paymentDayByCase = new Map<string, Date | null>(
+        paidCases.map((collectionCase) => {
+          const titleIds = titleIdsByContract.get(collectionCase.contractId);
+          let earliest: Date | null = null;
+          for (const titleId of titleIds ?? []) {
+            const paidDate = paidDateByTitle.get(titleId);
+            if (paidDate && (!earliest || paidDate.getTime() < earliest.getTime())) {
+              earliest = paidDate;
+            }
+          }
+          return [collectionCase.id, earliest];
+        }),
+      );
       const recoveredIds = resolveRecoveredCaseIds(
         manualAttempts,
         cycleStartByCase,
+        paymentDayByCase,
       );
       const recoveredCaseIds = caseIds.filter((id) => recoveredIds.has(id));
       const paidCaseIds = caseIds.filter((id) => !recoveredIds.has(id));
