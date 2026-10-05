@@ -13,14 +13,6 @@ export const ERP_ELIGIBLE_CONTRACT_STATUSES = new Set([
 export type ErpContractReconcileStatus = {
   erpContractStatus: string | null;
   openOverdueTitles: number;
-  // Houve renegociação no contrato (algum título com renegotiated=true). A
-  // renegociação some da visão da plataforma (todas as queries filtram
-  // renegotiated=false) e o novo título consolidado costuma ter vencimento
-  // futuro — então o contrato "sai da regra" sem que tenha havido pagamento.
-  hasRenegotiation: boolean;
-  // Saldo em aberto (títulos não renegociados, não pagos, com saldo > 0,
-  // qualquer vencimento, fora tarifas de baixa). > 0 = ainda deve.
-  openUnpaidBalance: number;
 };
 
 function isEligibleContractStatus(
@@ -33,33 +25,9 @@ function isEligibleContractStatus(
 }
 
 /**
- * RENEGOCIAÇÃO (não é pagamento): o contrato continua num status elegível, sem
- * títulos vencidos em aberto (por isso saiu da regra), MAS teve uma
- * renegociação e ainda resta saldo em aberto. É o caso que a cobrança
- * descreveu — renegociam a fatura no ERP e cancelam o contrato depois; antes,
- * isso era creditado como "regularizado" por engano.
- */
-export function isContractRenegotiated(
-  status: ErpContractReconcileStatus | undefined,
-): boolean {
-  if (!status) {
-    return false;
-  }
-
-  return (
-    isEligibleContractStatus(status) &&
-    status.openOverdueTitles === 0 &&
-    status.hasRenegotiation &&
-    status.openUnpaidBalance > 0
-  );
-}
-
-/**
- * Só é regularização (pagamento) quando o contrato continua num status
- * elegível, não tem mais nenhum título vencido em aberto E não é uma
- * renegociação pendente (renegociado com saldo). Qualquer outro caso (status
- * não elegível = cancelado/encerrado, ainda com título vencido, renegociação
- * em aberto, ou contrato não encontrado) NÃO é pagamento.
+ * Regularizado = o contrato continua num status elegível e não tem mais nenhum
+ * título vencido em aberto (por isso saiu da regra). Não basta para creditar
+ * receita — ainda exige PROVA de pagamento real (ver resolveReconcileOutcome).
  */
 export function isContractRegularized(
   status: ErpContractReconcileStatus | undefined,
@@ -68,28 +36,24 @@ export function isContractRegularized(
     return false;
   }
 
-  return (
-    isEligibleContractStatus(status) &&
-    status.openOverdueTitles === 0 &&
-    !isContractRenegotiated(status)
-  );
+  return isEligibleContractStatus(status) && status.openOverdueTitles === 0;
 }
 
 /**
  * Desfecho de um caso que saiu da regra de elegibilidade do ERP:
- * - `paid`: foi regularizado E há PROVA de pagamento real (client_paid_date).
- * - `renegotiated`: renegociou e ainda deve (sem pagamento).
+ * - `paid`: regularizado E com PROVA de pagamento real (client_paid_date).
  * - `cancelled`: contrato com status não elegível (cancelado/encerrado) ou não
  *   encontrado no ERP.
- * - `unresolved`: saiu da regra (sem vencidos) mas SEM pagamento e SEM
- *   renegociação — ex.: vencimento adiado ou título apagado. NÃO é recuperação
- *   (evita receita falsa) nem cancelamento; o caso não é finalizado.
+ * - `unresolved`: saiu da regra (sem vencidos) mas SEM pagamento — ex.:
+ *   vencimento adiado, título apagado, renegociação (título substituído). NÃO é
+ *   recuperação (evita receita falsa) nem cancelamento; o caso não é finalizado.
+ *
+ * Obs.: renegociação NÃO é mais um desfecho. O flag `renegotiated` do ERP marca
+ * títulos substituídos em renegociações antigas (histórico), não "renegociado
+ * agora" — usá-lo gerava rótulos falsos. O histórico de renegociações é tratado
+ * à parte (relatório via `financial_renegotiations`).
  */
-export type ReconcileOutcome =
-  | 'paid'
-  | 'renegotiated'
-  | 'cancelled'
-  | 'unresolved';
+export type ReconcileOutcome = 'paid' | 'cancelled' | 'unresolved';
 
 export function resolveReconcileOutcome(
   status: ErpContractReconcileStatus | undefined,
@@ -97,10 +61,6 @@ export function resolveReconcileOutcome(
 ): ReconcileOutcome {
   if (!status || !isEligibleContractStatus(status)) {
     return 'cancelled';
-  }
-
-  if (isContractRenegotiated(status)) {
-    return 'renegotiated';
   }
 
   // Só credita recuperação com regularização E prova de pagamento real.

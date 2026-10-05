@@ -55,7 +55,6 @@ import type {
   CollectionCasePortfolioSummary,
   CollectionCasePortfoliosResponse,
 } from '@/modules/collection-cases/dto/collection-case-portfolio.response';
-import type { RenegotiatedHistoryResponse } from '@/modules/collection-cases/dto/renegotiated-history.response';
 import {
   filterMockCollectionCases,
   normalizeListParams,
@@ -233,18 +232,6 @@ export class CollectionCasesMockRepository implements CollectionCasesRepository 
       byStatus[record.status] = (byStatus[record.status] ?? 0) + 1;
     }
     return Promise.resolve(byStatus);
-  }
-
-  getRenegotiatedHistory(): Promise<RenegotiatedHistoryResponse> {
-    return Promise.resolve({
-      items: [],
-      summary: {
-        totalCases: 0,
-        totalRenegotiations: 0,
-        currentlyRenegotiated: 0,
-        totalOutstanding: '0.00',
-      },
-    });
   }
 
   getCaseById(id: string) {

@@ -8,7 +8,6 @@ import type { CollectionCaseTimelineResponse } from '@/modules/collection-cases/
 import type { CollectionCaseListItemResponse } from '@/modules/collection-cases/dto/collection-case-list-item.response';
 import type { OverdueDateSummaryResponse } from '@/modules/collection-cases/dto/overdue-date-summary.response';
 import type { CollectionCasePortfoliosResponse } from '@/modules/collection-cases/dto/collection-case-portfolio.response';
-import type { RenegotiatedHistoryResponse } from '@/modules/collection-cases/dto/renegotiated-history.response';
 import type { CollectionCasesQueryDto } from '@/modules/collection-cases/dto/collection-cases-query.dto';
 import {
   type CollectionCasesInteractionStatus,
@@ -214,10 +213,6 @@ export interface CollectionCasesRepository {
 
   // Contagem de casos por status (chave = CollectionStatus).
   getStatusSummary(): Promise<Record<string, number>>;
-
-  // Histórico de renegociações (via trilha de auditoria): casos que já
-  // renegociaram em algum momento, com nº de vezes, datas e status atual.
-  getRenegotiatedHistory(): Promise<RenegotiatedHistoryResponse>;
 
   getCaseById(id: string): Promise<CollectionCaseDetailsResponse | null>;
 

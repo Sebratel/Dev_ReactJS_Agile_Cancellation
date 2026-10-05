@@ -68,6 +68,9 @@ export function SupervisionRenegotiated({
 
   const summary = data?.summary;
   const items = data?.items ?? [];
+  const multipleReneg = items.filter(
+    (item) => item.renegotiationCount > 1,
+  ).length;
 
   return (
     <div className="space-y-4">
@@ -91,9 +94,9 @@ export function SupervisionRenegotiated({
           loading={isLoading}
         />
         <MetricCard
-          title="Renegociados agora"
-          value={formatInteger(summary?.currentlyRenegotiated ?? 0)}
-          description="com status Renegociado"
+          title="Renegociaram +1 vez"
+          value={formatInteger(multipleReneg)}
+          description="renegociação recorrente"
           icon={RefreshCw}
           variant="warning"
           density="compact"
@@ -114,7 +117,7 @@ export function SupervisionRenegotiated({
 
       <SectionCard
         title="Clientes que renegociaram"
-        description="Histórico completo via trilha de auditoria. Clique para ver todos os detalhes do caso."
+        description="Histórico de renegociações do Elleven (quem renegociou e quando). Clique para ver os detalhes do caso."
         contentClassName="p-0"
       >
         {isLoading ? (

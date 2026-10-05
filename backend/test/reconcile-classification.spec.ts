@@ -1,6 +1,5 @@
 import {
   isContractRegularized,
-  isContractRenegotiated,
   resolveReconcileOutcome,
   resolveRecoveredCaseIds,
   type ErpContractReconcileStatus,
@@ -12,134 +11,49 @@ function status(
   return {
     erpContractStatus: 'Normal',
     openOverdueTitles: 0,
-    hasRenegotiation: false,
-    openUnpaidBalance: 0,
     ...overrides,
   };
 }
 
 describe('isContractRegularized', () => {
-  it('é pagamento quando status elegível, sem títulos vencidos e sem renegociação', () => {
-    expect(isContractRegularized(status({ erpContractStatus: 'Normal' }))).toBe(
-      true,
-    );
-    expect(
-      isContractRegularized(
-        status({ erpContractStatus: 'Bloqueio Financeiro' }),
-      ),
-    ).toBe(true);
+  it('regularizado quando status elegível e sem títulos vencidos', () => {
+    expect(isContractRegularized(status({ erpContractStatus: 'Normal' }))).toBe(true);
+    expect(isContractRegularized(status({ erpContractStatus: 'Bloqueio Financeiro' }))).toBe(true);
   });
 
-  it('NÃO é pagamento quando ainda há títulos vencidos em aberto', () => {
+  it('NÃO é regularizado com título vencido em aberto', () => {
     expect(isContractRegularized(status({ openOverdueTitles: 2 }))).toBe(false);
   });
 
-  it('NÃO é pagamento quando o status não é elegível (cancelado)', () => {
-    expect(
-      isContractRegularized(status({ erpContractStatus: 'Cancelado' })),
-    ).toBe(false);
-    expect(
-      isContractRegularized(status({ erpContractStatus: null })),
-    ).toBe(false);
+  it('NÃO é regularizado quando o status não é elegível (cancelado)', () => {
+    expect(isContractRegularized(status({ erpContractStatus: 'Cancelado' }))).toBe(false);
+    expect(isContractRegularized(status({ erpContractStatus: null }))).toBe(false);
   });
 
-  it('NÃO é pagamento quando houve renegociação com saldo em aberto', () => {
-    expect(
-      isContractRegularized(
-        status({ hasRenegotiation: true, openUnpaidBalance: 359.64 }),
-      ),
-    ).toBe(false);
-  });
-
-  it('É pagamento quando renegociou MAS quitou tudo (sem saldo)', () => {
-    expect(
-      isContractRegularized(
-        status({ hasRenegotiation: true, openUnpaidBalance: 0 }),
-      ),
-    ).toBe(true);
-  });
-
-  it('NÃO é pagamento quando o contrato não foi encontrado no ERP', () => {
+  it('NÃO é regularizado quando o contrato não foi encontrado', () => {
     expect(isContractRegularized(undefined)).toBe(false);
   });
 });
 
-describe('isContractRenegotiated', () => {
-  it('é renegociação: elegível, sem vencidos, com renegociação e saldo em aberto', () => {
-    expect(
-      isContractRenegotiated(
-        status({ hasRenegotiation: true, openUnpaidBalance: 211.13 }),
-      ),
-    ).toBe(true);
-  });
-
-  it('NÃO é renegociação quando não houve renegociação', () => {
-    expect(
-      isContractRenegotiated(status({ hasRenegotiation: false, openUnpaidBalance: 100 })),
-    ).toBe(false);
-  });
-
-  it('NÃO é renegociação quando renegociou mas não há saldo (foi pago)', () => {
-    expect(
-      isContractRenegotiated(
-        status({ hasRenegotiation: true, openUnpaidBalance: 0 }),
-      ),
-    ).toBe(false);
-  });
-
-  it('NÃO é renegociação quando o contrato está cancelado (cancelamento vence)', () => {
-    expect(
-      isContractRenegotiated(
-        status({
-          erpContractStatus: 'Cancelado',
-          hasRenegotiation: true,
-          openUnpaidBalance: 329.67,
-        }),
-      ),
-    ).toBe(false);
-  });
-
-  it('renegociação e pagamento são mutuamente exclusivos', () => {
-    const reneg = status({ hasRenegotiation: true, openUnpaidBalance: 99.9 });
-    expect(isContractRenegotiated(reneg)).toBe(true);
-    expect(isContractRegularized(reneg)).toBe(false);
-  });
-});
-
 describe('resolveReconcileOutcome (anti falso positivo de receita)', () => {
-  it('PAGO só quando regularizado E há prova de pagamento', () => {
+  it('PAGO só com regularização E prova de pagamento', () => {
     expect(resolveReconcileOutcome(status({}), true)).toBe('paid');
   });
 
-  it('NÃO é pago quando regularizado MAS sem prova de pagamento → unresolved', () => {
-    // Título com vencimento adiado/apagado: saiu da regra sem ter sido pago.
+  it('regularizado MAS sem prova de pagamento -> unresolved', () => {
     expect(resolveReconcileOutcome(status({}), false)).toBe('unresolved');
   });
 
-  it('renegociado (reneg + saldo) independe de prova de pagamento', () => {
-    const reneg = status({ hasRenegotiation: true, openUnpaidBalance: 200 });
-    expect(resolveReconcileOutcome(reneg, false)).toBe('renegotiated');
-    expect(resolveReconcileOutcome(reneg, true)).toBe('renegotiated');
-  });
-
   it('cancelado quando o contrato não está mais elegível', () => {
-    const cancelado = status({ erpContractStatus: 'Cancelado' });
-    expect(resolveReconcileOutcome(cancelado, true)).toBe('cancelled');
-    expect(resolveReconcileOutcome(cancelado, false)).toBe('cancelled');
+    expect(resolveReconcileOutcome(status({ erpContractStatus: 'Cancelado' }), true)).toBe('cancelled');
   });
 
-  it('cancelado quando o contrato não foi encontrado no ERP', () => {
+  it('cancelado quando o contrato não foi encontrado', () => {
     expect(resolveReconcileOutcome(undefined, true)).toBe('cancelled');
   });
 
-  it('renegociado que quitou tudo (sem saldo) + prova de pagamento = pago', () => {
-    const quitou = status({ hasRenegotiation: true, openUnpaidBalance: 0 });
-    expect(resolveReconcileOutcome(quitou, true)).toBe('paid');
-  });
-
-  it('renegociado que quitou tudo MAS sem prova de pagamento = unresolved', () => {
-    const quitou = status({ hasRenegotiation: true, openUnpaidBalance: 0 });
-    expect(resolveReconcileOutcome(quitou, false)).toBe('unresolved');
+  it('ainda com vencido em aberto e sem pagamento -> unresolved', () => {
+    expect(resolveReconcileOutcome(status({ openOverdueTitles: 1 }), false)).toBe('unresolved');
   });
 });
 

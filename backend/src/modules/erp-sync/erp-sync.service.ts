@@ -18,6 +18,28 @@ import type {
   RenegotiationDetailResponse,
   RenegotiationTitle,
 } from '@/modules/erp-sync/dto/renegotiation-detail.response';
+import type {
+  RenegotiatedHistoryItem,
+  RenegotiatedHistoryResponse,
+} from '@/modules/collection-cases/dto/renegotiated-history.response';
+
+// Histórico REAL de renegociações do ERP (tabela financial_renegotiations),
+// ligado ao contrato pelos títulos envolvidos. É a fonte correta de "quem
+// renegociou e quando" — o flag `renegotiated` do título é só um resquício.
+const RENEGOTIATION_HISTORY_QUERY = `
+SELECT c.public_id::text AS pid,
+  COUNT(DISTINCT r.id) AS reneg_count,
+  MIN(r.date) AS first_date,
+  MAX(r.date) AS last_date
+FROM erp.financial_renegotiations r
+JOIN erp.financial_renegotiation_titles rt
+  ON rt.financial_renegotiation_id = r.id AND rt.deleted IS false
+JOIN erp.financial_receivable_titles t
+  ON t.id = rt.financial_receivable_title_id
+JOIN erp.contracts c ON c.id = t.contract_id
+WHERE c.public_id = ANY($1::uuid[]) AND r.deleted IS false
+GROUP BY c.public_id;
+`;
 
 const RENEGOTIATION_DETAIL_QUERY = `
 SELECT
@@ -198,22 +220,9 @@ SELECT
       AND fr.deleted IS false
       AND x.client_paid_date IS NULL
       AND DATE(fr.expiration_date) < CURRENT_DATE
-  )::int AS open_overdue_titles,
-  -- Houve renegociacao no contrato (titulo original vira renegotiated=true).
-  BOOL_OR(fr.renegotiated IS true) AS has_renegotiation,
-  -- Saldo em aberto: titulos nao renegociados, nao pagos, com saldo > 0,
-  -- qualquer vencimento, fora as tarifas de baixa de titulo.
-  COALESCE(SUM(fr.balance) FILTER (
-    WHERE fr.bill_title_id IS NULL
-      AND fr.renegotiated IS false
-      AND fr.deleted IS false
-      AND x.client_paid_date IS NULL
-      AND COALESCE(fn.title, '') <> 'DF - TARIFA BAIXA DE TÍTULO'
-      AND fr.balance > 0
-  ), 0)::float8 AS open_unpaid_balance
+  )::int AS open_overdue_titles
 FROM erp.contracts c
 LEFT JOIN erp.financial_receivable_titles fr ON fr.contract_id = c.id
-LEFT JOIN erp.financers_natures fn ON fn.id = fr.financer_nature_id
 LEFT JOIN erp.financial_receipt_titles x ON x.financial_receivable_title_id = fr.id
 WHERE c.public_id = ANY($1::uuid[])
 GROUP BY c.public_id, c.v_status;
@@ -223,8 +232,6 @@ type ErpContractReconcileStatusRow = {
   contract_external_id: string;
   erp_contract_status: string | null;
   open_overdue_titles: number;
-  has_renegotiation: boolean | null;
-  open_unpaid_balance: number | string | null;
 };
 
 @Injectable()
@@ -552,8 +559,6 @@ export class ErpSyncService {
           contractStatusByExternalId.set(row.contract_external_id, {
             erpContractStatus: row.erp_contract_status,
             openOverdueTitles: Number(row.open_overdue_titles),
-            hasRenegotiation: row.has_renegotiation === true,
-            openUnpaidBalance: Number(row.open_unpaid_balance ?? 0),
           });
         }
       } catch (error) {
@@ -648,11 +653,6 @@ export class ErpSyncService {
     const paidCases = casesToRecover.filter(
       (collectionCase) => outcomeByCase.get(collectionCase.id) === 'paid',
     );
-    const renegotiatedCases = casesToRecover.filter(
-      (collectionCase) =>
-        outcomeByCase.get(collectionCase.id) === 'renegotiated',
-    );
-    const renegotiatedCaseIds = renegotiatedCases.map((c) => c.id);
     const cancelledCases = casesToRecover.filter(
       (collectionCase) => outcomeByCase.get(collectionCase.id) === 'cancelled',
     );
@@ -890,46 +890,6 @@ export class ErpSyncService {
         }
       }
 
-      // Casos que sairam da regra por RENEGOCIACAO (nao pagamento): encerra o
-      // caso como RENEGOTIATED, SEM creditar recuperacao (recoveredAt nulo). O
-      // status do contrato ja foi atualizado no loop de casesToRecover acima.
-      if (renegotiatedCaseIds.length > 0) {
-        await tx.collectionCase.updateMany({
-          where: { id: { in: renegotiatedCaseIds } },
-          data: {
-            status: CollectionStatus.RENEGOTIATED,
-            recoveredAt: null,
-            updatedAt: now,
-          },
-        });
-
-        for (const collectionCase of renegotiatedCases) {
-          await tx.auditLog.create({
-            data: {
-              entityType: 'COLLECTION_CASE',
-              entityId: collectionCase.id,
-              action: AuditAction.STATUS_CHANGE,
-              beforeSnapshot: {
-                status: collectionCase.status,
-                outstandingAmount: collectionCase.outstandingAmount.toString(),
-                daysOverdue: collectionCase.daysOverdue,
-              },
-              afterSnapshot: {
-                status: CollectionStatus.RENEGOTIATED,
-              },
-              metadata: {
-                resourceType: 'COLLECTION_CASE',
-                action: 'ERP_SYNC_RENEGOTIATION_RECONCILIATION',
-                source: ERP_SYNC_SOURCE,
-                reason:
-                  'Contrato saiu da regra do ERP por renegociacao (titulo renegociado + saldo em aberto). Nao houve pagamento.',
-                externalId: collectionCase.externalId,
-              },
-            },
-          });
-        }
-      }
-
       await tx.integrationEvent.create({
         data: {
           source: ERP_SYNC_SOURCE,
@@ -937,7 +897,6 @@ export class ErpSyncService {
           status: IntegrationEventStatus.COMPLETED,
           payload: {
             recoveredCases: paidCases.length,
-            renegotiatedCases: renegotiatedCases.length,
             cancelledCases: cancelledCases.length,
             unresolvedCases: unresolvedCases.length,
             unresolvedExternalIds: unresolvedCases.map(
@@ -948,9 +907,6 @@ export class ErpSyncService {
             checkedCases: syncedCases.length,
             openTitles: openTitleRows.length,
             recoveredExternalIds: paidCases.map(
-              (collectionCase) => collectionCase.externalId,
-            ),
-            renegotiatedExternalIds: renegotiatedCases.map(
               (collectionCase) => collectionCase.externalId,
             ),
             cancelledExternalIds: cancelledCases.map(
@@ -966,7 +922,7 @@ export class ErpSyncService {
     });
 
     this.logger.log(
-      `Reconciliacao ERP concluida: ${paidCases.length} recuperado(s), ${renegotiatedCases.length} renegociado(s), ${cancelledCases.length} cancelado(s), ${unresolvedCases.length} sem pagamento (nao finalizado).`,
+      `Reconciliacao ERP concluida: ${paidCases.length} recuperado(s), ${cancelledCases.length} cancelado(s), ${unresolvedCases.length} sem pagamento (nao finalizado).`,
     );
 
     // Notifica apos o commit — nunca dentro da transacao. Falhas aqui sao
@@ -1113,6 +1069,117 @@ export class ErpSyncService {
     return users
       .map((user) => user.email)
       .filter((email): email is string => Boolean(email));
+  }
+
+  // Relatorio historico de renegociacoes: clientes da nossa carteira que
+  // renegociaram alguma vez no ERP (fonte financial_renegotiations), com nº de
+  // vezes e datas. Fonte CORRETA — diferente do flag `renegotiated` do titulo,
+  // que marca titulos substituidos em renegociacoes antigas (resquicio).
+  async getRenegotiationHistory(): Promise<RenegotiatedHistoryResponse> {
+    const emptySummary = {
+      totalCases: 0,
+      totalRenegotiations: 0,
+      currentlyRenegotiated: 0,
+      totalOutstanding: '0.00',
+    };
+
+    const cases = await this.prisma.collectionCase.findMany({
+      where: { externalId: { not: null } },
+      select: { externalId: true },
+    });
+    const ids = cases
+      .map((c) => c.externalId)
+      .filter((x): x is string => Boolean(x && UUID_PATTERN.test(x)));
+
+    const config = getErpSyncConfig();
+    if (!config.db || ids.length === 0) {
+      return { items: [], summary: emptySummary };
+    }
+
+    let rows: Array<{
+      pid: string;
+      reneg_count: string | number;
+      first_date: Date;
+      last_date: Date;
+    }>;
+    try {
+      const pool = this.getPool(config.db);
+      const result = await pool.query(RENEGOTIATION_HISTORY_QUERY, [ids]);
+      rows = result.rows;
+    } catch (error) {
+      this.logger.error(
+        'Falha ao buscar historico de renegociacoes no ERP.',
+        error instanceof Error ? error.stack : String(error),
+      );
+      return { items: [], summary: emptySummary };
+    }
+
+    const byPid = new Map(
+      rows.map((r) => [
+        r.pid,
+        { count: Number(r.reneg_count), first: r.first_date, last: r.last_date },
+      ]),
+    );
+    const renegotiatedIds = [...byPid.keys()];
+    if (renegotiatedIds.length === 0) {
+      return { items: [], summary: emptySummary };
+    }
+
+    const detailedCases = await this.prisma.collectionCase.findMany({
+      where: { externalId: { in: renegotiatedIds } },
+      select: {
+        id: true,
+        externalId: true,
+        status: true,
+        outstandingAmount: true,
+        customer: { select: { name: true, document: true } },
+        contract: { select: { code: true, externalId: true } },
+        assignedUser: { select: { name: true } },
+      },
+    });
+
+    const items: RenegotiatedHistoryItem[] = detailedCases.map(
+      (collectionCase) => {
+        const aggregate = collectionCase.externalId
+          ? byPid.get(collectionCase.externalId)
+          : undefined;
+        return {
+          caseId: collectionCase.id,
+          customerName: collectionCase.customer?.name ?? '—',
+          customerDocument: collectionCase.customer?.document ?? '',
+          contractCode: collectionCase.contract?.code ?? null,
+          contractExternalId: collectionCase.contract?.externalId ?? null,
+          renegotiationCount: aggregate?.count ?? 0,
+          firstRenegotiatedAt: (aggregate?.first ?? new Date()).toISOString(),
+          lastRenegotiatedAt: (aggregate?.last ?? new Date()).toISOString(),
+          currentStatus: collectionCase.status,
+          isCurrentlyRenegotiated: false,
+          outstandingAmount: Number(collectionCase.outstandingAmount).toFixed(2),
+          assignedToName: collectionCase.assignedUser?.name ?? null,
+        };
+      },
+    );
+
+    items.sort((a, b) =>
+      b.lastRenegotiatedAt.localeCompare(a.lastRenegotiatedAt),
+    );
+
+    const totalOutstanding = detailedCases
+      .reduce((total, c) => total + Number(c.outstandingAmount ?? 0), 0)
+      .toFixed(2);
+
+    return {
+      items,
+      summary: {
+        totalCases: items.length,
+        totalRenegotiations: items.reduce(
+          (total, item) => total + item.renegotiationCount,
+          0,
+        ),
+        currentlyRenegotiated: 0,
+        totalOutstanding,
+      },
+    };
   }
 
   // Busca AO VIVO no ERP os titulos renegociados e o saldo em aberto de um

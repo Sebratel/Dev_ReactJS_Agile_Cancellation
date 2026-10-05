@@ -67,15 +67,6 @@ export class CollectionCasesController {
     return this.collectionCasesService.getStatusSummary();
   }
 
-  // Historico de renegociacoes (supervisao): casos que ja renegociaram em
-  // algum momento, com nº de vezes, datas e status atual. Rota de 1 segmento
-  // declarada antes de @Get(':id') para nao colidir.
-  @Roles('ADMIN', 'SUPERVISOR')
-  @Get('renegotiated')
-  getRenegotiatedHistory() {
-    return this.collectionCasesService.getRenegotiatedHistory();
-  }
-
   @Roles('COLLECTION_AGENT', 'SUPERVISOR', 'ADMIN')
   @Post(':id/attempts')
   createAttempt(

@@ -26,10 +26,6 @@ import type {
   CollectionCasePortfolioSummary,
   CollectionCasePortfoliosResponse,
 } from '@/modules/collection-cases/dto/collection-case-portfolio.response';
-import type {
-  RenegotiatedHistoryItem,
-  RenegotiatedHistoryResponse,
-} from '@/modules/collection-cases/dto/renegotiated-history.response';
 import { BULK_CONTACT_MAX_CASES } from '@/common/constants/bulk-contact.constants';
 import type { CollectionAttemptResponse } from '@/modules/collection-cases/dto/collection-attempt.response';
 import type { CancellationProcessResponse } from '@/modules/collection-cases/dto/cancellation-process.response';
@@ -501,108 +497,6 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
     return byStatus;
   }
 
-  async getRenegotiatedHistory(): Promise<RenegotiatedHistoryResponse> {
-    // Conta só as TRANSICOES reais para RENEGOTIATED (afterSnapshot = RENEGOTIATED
-    // E beforeSnapshot != RENEGOTIATED). Uma re-deteccao do mesmo caso ja
-    // renegociado (before == after) nao conta, para a contagem refletir quantas
-    // vezes o cliente de fato renegociou, nao quantas rodadas o reconcile viu.
-    const auditRows = await this.prisma.auditLog.findMany({
-      where: {
-        entityType: 'COLLECTION_CASE',
-        afterSnapshot: { path: '$.status', equals: CollectionStatus.RENEGOTIATED },
-      },
-      select: { entityId: true, createdAt: true, beforeSnapshot: true },
-      orderBy: { createdAt: 'asc' },
-    });
-
-    const audits = auditRows.filter((row) => {
-      const before = row.beforeSnapshot as { status?: string } | null;
-      return before?.status !== CollectionStatus.RENEGOTIATED;
-    });
-
-    const byCase = new Map<string, { count: number; first: Date; last: Date }>();
-    for (const audit of audits) {
-      const current = byCase.get(audit.entityId);
-      if (current) {
-        current.count += 1;
-        current.last = audit.createdAt;
-      } else {
-        byCase.set(audit.entityId, {
-          count: 1,
-          first: audit.createdAt,
-          last: audit.createdAt,
-        });
-      }
-    }
-
-    const caseIds = [...byCase.keys()];
-    if (caseIds.length === 0) {
-      return {
-        items: [],
-        summary: {
-          totalCases: 0,
-          totalRenegotiations: 0,
-          currentlyRenegotiated: 0,
-          totalOutstanding: formatDecimal(null),
-        },
-      };
-    }
-
-    const cases = await this.prisma.collectionCase.findMany({
-      where: { id: { in: caseIds } },
-      select: {
-        id: true,
-        status: true,
-        outstandingAmount: true,
-        customer: { select: { name: true, document: true } },
-        contract: { select: { code: true, externalId: true } },
-        assignedUser: { select: { name: true } },
-      },
-    });
-
-    const items: RenegotiatedHistoryItem[] = cases.map((collectionCase) => {
-      const aggregate = byCase.get(collectionCase.id);
-      return {
-        caseId: collectionCase.id,
-        customerName: collectionCase.customer?.name ?? '—',
-        customerDocument: collectionCase.customer?.document ?? '',
-        contractCode: collectionCase.contract?.code ?? null,
-        contractExternalId: collectionCase.contract?.externalId ?? null,
-        renegotiationCount: aggregate?.count ?? 0,
-        firstRenegotiatedAt: (aggregate?.first ?? new Date()).toISOString(),
-        lastRenegotiatedAt: (aggregate?.last ?? new Date()).toISOString(),
-        currentStatus: collectionCase.status,
-        isCurrentlyRenegotiated:
-          collectionCase.status === CollectionStatus.RENEGOTIATED,
-        outstandingAmount: formatDecimal(collectionCase.outstandingAmount),
-        assignedToName: collectionCase.assignedUser?.name ?? null,
-      };
-    });
-
-    items.sort((left, right) =>
-      right.lastRenegotiatedAt.localeCompare(left.lastRenegotiatedAt),
-    );
-
-    const totalOutstanding = cases.reduce(
-      (sum, collectionCase) => sum.add(collectionCase.outstandingAmount ?? 0),
-      new Prisma.Decimal(0),
-    );
-
-    return {
-      items,
-      summary: {
-        totalCases: items.length,
-        totalRenegotiations: items.reduce(
-          (total, item) => total + item.renegotiationCount,
-          0,
-        ),
-        currentlyRenegotiated: items.filter(
-          (item) => item.isCurrentlyRenegotiated,
-        ).length,
-        totalOutstanding: formatDecimal(totalOutstanding),
-      },
-    };
-  }
 
   async getCaseById(id: string) {
     const record = await this.prisma.collectionCase.findUnique({

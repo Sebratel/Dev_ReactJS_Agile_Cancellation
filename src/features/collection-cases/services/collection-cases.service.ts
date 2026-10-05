@@ -121,7 +121,7 @@ export async function getCollectionCasesStatusSummary() {
 
 export async function getRenegotiatedHistory() {
   const response = await httpClient.request<RenegotiatedHistoryResponse>({
-    path: '/collection-cases/renegotiated',
+    path: '/erp/renegotiation-history',
   });
 
   return response.data;

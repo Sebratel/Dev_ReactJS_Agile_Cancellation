@@ -7,6 +7,16 @@ import { ErpSyncService } from '@/modules/erp-sync/erp-sync.service';
 export class ErpSyncController {
   constructor(private readonly erpSyncService: ErpSyncService) {}
 
+  // Historico de renegociacoes (supervisao): clientes da carteira que
+  // renegociaram alguma vez, com nº de vezes e datas (fonte financial_renegotiations).
+  @Roles('ADMIN', 'SUPERVISOR')
+  @Get('renegotiation-history')
+  async getRenegotiationHistory() {
+    const history = await this.erpSyncService.getRenegotiationHistory();
+
+    return createApiResponse(history);
+  }
+
   // Detalhe de renegociacao de um contrato (supervisao): titulos renegociados
   // e saldo em aberto, buscados ao vivo no ERP.
   @Roles('ADMIN', 'SUPERVISOR')
