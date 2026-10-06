@@ -35,7 +35,31 @@ const RENEGOTIATION_HISTORY_QUERY = `
 SELECT c.public_id::text AS pid,
   COUNT(DISTINCT r.id) AS reneg_count,
   MIN(r.date) AS first_date,
-  MAX(r.date) AS last_date
+  MAX(r.date) AS last_date,
+  COALESCE((
+    -- Saldo da renegociação EM ABERTO: títulos GERADOS por renegociação (type=1)
+    -- que ainda têm saldo, não foram consumidos de novo e não têm baixa real.
+    SELECT SUM(g.balance)
+    FROM erp.financial_renegotiation_titles grt
+    JOIN erp.financial_renegotiations gr
+      ON gr.id = grt.financial_renegotiation_id AND gr.deleted IS false
+    JOIN erp.financial_receivable_titles g
+      ON g.id = grt.financial_receivable_title_id
+    WHERE grt.type = 1 AND grt.deleted IS false
+      AND g.contract_id = c.id AND g.deleted IS false AND g.balance > 0
+      AND NOT EXISTS (
+        SELECT 1 FROM erp.financial_renegotiation_titles crt
+        JOIN erp.financial_renegotiations cr
+          ON cr.id = crt.financial_renegotiation_id AND cr.deleted IS false
+        WHERE crt.financial_receivable_title_id = g.id
+          AND crt.type = 0 AND crt.deleted IS false
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM erp.financial_receipt_titles x
+        WHERE x.financial_receivable_title_id = g.id AND x.deleted IS false
+          AND x.client_paid_date IS NOT NULL AND x.payment_form_id IS NOT NULL
+      )
+  ), 0) AS open_reneg_balance
 FROM erp.financial_renegotiations r
 JOIN erp.financial_renegotiation_titles rt
   ON rt.financial_renegotiation_id = r.id AND rt.deleted IS false
@@ -45,7 +69,7 @@ JOIN erp.contracts c ON c.id = t.contract_id
 WHERE c.public_id = ANY($1::uuid[])
   AND r.deleted IS false
   AND c.v_status::text <> 'Cancelado'
-GROUP BY c.public_id;
+GROUP BY c.public_id, c.id;
 `;
 
 // Detalhe da renegociação a partir da FONTE REAL: `financial_renegotiation_titles`
@@ -1133,6 +1157,7 @@ export class ErpSyncService {
       totalCases: 0,
       totalRenegotiations: 0,
       currentlyRenegotiated: 0,
+      openRenegotiationTotal: '0.00',
       totalOutstanding: '0.00',
     };
 
@@ -1154,6 +1179,7 @@ export class ErpSyncService {
       reneg_count: string | number;
       first_date: Date;
       last_date: Date;
+      open_reneg_balance: string | number | null;
     }>;
     try {
       const pool = this.getPool(config.db);
@@ -1170,7 +1196,12 @@ export class ErpSyncService {
     const byPid = new Map(
       rows.map((r) => [
         r.pid,
-        { count: Number(r.reneg_count), first: r.first_date, last: r.last_date },
+        {
+          count: Number(r.reneg_count),
+          first: r.first_date,
+          last: r.last_date,
+          openBalance: Number(r.open_reneg_balance ?? 0),
+        },
       ]),
     );
     const renegotiatedIds = [...byPid.keys()];
@@ -1206,7 +1237,8 @@ export class ErpSyncService {
           firstRenegotiatedAt: (aggregate?.first ?? new Date()).toISOString(),
           lastRenegotiatedAt: (aggregate?.last ?? new Date()).toISOString(),
           currentStatus: collectionCase.status,
-          isCurrentlyRenegotiated: false,
+          isCurrentlyRenegotiated: (aggregate?.openBalance ?? 0) > 0,
+          openRenegotiationAmount: (aggregate?.openBalance ?? 0).toFixed(2),
           outstandingAmount: Number(collectionCase.outstandingAmount).toFixed(2),
           assignedToName: collectionCase.assignedUser?.name ?? null,
         };
@@ -1220,6 +1252,9 @@ export class ErpSyncService {
     const totalOutstanding = detailedCases
       .reduce((total, c) => total + Number(c.outstandingAmount ?? 0), 0)
       .toFixed(2);
+    const openRenegotiationTotal = items
+      .reduce((total, item) => total + Number(item.openRenegotiationAmount), 0)
+      .toFixed(2);
 
     return {
       items,
@@ -1229,7 +1264,10 @@ export class ErpSyncService {
           (total, item) => total + item.renegotiationCount,
           0,
         ),
-        currentlyRenegotiated: 0,
+        currentlyRenegotiated: items.filter(
+          (item) => item.isCurrentlyRenegotiated,
+        ).length,
+        openRenegotiationTotal,
         totalOutstanding,
       },
     };

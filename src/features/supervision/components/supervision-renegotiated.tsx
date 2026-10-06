@@ -68,9 +68,6 @@ export function SupervisionRenegotiated({
 
   const summary = data?.summary;
   const items = data?.items ?? [];
-  const multipleReneg = items.filter(
-    (item) => item.renegotiationCount > 1,
-  ).length;
 
   return (
     <div className="space-y-4">
@@ -94,20 +91,20 @@ export function SupervisionRenegotiated({
           loading={isLoading}
         />
         <MetricCard
-          title="Renegociaram +1 vez"
-          value={formatInteger(multipleReneg)}
-          description="renegociação recorrente"
+          title="Com renegociação em aberto"
+          value={formatInteger(summary?.currentlyRenegotiated ?? 0)}
+          description="renegociaram e não quitaram"
           icon={RefreshCw}
           variant="warning"
           density="compact"
           loading={isLoading}
         />
         <MetricCard
-          title="Em aberto"
+          title="Saldo renegociado em aberto"
           value={formatCurrencyFromDecimalString(
-            summary?.totalOutstanding ?? '0.00',
+            summary?.openRenegotiationTotal ?? '0.00',
           )}
-          description="valor desses casos"
+          description="renegociação ainda não paga"
           icon={Wallet}
           variant="warning"
           density="compact"
@@ -142,7 +139,7 @@ export function SupervisionRenegotiated({
                   <TableHeaderCell>Última renegociação</TableHeaderCell>
                   <TableHeaderCell>Status atual</TableHeaderCell>
                   <TableHeaderCell className="text-right">
-                    Em aberto
+                    Renegociação em aberto
                   </TableHeaderCell>
                   <TableHeaderCell className="w-10" aria-label="Abrir" />
                 </TableRow>
@@ -203,8 +200,17 @@ export function SupervisionRenegotiated({
                           />
                         </TableCell>
                         <TableCell className="text-right text-sm tabular-nums">
-                          {formatCurrencyFromDecimalString(
-                            item.outstandingAmount,
+                          {item.isCurrentlyRenegotiated ? (
+                            <span className="inline-flex items-center gap-1.5">
+                              <span className="h-1.5 w-1.5 rounded-full bg-warning" aria-hidden="true" />
+                              <span className="font-semibold text-warning">
+                                {formatCurrencyFromDecimalString(
+                                  item.openRenegotiationAmount,
+                                )}
+                              </span>
+                            </span>
+                          ) : (
+                            <span className="text-neutral">quitada</span>
                           )}
                         </TableCell>
                         <TableCell>

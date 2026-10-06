@@ -22,6 +22,7 @@ vi.mock(
         totalCases: 0,
         totalRenegotiations: 0,
         currentlyRenegotiated: 0,
+        openRenegotiationTotal: '0.00',
         totalOutstanding: '0.00',
       },
     }),

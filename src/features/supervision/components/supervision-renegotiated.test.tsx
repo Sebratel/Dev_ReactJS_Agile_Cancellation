@@ -17,6 +17,7 @@ const data: RenegotiatedHistoryResponse = {
       lastRenegotiatedAt: '2026-09-24T19:40:00.000Z',
       currentStatus: 'RENEGOTIATED',
       isCurrentlyRenegotiated: true,
+      openRenegotiationAmount: '359.64',
       outstandingAmount: '359.64',
       assignedToName: 'Luiza Chagas',
     },
@@ -25,6 +26,7 @@ const data: RenegotiatedHistoryResponse = {
     totalCases: 1,
     totalRenegotiations: 3,
     currentlyRenegotiated: 1,
+    openRenegotiationTotal: '359.64',
     totalOutstanding: '359.64',
   },
 };
@@ -56,6 +58,7 @@ describe('SupervisionRenegotiated', () => {
             totalCases: 0,
             totalRenegotiations: 0,
             currentlyRenegotiated: 0,
+            openRenegotiationTotal: '0.00',
             totalOutstanding: '0.00',
           },
         }}

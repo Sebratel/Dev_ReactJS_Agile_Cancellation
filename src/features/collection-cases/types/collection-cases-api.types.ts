@@ -221,7 +221,10 @@ export type RenegotiatedHistoryItem = {
   firstRenegotiatedAt: string;
   lastRenegotiatedAt: string;
   currentStatus: string;
+  // true se há renegociação EM ABERTO hoje (saldo renegociado > 0, não quitado).
   isCurrentlyRenegotiated: boolean;
+  // Saldo da renegociação em aberto no ERP ("0.00" se já quitou).
+  openRenegotiationAmount: string;
   outstandingAmount: string;
   assignedToName: string | null;
 };
@@ -230,6 +233,7 @@ export type RenegotiatedHistorySummary = {
   totalCases: number;
   totalRenegotiations: number;
   currentlyRenegotiated: number;
+  openRenegotiationTotal: string;
   totalOutstanding: string;
 };
 
