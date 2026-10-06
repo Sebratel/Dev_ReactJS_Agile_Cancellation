@@ -26,6 +26,11 @@ import type {
 // Histórico REAL de renegociações do ERP (tabela financial_renegotiations),
 // ligado ao contrato pelos títulos envolvidos. É a fonte correta de "quem
 // renegociou e quando" — o flag `renegotiated` do título é só um resquício.
+// Exclui contratos CANCELADOS: a equipe de cancelamento, ao encerrar no Elleven,
+// primeiro renegocia e depois cancela o contrato — então quase todo contrato
+// cancelado tem uma "renegociação" que é só artefato do fluxo de cancelamento,
+// não uma renegociação viva a acompanhar. A aba lista só quem renegociou E
+// segue ativo (usa o v_status VIVO do ERP).
 const RENEGOTIATION_HISTORY_QUERY = `
 SELECT c.public_id::text AS pid,
   COUNT(DISTINCT r.id) AS reneg_count,
@@ -37,7 +42,9 @@ JOIN erp.financial_renegotiation_titles rt
 JOIN erp.financial_receivable_titles t
   ON t.id = rt.financial_receivable_title_id
 JOIN erp.contracts c ON c.id = t.contract_id
-WHERE c.public_id = ANY($1::uuid[]) AND r.deleted IS false
+WHERE c.public_id = ANY($1::uuid[])
+  AND r.deleted IS false
+  AND c.v_status::text <> 'Cancelado'
 GROUP BY c.public_id;
 `;
 
