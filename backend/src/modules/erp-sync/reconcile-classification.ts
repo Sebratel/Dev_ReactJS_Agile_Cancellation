@@ -13,6 +13,8 @@ export const ERP_ELIGIBLE_CONTRACT_STATUSES = new Set([
 export type ErpContractReconcileStatus = {
   erpContractStatus: string | null;
   openOverdueTitles: number;
+  // Motivo do último cancelamento no ERP (contract_events), quando houver.
+  cancellationReason: string | null;
 };
 
 function isEligibleContractStatus(

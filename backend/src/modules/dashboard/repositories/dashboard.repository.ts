@@ -1,3 +1,4 @@
+import type { CancellationReasonsResponse } from '@/modules/dashboard/dto/cancellation-reasons.response';
 import type { DashboardOperationsResponse } from '@/modules/dashboard/dto/dashboard-operations.response';
 import type { DashboardRecoveryRankingResponse } from '@/modules/dashboard/dto/dashboard-ranking.response';
 import type { DashboardSummaryResponse } from '@/modules/dashboard/dto/dashboard-summary.response';
@@ -14,4 +15,5 @@ export interface DashboardRepository {
   getRecoveryRanking(
     params: RecoveryRankingParams,
   ): Promise<DashboardRecoveryRankingResponse>;
+  getCancellationReasons(): Promise<CancellationReasonsResponse>;
 }

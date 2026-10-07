@@ -10,6 +10,11 @@ import {
 } from '@prisma/client';
 import { Injectable } from '@nestjs/common';
 import { createPaginatedResponse } from '@/common/pagination/paginated-response';
+import {
+  cancellationReasonCategoryLabel,
+  categorizeCancellationReason,
+  cleanCancellationReasonLabel,
+} from '@/common/cancellation-reason';
 import { formatDecimal } from '@/common/utils/decimal.util';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import type { CollectionCaseDetailsResponse } from '@/modules/collection-cases/dto/collection-case-details.response';
@@ -155,6 +160,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
               code: true,
               status: true,
               erpStatus: true,
+              cancellationReason: true,
               invoices: {
                 where: {
                   dueDate: { lt: now },
@@ -189,6 +195,12 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
         contractCode: record.contract.code,
         contractStatus: record.contract.status,
         contractErpStatus: record.contract.erpStatus,
+        contractCancellationReason: cleanCancellationReasonLabel(
+          record.contract.cancellationReason,
+        ),
+        contractCancellationReasonCategory: record.contract.cancellationReason
+          ? categorizeCancellationReason(record.contract.cancellationReason)
+          : null,
         firstOverdueDate:
           record.contract.invoices[0]?.dueDate.toISOString() ?? null,
         secondOverdueDate:
@@ -1451,6 +1463,17 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
         code: record.contract.code,
         status: record.contract.status,
         erpStatus: record.contract.erpStatus,
+        cancellationReason: cleanCancellationReasonLabel(
+          record.contract.cancellationReason,
+        ),
+        cancellationReasonCategory: record.contract.cancellationReason
+          ? categorizeCancellationReason(record.contract.cancellationReason)
+          : null,
+        cancellationReasonCategoryLabel: record.contract.cancellationReason
+          ? cancellationReasonCategoryLabel(
+              categorizeCancellationReason(record.contract.cancellationReason),
+            )
+          : null,
       },
       status: record.status,
       priority: record.priority,

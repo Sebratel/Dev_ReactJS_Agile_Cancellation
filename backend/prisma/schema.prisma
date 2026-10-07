@@ -214,6 +214,10 @@ model Contract {
   // "Normal", "Suspenso", "Bloqueio Financeiro", "Cancelado". O enum `status`
   // acima (mapeado) continua para a logica interna.
   erpStatus    String?
+  // Motivo do cancelamento vindo do ERP (contract_events), ex.: "Cancelamento -
+  // Inadimplencia". Preenchido quando o contrato esta cancelado; nulo caso
+  // contrario. Categorizado em runtime (common/cancellation-reason.ts).
+  cancellationReason String?
   startDate    DateTime
   endDate      DateTime?
   totalValue   Decimal?       @db.Decimal(15, 2)

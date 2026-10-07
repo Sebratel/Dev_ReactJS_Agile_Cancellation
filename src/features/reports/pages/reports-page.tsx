@@ -25,6 +25,7 @@ import {
   mapDashboardSummaryToRecoveryTrend,
   mapDashboardSummaryToStatusDistribution,
 } from '@/features/dashboard/utils/dashboard.mapper';
+import { CancellationReasonsReport } from '@/features/reports/components/cancellation-reasons-report';
 import { useExportCasesCsv } from '@/features/collection-cases/hooks/use-export-cases-csv';
 import { usePaymentPromisesSummary } from '@/features/payment-promises/hooks/use-payment-promises-summary';
 import { useRecoveryRanking } from '@/features/ranking/hooks/use-recovery-ranking';
@@ -166,6 +167,8 @@ export default function ReportsPage() {
               <RecoveryTrendChart data={recoveryTrend} />
             </Suspense>
           </section>
+
+          <CancellationReasonsReport />
 
           <SectionCard
             title="Produtividade por agente"

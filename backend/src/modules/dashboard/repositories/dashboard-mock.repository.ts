@@ -41,4 +41,32 @@ export class DashboardMockRepository implements DashboardRepository {
       ranking: mockRecoveryRanking,
     });
   }
+
+  getCancellationReasons() {
+    return Promise.resolve({
+      totalClosed: 0,
+      withReason: 0,
+      byCategory: [
+        {
+          category: 'INADIMPLENCIA',
+          label: 'Inadimplência',
+          count: 0,
+          percentage: 0,
+        },
+        {
+          category: 'EXTERNO',
+          label: 'Motivo externo',
+          count: 0,
+          percentage: 0,
+        },
+        {
+          category: 'OUTRO',
+          label: 'Outro / não informado',
+          count: 0,
+          percentage: 0,
+        },
+      ],
+      topReasons: [],
+    });
+  }
 }

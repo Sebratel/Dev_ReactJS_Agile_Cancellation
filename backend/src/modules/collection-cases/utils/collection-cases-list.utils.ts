@@ -610,6 +610,9 @@ export function toListItemResponse(
     contractCode: record.contractCode,
     contractStatus: record.contractStatus,
     contractErpStatus: record.contractErpStatus ?? null,
+    contractCancellationReason: record.contractCancellationReason ?? null,
+    contractCancellationReasonCategory:
+      record.contractCancellationReasonCategory ?? null,
     firstOverdueDate: record.firstOverdueDate,
     secondOverdueDate: record.firstOverdueDate
       ? getSecondOverdueDate(record)

@@ -38,4 +38,10 @@ export class DashboardService {
 
     return createApiResponse(ranking);
   }
+
+  async getCancellationReasons() {
+    const report = await this.dashboardRepository.getCancellationReasons();
+
+    return createApiResponse(report);
+  }
 }

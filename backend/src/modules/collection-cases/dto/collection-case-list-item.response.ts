@@ -8,6 +8,9 @@ export type CollectionCaseListItemResponse = {
   contractStatus: string;
   // Status bruto do ERP (v_status do Elleven), para exibicao fiel.
   contractErpStatus: string | null;
+  // Motivo do cancelamento (quando encerrado): texto limpo + categoria.
+  contractCancellationReason: string | null;
+  contractCancellationReasonCategory: string | null;
   firstOverdueDate: string | null;
   secondOverdueDate: string | null;
   status: string;

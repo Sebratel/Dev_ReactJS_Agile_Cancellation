@@ -33,4 +33,10 @@ export class DashboardController {
   getRecoveryRanking(@Query() query: DashboardRankingQueryDto) {
     return this.dashboardService.getRecoveryRanking(query.period);
   }
+
+  @Roles('ADMIN', 'SUPERVISOR')
+  @Get('cancellation-reasons')
+  getCancellationReasons() {
+    return this.dashboardService.getCancellationReasons();
+  }
 }

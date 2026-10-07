@@ -272,18 +272,32 @@ SELECT
       AND fr.deleted IS false
       AND x.client_paid_date IS NULL
       AND DATE(fr.expiration_date) < CURRENT_DATE
-  )::int AS open_overdue_titles
+  )::int AS open_overdue_titles,
+  (
+    -- Motivo do cancelamento mais recente (contract_events). Só faz sentido
+    -- quando o contrato está cancelado; o chamador decide se usa ou limpa.
+    SELECT cet.title
+    FROM erp.contract_events ce2
+    JOIN erp.contract_event_types cet
+      ON cet.id = ce2.contract_event_type_id
+    WHERE ce2.contract_id = c.id
+      AND ce2.deleted IS false
+      AND cet.title ILIKE 'Cancelamento%'
+    ORDER BY ce2.date DESC NULLS LAST
+    LIMIT 1
+  ) AS cancellation_reason
 FROM erp.contracts c
 LEFT JOIN erp.financial_receivable_titles fr ON fr.contract_id = c.id
 LEFT JOIN erp.financial_receipt_titles x ON x.financial_receivable_title_id = fr.id
 WHERE c.public_id = ANY($1::uuid[])
-GROUP BY c.public_id, c.v_status;
+GROUP BY c.public_id, c.id, c.v_status;
 `;
 
 type ErpContractReconcileStatusRow = {
   contract_external_id: string;
   erp_contract_status: string | null;
   open_overdue_titles: number;
+  cancellation_reason: string | null;
 };
 
 @Injectable()
@@ -611,6 +625,7 @@ export class ErpSyncService {
           contractStatusByExternalId.set(row.contract_external_id, {
             erpContractStatus: row.erp_contract_status,
             openOverdueTitles: Number(row.open_overdue_titles),
+            cancellationReason: row.cancellation_reason ?? null,
           });
         }
       } catch (error) {
@@ -760,17 +775,22 @@ export class ErpSyncService {
       // preso no valor antigo (ex.: pagou, saiu do Bloqueio Financeiro no ERP,
       // mas continuava SUSPENDED na plataforma).
       for (const collectionCase of casesToRecover) {
-        const erpStatus = collectionCase.externalId
+        const reconcileStatus = collectionCase.externalId
           ? contractStatusByExternalId.get(collectionCase.externalId)
-              ?.erpContractStatus
-          : null;
+          : undefined;
+        const erpStatus = reconcileStatus?.erpContractStatus ?? null;
 
         if (erpStatus) {
+          const isCancelled = mapContractStatus(erpStatus) === 'CANCELLED';
           await tx.contract.update({
             where: { id: collectionCase.contractId },
             data: {
               status: mapContractStatus(erpStatus),
               erpStatus,
+              // Guarda o motivo só quando cancelado; limpa ao reativar.
+              cancellationReason: isCancelled
+                ? reconcileStatus?.cancellationReason ?? null
+                : null,
               updatedAt: now,
             },
           });

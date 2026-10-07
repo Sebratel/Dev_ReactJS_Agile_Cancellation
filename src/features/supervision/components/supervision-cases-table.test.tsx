@@ -47,6 +47,8 @@ const items: CollectionCaseListItemResponse[] = [
     contractCode: 'CTR-10428',
     contractStatus: 'ACTIVE',
     contractErpStatus: 'Normal',
+    contractCancellationReason: null,
+    contractCancellationReasonCategory: null,
     firstOverdueDate: '2026-06-28T00:00:00.000Z',
     secondOverdueDate: '2026-07-28T00:00:00.000Z',
     status: 'IN_COLLECTION',

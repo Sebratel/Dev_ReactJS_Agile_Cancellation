@@ -8,8 +8,15 @@ import {
   UserStatus,
 } from '@prisma/client';
 import { Injectable } from '@nestjs/common';
+import {
+  cancellationReasonCategoryLabel,
+  categorizeCancellationReason,
+  cleanCancellationReasonLabel,
+  type CancellationReasonCategory,
+} from '@/common/cancellation-reason';
 import { formatDecimal } from '@/common/utils/decimal.util';
 import { PrismaService } from '@/database/prisma/prisma.service';
+import type { CancellationReasonsResponse } from '@/modules/dashboard/dto/cancellation-reasons.response';
 import type { DashboardOperationsResponse } from '@/modules/dashboard/dto/dashboard-operations.response';
 import type {
   DashboardOperationalAlert,
@@ -611,5 +618,64 @@ export class DashboardPrismaRepository implements DashboardRepository {
     });
 
     return customers.length;
+  }
+
+  // Relatório de encerrados por motivo (categorizado). Lê o motivo capturado do
+  // ERP em contract.cancellationReason para cada caso CLOSED.
+  async getCancellationReasons(): Promise<CancellationReasonsResponse> {
+    const closedCases = await this.prisma.collectionCase.findMany({
+      where: { status: CollectionStatus.CLOSED },
+      select: { contract: { select: { cancellationReason: true } } },
+    });
+
+    const totalClosed = closedCases.length;
+    const categoryCount = new Map<CancellationReasonCategory, number>();
+    const reasonCount = new Map<
+      string,
+      { reason: string; category: CancellationReasonCategory; count: number }
+    >();
+    let withReason = 0;
+
+    for (const item of closedCases) {
+      const raw = item.contract?.cancellationReason ?? null;
+      if (raw) {
+        withReason += 1;
+      }
+      const category = categorizeCancellationReason(raw);
+      categoryCount.set(category, (categoryCount.get(category) ?? 0) + 1);
+
+      const reason = cleanCancellationReasonLabel(raw) ?? 'Não informado';
+      const key = `${category}::${reason}`;
+      const existing = reasonCount.get(key);
+      reasonCount.set(key, {
+        reason,
+        category,
+        count: (existing?.count ?? 0) + 1,
+      });
+    }
+
+    const categories: CancellationReasonCategory[] = [
+      'INADIMPLENCIA',
+      'EXTERNO',
+      'OUTRO',
+    ];
+    const byCategory = categories.map((category) => {
+      const count = categoryCount.get(category) ?? 0;
+      return {
+        category,
+        label: cancellationReasonCategoryLabel(category),
+        count,
+        percentage:
+          totalClosed > 0
+            ? Math.round((count / totalClosed) * 1000) / 10
+            : 0,
+      };
+    });
+
+    const topReasons = [...reasonCount.values()]
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 12);
+
+    return { totalClosed, withReason, byCategory, topReasons };
   }
 }

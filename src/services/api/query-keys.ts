@@ -26,6 +26,7 @@ export const queryKeys = {
     recoveryRanking: (period: string) =>
       ['dashboard', 'recovery-ranking', period] as const,
     recoveryRankingAll: ['dashboard', 'recovery-ranking'] as const,
+    cancellationReasons: ['dashboard', 'cancellation-reasons'] as const,
   },
   collectionCases: {
     all: ['collection-cases'] as const,

@@ -1,5 +1,6 @@
 import { httpClient } from '@/services/api/http-client';
 import {
+  type CancellationReasonsResponse,
   type DashboardOperationsResponse,
   type DashboardSummaryResponse,
 } from '@/features/dashboard/types/dashboard-api.types';
@@ -15,6 +16,14 @@ export async function getDashboardSummary() {
 export async function getDashboardOperations() {
   const response = await httpClient.request<DashboardOperationsResponse>({
     path: '/dashboard/operations',
+  });
+
+  return response.data;
+}
+
+export async function getCancellationReasons() {
+  const response = await httpClient.request<CancellationReasonsResponse>({
+    path: '/dashboard/cancellation-reasons',
   });
 
   return response.data;

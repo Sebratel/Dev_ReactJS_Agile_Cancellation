@@ -11,6 +11,7 @@ function status(
   return {
     erpContractStatus: 'Normal',
     openOverdueTitles: 0,
+    cancellationReason: null,
     ...overrides,
   };
 }

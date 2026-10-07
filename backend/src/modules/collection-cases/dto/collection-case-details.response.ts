@@ -39,6 +39,12 @@ export type CollectionCaseContractSummary = {
   status: string;
   // Status bruto do ERP (v_status do Elleven), para exibicao fiel.
   erpStatus: string | null;
+  // Motivo do cancelamento (quando cancelado), vindo do ERP. `reason` é o texto
+  // limpo ("Inadimplência"), `category` é a visão estratégica
+  // (INADIMPLENCIA/EXTERNO/OUTRO), `categoryLabel` o rótulo amigável.
+  cancellationReason: string | null;
+  cancellationReasonCategory: string | null;
+  cancellationReasonCategoryLabel: string | null;
 };
 
 export type CollectionCaseAssigneeSummary = {

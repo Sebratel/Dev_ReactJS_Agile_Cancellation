@@ -427,6 +427,29 @@ export default function CollectionCaseDetailPage() {
                         getContractStatusLabel(caseQuery.data.contract.status)}
                     </dd>
                   </div>
+                  {caseQuery.data.contract.cancellationReason ? (
+                    <div>
+                      <dt className="font-medium text-neutral">
+                        Motivo do encerramento
+                      </dt>
+                      <dd className="mt-1 flex flex-wrap items-center gap-2">
+                        <span className="font-medium">
+                          {caseQuery.data.contract.cancellationReason}
+                        </span>
+                        {caseQuery.data.contract
+                          .cancellationReasonCategory === 'INADIMPLENCIA' ? (
+                          <span className="inline-flex rounded-full bg-danger/10 px-2 py-0.5 text-xs font-medium text-danger">
+                            Inadimplência
+                          </span>
+                        ) : caseQuery.data.contract
+                            .cancellationReasonCategory === 'EXTERNO' ? (
+                          <span className="inline-flex rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
+                            Motivo externo
+                          </span>
+                        ) : null}
+                      </dd>
+                    </div>
+                  ) : null}
                   <div>
                     <dt className="font-medium text-neutral">
                       Total consolidado

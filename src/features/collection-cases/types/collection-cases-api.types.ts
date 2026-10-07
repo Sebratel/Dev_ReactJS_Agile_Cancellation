@@ -26,6 +26,8 @@ export type CollectionCaseListItemResponse = {
   contractCode: string;
   contractStatus: string;
   contractErpStatus: string | null;
+  contractCancellationReason: string | null;
+  contractCancellationReasonCategory: string | null;
   firstOverdueDate: string | null;
   secondOverdueDate: string | null;
   status: string;
@@ -80,6 +82,9 @@ export type CollectionCaseContractSummary = {
   code: string;
   status: string;
   erpStatus: string | null;
+  cancellationReason: string | null;
+  cancellationReasonCategory: string | null;
+  cancellationReasonCategoryLabel: string | null;
 };
 
 export type CollectionCaseAssigneeSummary = {

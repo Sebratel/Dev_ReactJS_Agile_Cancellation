@@ -80,3 +80,23 @@ export type DashboardOperationsResponse = {
   cancellations: DashboardOperationsCancellationMetrics;
   financial: DashboardOperationsFinancialMetrics;
 };
+
+export type CancellationReasonCategoryBreakdown = {
+  category: string;
+  label: string;
+  count: number;
+  percentage: number;
+};
+
+export type CancellationReasonBreakdown = {
+  reason: string;
+  category: string;
+  count: number;
+};
+
+export type CancellationReasonsResponse = {
+  totalClosed: number;
+  withReason: number;
+  byCategory: CancellationReasonCategoryBreakdown[];
+  topReasons: CancellationReasonBreakdown[];
+};
