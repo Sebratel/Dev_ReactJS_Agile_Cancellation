@@ -22,7 +22,7 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
-      NODE_ENV: ${NODE_ENV:-staging}
+      NODE_ENV: ${NODE_ENV:-production}
       PORT: 4000
       DATABASE_URL: ${DATABASE_URL:-mysql://${MARIADB_USER}:${MARIADB_PASSWORD}@db:3306/DB_Cancellation_Plataform?connection_limit=5}
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
