@@ -14,6 +14,11 @@ export function createGoogleTokenVerifier(
 ): GoogleTokenVerifier {
   const config = getGoogleAuthConfig();
 
+  // Defesa em profundidade: nunca devolve o mock em producao.
+  if (process.env.NODE_ENV === 'production') {
+    return realVerifier;
+  }
+
   if (config.mode === 'mock') {
     return mockVerifier;
   }

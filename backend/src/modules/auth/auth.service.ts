@@ -211,7 +211,7 @@ export class AuthService {
   async refresh(dto: RefreshTokenDto) {
     if (
       dto.refreshToken.startsWith('dev:') &&
-      (process.env.NODE_ENV !== 'production' || this.isMockGoogleAuthMode())
+      process.env.NODE_ENV !== 'production'
     ) {
       const userId = dto.refreshToken.slice(4);
 
@@ -287,7 +287,7 @@ export class AuthService {
   ): Promise<AuthenticatedUser | null> {
     if (
       payload.devSession &&
-      (process.env.NODE_ENV !== 'production' || this.isMockGoogleAuthMode())
+      process.env.NODE_ENV !== 'production'
     ) {
       const dbUser = await this.authRepository
         .findByEmail(payload.email)
@@ -426,7 +426,12 @@ export class AuthService {
     };
   }
 
+  // Mock so existe fora de producao (em producao o boot ja falha com
+  // GOOGLE_AUTH_MODE=mock; aqui fica a defesa em profundidade).
   private isMockGoogleAuthMode(): boolean {
-    return process.env.GOOGLE_AUTH_MODE === 'mock';
+    return (
+      process.env.NODE_ENV !== 'production' &&
+      process.env.GOOGLE_AUTH_MODE === 'mock'
+    );
   }
 }

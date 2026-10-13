@@ -12,7 +12,15 @@ export function getGoogleAuthConfig(
   const workspaceDomain = env.GOOGLE_WORKSPACE_DOMAIN ?? 'sebratel.com.br';
   const isProd = env.NODE_ENV === 'production';
 
-  if (!clientId && isProd && mode === 'real') {
+  // Em producao o verificador mock (aceita "mock:<email>") e as sessoes de
+  // dev-login sao proibidos: falha o boot em vez de abrir um login sem senha.
+  if (isProd && mode === 'mock') {
+    throw new Error(
+      'GOOGLE_AUTH_MODE=mock nao e permitido em producao (NODE_ENV=production).',
+    );
+  }
+
+  if (isProd && !clientId) {
     throw new Error(
       'GOOGLE_CLIENT_ID nao configurado. Necessario para validar o login Google em producao.',
     );
