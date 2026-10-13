@@ -253,6 +253,32 @@ describe('SupervisionPage', () => {
     );
   });
 
+  it('volta para a ultima pagina valida quando a lista encolhe', async () => {
+    vi.mocked(getCollectionCases).mockImplementation((params = {}) => {
+      const base = createMockCollectionCasesPage(1, params.limit ?? 10);
+      const page = params.page ?? 1;
+
+      return Promise.resolve({
+        ...base,
+        items: page > 2 ? [] : base.items,
+        pagination: { ...base.pagination, page, total: 12, totalPages: 2 },
+      });
+    });
+
+    await renderSupervision('/supervisao?page=5');
+
+    await waitFor(() => {
+      expect(getCollectionCases).toHaveBeenCalledWith(
+        expect.objectContaining({ page: 2 }),
+      );
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('location-search')).toHaveTextContent(
+        'page=2',
+      );
+    });
+  });
+
   it('ordenacao atualiza query params', async () => {
     const user = userEvent.setup();
     await renderSupervision('/supervisao');

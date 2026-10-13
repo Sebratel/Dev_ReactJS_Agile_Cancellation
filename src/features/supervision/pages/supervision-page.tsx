@@ -165,6 +165,16 @@ export default function SupervisionPage() {
 
   const items = useMemo(() => casesQuery.data?.items ?? [], [casesQuery.data]);
   const totalPages = Math.max(casesQuery.data?.pagination.totalPages ?? 1, 1);
+
+  // Com auto-refresh a lista pode encolher (casos saem da carteira): se a pagina
+  // atual deixou de existir, volta para a ultima valida.
+  const { isPlaceholderData } = casesQuery;
+  useEffect(() => {
+    if (isPlaceholderData || !casesQuery.data) return;
+    if (filters.page > totalPages) {
+      updateFilters({ page: totalPages });
+    }
+  }, [isPlaceholderData, casesQuery.data, filters.page, totalPages, updateFilters]);
   const hasActiveFilters = hasActiveSupervisionFilters({
     ...filters,
     search: debouncedSearch,
