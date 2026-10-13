@@ -60,6 +60,10 @@ export class EnvValidationSchema {
 
   @IsOptional()
   @IsString()
+  TRUST_PROXY?: string;
+
+  @IsOptional()
+  @IsString()
   GOOGLE_WORKSPACE_DOMAIN?: string;
 
   @IsOptional()
