@@ -7,6 +7,7 @@ import {
   type Prisma,
 } from '@prisma/client';
 import type { CollectionCaseListItemResponse } from '@/modules/collection-cases/dto/collection-case-list-item.response';
+import { PORTFOLIO_ACTIVE_STATUSES } from '@/modules/collection-cases/utils/portfolio-cases.util';
 import type {
   CollectionCasesListParams,
   CollectionCasesSortBy,
@@ -156,8 +157,13 @@ export function buildCollectionCasesWhere(
 ): Prisma.CollectionCaseWhereInput {
   const where: Prisma.CollectionCaseWhereInput = {};
 
+  // Sem filtro de status explicito, a lista mostra so a carteira ativa (mesma
+  // base do card de carteira). Status finalizado escolhido no filtro continua
+  // funcionando (historico/auditoria).
   if (params.status) {
     where.status = params.status as CollectionStatus;
+  } else {
+    where.status = { in: PORTFOLIO_ACTIVE_STATUSES };
   }
 
   if (params.priority) {
@@ -234,7 +240,7 @@ export function buildCollectionCasesWhere(
   }
 
   if (params.slaStatus) {
-    applySlaStatusFilter(where, params.slaStatus, now, params.status);
+    applySlaStatusFilter(where, params.slaStatus, now);
   }
 
   if (params.createdToday) {
@@ -269,7 +275,6 @@ function applySlaStatusFilter(
   where: Prisma.CollectionCaseWhereInput,
   slaStatus: NonNullable<CollectionCasesListParams['slaStatus']>,
   now: Date,
-  status?: string,
 ) {
   switch (slaStatus) {
     case 'no_sla':
@@ -277,9 +282,6 @@ function applySlaStatusFilter(
       break;
     case 'overdue':
       where.slaDueAt = { lt: now };
-      if (!status) {
-        where.status = { notIn: FINALIZED_STATUSES };
-      }
       break;
     case 'due_today':
       where.slaDueAt = {
@@ -400,7 +402,13 @@ export function filterMockCollectionCases(
   const search = params.search?.toLowerCase();
 
   return records.filter((record) => {
-    if (params.status && record.status !== params.status) {
+    if (params.status) {
+      if (record.status !== params.status) {
+        return false;
+      }
+    } else if (
+      !PORTFOLIO_ACTIVE_STATUSES.includes(record.status as CollectionStatus)
+    ) {
       return false;
     }
 

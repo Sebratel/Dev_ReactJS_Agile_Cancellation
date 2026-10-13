@@ -37,11 +37,33 @@ describe('CollectionCasesPrismaRepository', () => {
       expect.objectContaining({
         skip: 0,
         take: 10,
-        where: {},
+        where: {
+          status: {
+            in: [
+              'WAITING_TRIAGE',
+              'IN_COLLECTION',
+              'NO_RESPONSE',
+              'ELIGIBLE_FOR_CANCELLATION',
+              'CANCELLATION_IN_PROGRESS',
+            ],
+          },
+        },
         orderBy: [{ daysOverdue: 'desc' }, { outstandingAmount: 'desc' }],
       }),
     );
-    expect(count).toHaveBeenCalledWith({ where: {} });
+    expect(count).toHaveBeenCalledWith({
+      where: {
+        status: {
+          in: [
+            'WAITING_TRIAGE',
+            'IN_COLLECTION',
+            'NO_RESPONSE',
+            'ELIGIBLE_FOR_CANCELLATION',
+            'CANCELLATION_IN_PROGRESS',
+          ],
+        },
+      },
+    });
     expect(result.pagination.total).toBe(1);
     expect(result.items[0]?.customerName).toBe('Cliente DB');
   });
@@ -208,9 +230,7 @@ describe('CollectionCasesPrismaRepository', () => {
       limit: 10,
     });
 
-    expect(summary.firstDueDates).toEqual([
-      { date: '2026-06-01', count: 2 },
-    ]);
+    expect(summary.firstDueDates).toEqual([{ date: '2026-06-01', count: 2 }]);
     expect(summary.secondDueDates).toEqual([
       { date: '2026-07-01', count: 1 },
       { date: '2026-08-01', count: 1 },
@@ -221,10 +241,9 @@ describe('CollectionCasesPrismaRepository', () => {
   });
 
   it('listCaseIds retorna todos os ids sem paginacao, sem chamar count', async () => {
-    const findMany = jest.fn().mockResolvedValue([
-      { id: 'case_db_1' },
-      { id: 'case_db_2' },
-    ]);
+    const findMany = jest
+      .fn()
+      .mockResolvedValue([{ id: 'case_db_1' }, { id: 'case_db_2' }]);
     const count = jest.fn();
     const prisma = {
       collectionCase: { findMany, count },

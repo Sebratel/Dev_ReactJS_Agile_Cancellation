@@ -259,3 +259,60 @@ describe('collection-cases list filters', () => {
     });
   });
 });
+
+describe('lista de casos — so carteira ativa por padrao (A4)', () => {
+  it('sem status explicito o where exclui finalizados e AWAITING_PAYMENT', () => {
+    const where = buildCollectionCasesWhere({ page: 1, limit: 10 });
+
+    expect(where.status).toEqual({
+      in: [
+        'WAITING_TRIAGE',
+        'IN_COLLECTION',
+        'NO_RESPONSE',
+        'ELIGIBLE_FOR_CANCELLATION',
+        'CANCELLATION_IN_PROGRESS',
+      ],
+    });
+  });
+
+  it('status finalizado escolhido explicitamente continua listando', () => {
+    const where = buildCollectionCasesWhere({
+      page: 1,
+      limit: 10,
+      status: 'CLOSED',
+    });
+
+    expect(where.status).toBe('CLOSED');
+  });
+
+  it('SLA vencido sem status nao reabre os finalizados', () => {
+    const where = buildCollectionCasesWhere({
+      page: 1,
+      limit: 10,
+      slaStatus: 'overdue',
+    });
+
+    expect(where.status).toEqual({ in: expect.arrayContaining(['IN_COLLECTION']) });
+  });
+
+  it('mock: lista sem status exclui finalizados; com status=CLOSED inclui', () => {
+    const records = [
+      createRecord({ id: 'ativo', status: 'IN_COLLECTION' }),
+      createRecord({ id: 'fechado', status: 'CLOSED' }),
+      createRecord({ id: 'pago', status: 'PAYMENT_MADE' }),
+    ];
+
+    expect(
+      filterMockCollectionCases(records, { page: 1, limit: 10 }).map(
+        (record) => record.id,
+      ),
+    ).toEqual(['ativo']);
+    expect(
+      filterMockCollectionCases(records, {
+        page: 1,
+        limit: 10,
+        status: 'CLOSED',
+      }).map((record) => record.id),
+    ).toEqual(['fechado']);
+  });
+});
