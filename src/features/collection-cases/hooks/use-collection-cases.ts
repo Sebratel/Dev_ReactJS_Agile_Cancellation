@@ -1,5 +1,6 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/services/api/query-keys';
+import { autoRefreshOptions } from '@/services/api/auto-refresh';
 import {
   getCollectionCaseById,
   getCollectionCases,
@@ -8,6 +9,9 @@ import { type CollectionCasesListParams } from '@/features/collection-cases/type
 
 type UseCollectionCasesOptions = {
   enabled?: boolean;
+  // Revalida sozinho a cada 60s (aba visivel) e ao voltar o foco — telas de
+  // supervisao/carteira.
+  autoRefresh?: boolean;
 };
 
 export function useCollectionCases(
@@ -32,6 +36,7 @@ export function useCollectionCases(
     queryFn: () => getCollectionCases(queryParams),
     enabled: options.enabled ?? true,
     placeholderData: keepPreviousData,
+    ...(options.autoRefresh ? autoRefreshOptions : {}),
   });
 }
 

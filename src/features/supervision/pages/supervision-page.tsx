@@ -97,7 +97,7 @@ export default function SupervisionPage() {
       : base;
   }, [filters, debouncedSearch, selectedAgentId]);
 
-  const casesQuery = useCollectionCases(listParams);
+  const casesQuery = useCollectionCases(listParams, { autoRefresh: true });
 
   const portfoliosQuery = useCollectionCasePortfolios(canDistribute);
   const renegotiatedQuery = useRenegotiatedHistory(
