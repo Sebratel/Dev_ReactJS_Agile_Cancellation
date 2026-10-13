@@ -17,6 +17,10 @@ import {
 } from '@/common/cancellation-reason';
 import { formatDecimal } from '@/common/utils/decimal.util';
 import { PrismaService } from '@/database/prisma/prisma.service';
+import {
+  countContactedInCycleByAgent,
+  PORTFOLIO_ACTIVE_STATUSES,
+} from '@/modules/collection-cases/utils/portfolio-cases.util';
 import type { CollectionCaseDetailsResponse } from '@/modules/collection-cases/dto/collection-case-details.response';
 import type { CollectionCaseListItemResponse } from '@/modules/collection-cases/dto/collection-case-list-item.response';
 import {
@@ -378,22 +382,11 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
     };
   }
 
-  // Casos considerados "em carteira" (ativos) — mesma regra da distribuicao e
-  // do workload (ver users.service.ts): exclui CLOSED/RECOVERED e triagem ja
-  // finalizada.
-  private static readonly PORTFOLIO_ACTIVE_STATUSES: CollectionStatus[] = [
-    CollectionStatus.WAITING_TRIAGE,
-    CollectionStatus.IN_COLLECTION,
-    CollectionStatus.NO_RESPONSE,
-    CollectionStatus.ELIGIBLE_FOR_CANCELLATION,
-    CollectionStatus.CANCELLATION_IN_PROGRESS,
-  ];
-
   async getPortfolios(): Promise<CollectionCasePortfoliosResponse> {
     const now = new Date();
     const activeStatus = {
       status: {
-        in: CollectionCasesPrismaRepository.PORTFOLIO_ACTIVE_STATUSES,
+        in: PORTFOLIO_ACTIVE_STATUSES,
       },
     } satisfies Prisma.CollectionCaseWhereInput;
 
@@ -402,8 +395,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
       slaOverdue,
       awaitingReply,
       noManualInteraction,
-      assignedTotals,
-      interactedTotals,
+      interactedMap,
     ] = await Promise.all([
       this.prisma.collectionCase.groupBy({
         by: ['assignedUserId'],
@@ -430,17 +422,9 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
         },
         _count: { _all: true },
       }),
-      // Total atribuido ao atendente em QUALQUER status (inclui finalizados).
-      this.prisma.collectionCase.groupBy({
-        by: ['assignedUserId'],
-        _count: { _all: true },
-      }),
-      // Casos atribuidos com ao menos um contato manual do atendente.
-      this.prisma.collectionCase.groupBy({
-        by: ['assignedUserId'],
-        where: { collectionAttempts: { some: { isAutomatic: false } } },
-        _count: { _all: true },
-      }),
+      // Contatados: ativos com contato manual no ciclo atual (SQL — compara
+      // attemptedAt com o cycleStartedAt do proprio caso).
+      countContactedInCycleByAgent(this.prisma),
     ]);
 
     const countByUser = (
@@ -456,8 +440,6 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
     const slaMap = countByUser(slaOverdue);
     const replyMap = countByUser(awaitingReply);
     const noInteractionMap = countByUser(noManualInteraction);
-    const assignedMap = countByUser(assignedTotals);
-    const interactedMap = countByUser(interactedTotals);
 
     // Nomes/avatares dos atendentes que possuem casos ativos atribuidos.
     const assignedUserIds = totals
@@ -483,7 +465,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
           ? { id: user.id, name: user.name, avatarUrl: user.avatarUrl }
           : null,
         totalActive: row._count._all,
-        totalAssigned: assignedMap.get(row.assignedUserId) ?? row._count._all,
+        totalAssigned: row._count._all,
         interacted: interactedMap.get(row.assignedUserId) ?? 0,
         slaOverdue: slaMap.get(row.assignedUserId) ?? 0,
         awaitingReply: replyMap.get(row.assignedUserId) ?? 0,

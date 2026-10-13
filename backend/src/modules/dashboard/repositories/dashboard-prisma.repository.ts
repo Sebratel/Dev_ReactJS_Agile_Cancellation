@@ -15,6 +15,10 @@ import {
   type CancellationReasonCategory,
 } from '@/common/cancellation-reason';
 import { formatDecimal } from '@/common/utils/decimal.util';
+import {
+  countContactedInCycleByAgent,
+  PORTFOLIO_ACTIVE_STATUSES,
+} from '@/modules/collection-cases/utils/portfolio-cases.util';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import type { CancellationReasonsResponse } from '@/modules/dashboard/dto/cancellation-reasons.response';
 import type { DashboardOperationsResponse } from '@/modules/dashboard/dto/dashboard-operations.response';
@@ -254,19 +258,18 @@ export class DashboardPrismaRepository implements DashboardRepository {
               attemptedAt: { gte: todayStart, lt: todayEnd },
             },
           }),
+      // Anel "contatados/carteira": mesma regra de getPortfolios — so casos
+      // ativos (PORTFOLIO_ACTIVE_STATUSES) e contato manual no ciclo atual.
       this.prisma.collectionCase.count({
         where: {
           ...scopedCaseWhere,
-          status: { notIn: CLOSED_COLLECTION_STATUSES },
+          status: { in: PORTFOLIO_ACTIVE_STATUSES },
         },
       }),
-      this.prisma.collectionCase.count({
-        where: {
-          ...scopedCaseWhere,
-          status: { notIn: CLOSED_COLLECTION_STATUSES },
-          collectionAttempts: { some: { isAutomatic: false } },
-        },
-      }),
+      countContactedInCycleByAgent(this.prisma, params.assignedUserId).then(
+        (byAgent) =>
+          Array.from(byAgent.values()).reduce((sum, total) => sum + total, 0),
+      ),
     ]);
 
     const inactiveAgents = Math.max(

@@ -118,8 +118,8 @@ function Indicator({
   );
 }
 
-// Progresso de contato: casos da carteira já trabalhados (contato manual) sobre
-// o total da carteira. Verde = bom ritmo, âmbar = atenção, vermelho = parado.
+// Progresso de contato: casos ativos da carteira já trabalhados (contato manual
+// no ciclo atual) sobre o total de casos ativos. Verde = bom ritmo, âmbar = atenção, vermelho = parado.
 function ContactProgress({
   interacted,
   total,
@@ -180,9 +180,7 @@ function PortfolioCard({
           <span className="block min-w-0 truncate font-semibold">{name}</span>
           <div className="mt-0.5 text-xs text-neutral">
             {formatInteger(portfolio.totalAssigned)}{' '}
-            {portfolio.totalAssigned === 1 ? 'caso na carteira' : 'casos na carteira'}{' '}
-            · {formatInteger(portfolio.totalActive)}{' '}
-            {portfolio.totalActive === 1 ? 'ativo' : 'ativos'}
+            {portfolio.totalAssigned === 1 ? 'caso ativo na carteira' : 'casos ativos na carteira'}
           </div>
         </div>
         <ChevronRight

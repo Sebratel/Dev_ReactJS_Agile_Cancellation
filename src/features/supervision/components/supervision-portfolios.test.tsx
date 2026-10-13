@@ -9,8 +9,8 @@ const portfolios: CollectionCasePortfolioSummary[] = [
   {
     agent: { id: 'usr_marina', name: 'Marina Lopes', avatarUrl: null },
     totalActive: 12,
-    totalAssigned: 30,
-    interacted: 20,
+    totalAssigned: 12,
+    interacted: 8,
     slaOverdue: 3,
     awaitingReply: 2,
     noManualInteraction: 5,
@@ -103,9 +103,9 @@ describe('SupervisionPortfolios', () => {
       name: 'Ver casos de Marina Lopes',
     });
     expect(
-      within(marinaCard).getByText(/30 casos na carteira/),
+      within(marinaCard).getByText(/12 casos ativos na carteira/),
     ).toBeInTheDocument();
-    // Barra de progresso: 20 de 30 interagidos = 67% contatados.
+    // Barra de progresso: 8 de 12 interagidos = 67% contatados.
     expect(within(marinaCard).getByText(/67% contatados/)).toBeInTheDocument();
     expect(
       within(marinaCard).getByText('Aguardando resposta'),
