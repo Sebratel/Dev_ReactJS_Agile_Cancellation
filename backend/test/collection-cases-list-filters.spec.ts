@@ -15,6 +15,8 @@ function createRecord(
     contractCode: 'CTR-1',
     contractStatus: 'ACTIVE',
     contractErpStatus: 'Normal',
+    contractCancellationReason: null,
+    contractCancellationReasonCategory: null,
     firstOverdueDate: null,
     secondOverdueDate: null,
     status: 'IN_COLLECTION',

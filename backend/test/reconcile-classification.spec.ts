@@ -67,6 +67,7 @@ describe('resolveRecoveredCaseIds', () => {
         {
           collectionCaseId: 'case_1',
           attemptedAt: new Date('2026-09-21T10:00:00.000Z'),
+          result: 'CONTACTED',
         },
       ],
       new Map([['case_1', cycleStart]]),
@@ -81,6 +82,7 @@ describe('resolveRecoveredCaseIds', () => {
         {
           collectionCaseId: 'case_1',
           attemptedAt: new Date('2026-08-01T10:00:00.000Z'),
+          result: 'CONTACTED',
         },
       ],
       new Map([['case_1', cycleStart]]),
@@ -95,12 +97,51 @@ describe('resolveRecoveredCaseIds', () => {
         {
           collectionCaseId: 'case_1',
           attemptedAt: new Date('2020-01-01T00:00:00.000Z'),
+          result: 'CONTACTED',
         },
       ],
       new Map([['case_1', null]]),
     );
 
     expect(recovered.has('case_1')).toBe(true);
+  });
+
+  it('NÃO conta tentativa sem contato efetivo (não atendeu, caixa postal)', () => {
+    const recovered = resolveRecoveredCaseIds(
+      [
+        {
+          collectionCaseId: 'case_1',
+          attemptedAt: new Date('2026-09-21T10:00:00.000Z'),
+          result: 'NO_ANSWER',
+        },
+      ],
+      new Map([['case_1', cycleStart]]),
+    );
+
+    expect(recovered.has('case_1')).toBe(false);
+  });
+
+  it('conta contato efetivo no mesmo dia do pagamento, mas não depois', () => {
+    const attempts = (day: string) => [
+      {
+        collectionCaseId: 'case_1',
+        attemptedAt: new Date(`${day}T18:00:00.000Z`),
+        result: 'PROMISE_MADE',
+      },
+    ];
+    const cycle = new Map([['case_1', cycleStart]]);
+    const paidOn = new Map([['case_1', new Date('2026-09-22T00:00:00.000Z')]]);
+
+    expect(
+      resolveRecoveredCaseIds(attempts('2026-09-22'), cycle, paidOn).has(
+        'case_1',
+      ),
+    ).toBe(true);
+    expect(
+      resolveRecoveredCaseIds(attempts('2026-09-23'), cycle, paidOn).has(
+        'case_1',
+      ),
+    ).toBe(false);
   });
 
   it('sem tentativas → conjunto vazio', () => {
