@@ -72,7 +72,6 @@ export const mockDashboardSummaryResponse: DashboardSummaryResponse = {
       title: 'Promessas vencidas',
       description: 'Clientes com promessa descumprida aguardando reabordagem.',
       count: 9,
-      group: 'portfolio',
     },
     {
       key: 'noContactAttempt',
@@ -80,7 +79,6 @@ export const mockDashboardSummaryResponse: DashboardSummaryResponse = {
       description:
         'Itens sem primeira ação registrada dentro da janela esperada.',
       count: 12,
-      group: 'portfolio',
     },
     {
       key: 'slaBreached',
@@ -88,7 +86,6 @@ export const mockDashboardSummaryResponse: DashboardSummaryResponse = {
       description:
         'Ocorrências fora do prazo operacional definido pela supervisão.',
       count: 7,
-      group: 'portfolio',
     },
     {
       key: 'awaitingProtocol',
@@ -96,7 +93,6 @@ export const mockDashboardSummaryResponse: DashboardSummaryResponse = {
       description:
         'Processos sem protocolo de retirada devidamente registrado.',
       count: 5,
-      group: 'portfolio',
     },
   ],
 };
@@ -122,7 +118,6 @@ export const mockDashboardOperationsResponse: DashboardOperationsResponse = {
     mostBlockedStep: {
       stepCode: 'OPEN_ELEVEN_REQUEST',
       count: 9,
-      group: 'portfolio',
     },
   },
   financial: {
