@@ -654,7 +654,12 @@ describe('CollectionCasesService', () => {
     const sendToCancellation = jest
       .fn()
       .mockResolvedValue({ outcome: 'success', cancellationProcess });
-    const repository = createRepository({ sendToCancellation });
+    // Atendente so encaminha caso atribuido a ele.
+    const getCaseById = jest.fn().mockResolvedValue({
+      id: 'case_0001',
+      assignedTo: { id: agentPerformer.id },
+    });
+    const repository = createRepository({ sendToCancellation, getCaseById });
 
     const { service, settingsMocks } = createService(repository);
     settingsMocks.isAgentSendToCancellationAllowed.mockResolvedValue(true);
