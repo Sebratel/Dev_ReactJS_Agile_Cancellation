@@ -64,6 +64,10 @@ export class EnvValidationSchema {
 
   @IsOptional()
   @IsString()
+  ENABLE_DEV_LOGIN?: string;
+
+  @IsOptional()
+  @IsString()
   GOOGLE_WORKSPACE_DOMAIN?: string;
 
   @IsOptional()

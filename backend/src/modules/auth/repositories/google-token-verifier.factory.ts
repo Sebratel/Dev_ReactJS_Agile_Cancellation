@@ -1,4 +1,5 @@
 import { getGoogleAuthConfig } from '@/config/google-auth.config';
+import { isDevLoginEnabled } from '@/modules/auth/utils/dev-login.util';
 import type { GoogleTokenVerifier } from '@/modules/auth/services/google-token-verifier';
 import type { GoogleTokenVerifierMockService } from '@/modules/auth/services/google-token-verifier.mock.service';
 import type { GoogleTokenVerifierService } from '@/modules/auth/services/google-token-verifier.service';
@@ -14,8 +15,9 @@ export function createGoogleTokenVerifier(
 ): GoogleTokenVerifier {
   const config = getGoogleAuthConfig();
 
-  // Defesa em profundidade: nunca devolve o mock em producao.
-  if (process.env.NODE_ENV === 'production') {
+  // O mock (aceita "mock:<email>") so com a lista de permissao de dev;
+  // em qualquer outro ambiente o verificador real, sem falhar o boot.
+  if (!isDevLoginEnabled()) {
     return realVerifier;
   }
 

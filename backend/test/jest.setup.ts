@@ -1,4 +1,5 @@
 process.env.NODE_ENV = 'test';
+process.env.ENABLE_DEV_LOGIN = 'true';
 process.env.PRISMA_AUTO_CONNECT = 'false';
 process.env.DATA_SOURCE_MODE = process.env.DATA_SOURCE_MODE ?? 'mock';
 process.env.JWT_SECRET =

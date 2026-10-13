@@ -2,6 +2,7 @@ import { HttpStatus } from '@nestjs/common';
 import type { JwtService } from '@nestjs/jwt';
 import { getAppConfig, parseTrustProxy } from '@/config/app.config';
 import { getGoogleAuthConfig } from '@/config/google-auth.config';
+import { isDevLoginEnabled } from '@/modules/auth/utils/dev-login.util';
 import { AuthService } from '@/modules/auth/auth.service';
 import { createGoogleTokenVerifier } from '@/modules/auth/repositories/google-token-verifier.factory';
 import type { AuthRepository } from '@/modules/auth/repositories/auth.repository';
@@ -28,104 +29,130 @@ describe('B5 — trust proxy (limite por IP atras do nginx)', () => {
   });
 });
 
-describe('B6 — login mock/dev impossivel em producao', () => {
-  it('GOOGLE_AUTH_MODE=mock com NODE_ENV=production falha o boot', () => {
-    expect(() =>
-      getGoogleAuthConfig({ ...PROD, GOOGLE_AUTH_MODE: 'mock' }),
-    ).toThrow(/mock nao e permitido em producao/);
+describe('S1/B6 — dev-login, sessoes dev e mock Google (lista de permissao)', () => {
+  const original = { ...process.env };
+  const mockVerifier = {
+    kind: 'mock',
+  } as unknown as GoogleTokenVerifierMockService;
+  const realVerifier = {
+    kind: 'real',
+  } as unknown as GoogleTokenVerifierService;
+
+  afterEach(() => {
+    process.env = { ...original };
   });
 
-  it('producao sem GOOGLE_CLIENT_ID falha (nao cai no verificador mock)', () => {
+  function setEnv(nodeEnv: string | undefined, flag?: string) {
+    if (nodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = nodeEnv;
+    if (flag === undefined) delete process.env.ENABLE_DEV_LOGIN;
+    else process.env.ENABLE_DEV_LOGIN = flag;
+    process.env.GOOGLE_AUTH_MODE = 'mock';
+    process.env.GOOGLE_CLIENT_ID = '';
+  }
+
+  function createAuthService() {
+    const findById = jest.fn().mockResolvedValue(null);
+    const findByEmail = jest.fn().mockResolvedValue(null);
+    const service = new AuthService(
+      { findById, findByEmail } as unknown as AuthRepository,
+      {} as never,
+      {
+        signAsync: jest.fn().mockResolvedValue('jwt'),
+      } as unknown as JwtService,
+    );
+
+    return { service, findById, findByEmail };
+  }
+
+  it('isDevLoginEnabled: so development/test COM a flag', () => {
+    expect(
+      isDevLoginEnabled({ NODE_ENV: 'development', ENABLE_DEV_LOGIN: 'true' }),
+    ).toBe(true);
+    expect(
+      isDevLoginEnabled({ NODE_ENV: 'test', ENABLE_DEV_LOGIN: 'true' }),
+    ).toBe(true);
+    expect(isDevLoginEnabled({ NODE_ENV: 'development' })).toBe(false);
+    expect(
+      isDevLoginEnabled({ NODE_ENV: 'development', ENABLE_DEV_LOGIN: 'false' }),
+    ).toBe(false);
+    for (const nodeEnv of ['staging', 'production', 'prod', '', undefined]) {
+      expect(
+        isDevLoginEnabled({ NODE_ENV: nodeEnv, ENABLE_DEV_LOGIN: 'true' }),
+      ).toBe(false);
+    }
+  });
+
+  it('config do Google nao falha o boot (so desliga o mock)', () => {
     expect(() =>
-      getGoogleAuthConfig({ ...PROD, GOOGLE_CLIENT_ID: '' }),
-    ).toThrow(/GOOGLE_CLIENT_ID/);
+      getGoogleAuthConfig({ ...PROD, GOOGLE_AUTH_MODE: 'mock' }),
+    ).not.toThrow();
     expect(() =>
       getGoogleAuthConfig({
         ...PROD,
         GOOGLE_CLIENT_ID: '',
         GOOGLE_AUTH_MODE: 'auto',
       }),
-    ).toThrow(/GOOGLE_CLIENT_ID/);
+    ).not.toThrow();
   });
 
-  it('fora de producao o mock continua disponivel', () => {
-    expect(
-      getGoogleAuthConfig({ NODE_ENV: 'development', GOOGLE_AUTH_MODE: 'mock' })
-        .mode,
-    ).toBe('mock');
+  describe.each(['staging', 'production', undefined])(
+    'NODE_ENV=%s com flag ligada',
+    (nodeEnv) => {
+      it('verificador e sempre o real, mesmo com GOOGLE_AUTH_MODE=mock', () => {
+        setEnv(nodeEnv, 'true');
+        expect(createGoogleTokenVerifier(mockVerifier, realVerifier)).toBe(
+          realVerifier,
+        );
+      });
+
+      it('dev-login negado (403)', async () => {
+        setEnv(nodeEnv, 'true');
+        await expect(
+          createAuthService().service.devLogin('admin@ger.local'),
+        ).rejects.toMatchObject({ status: HttpStatus.FORBIDDEN });
+      });
+
+      it('devSession ignorada e refresh "dev:" rejeitado', async () => {
+        setEnv(nodeEnv, 'true');
+        const { service, findById, findByEmail } = createAuthService();
+
+        expect(
+          await service.validateJwtPayload({
+            sub: 'usr_admin',
+            email: 'admin@ger.local',
+            roles: ['ADMIN'],
+            devSession: true,
+          }),
+        ).toBeNull();
+        expect(findByEmail).not.toHaveBeenCalled();
+        expect(findById).toHaveBeenCalledWith('usr_admin');
+
+        await expect(
+          service.refresh({ refreshToken: 'dev:usr_admin' }),
+        ).rejects.toBeDefined();
+      });
+    },
+  );
+
+  it('development SEM flag: tudo negado', async () => {
+    setEnv('development', undefined);
+    expect(createGoogleTokenVerifier(mockVerifier, realVerifier)).toBe(
+      realVerifier,
+    );
+    await expect(
+      createAuthService().service.devLogin('admin@ger.local'),
+    ).rejects.toMatchObject({ status: HttpStatus.FORBIDDEN });
   });
 
-  describe('verificador e sessoes de dev', () => {
-    const original = { ...process.env };
-    const mockVerifier = {
-      kind: 'mock',
-    } as unknown as GoogleTokenVerifierMockService;
-    const realVerifier = {
-      kind: 'real',
-    } as unknown as GoogleTokenVerifierService;
+  it('development + flag: mock e dev-login permitidos', async () => {
+    setEnv('development', 'true');
+    expect(createGoogleTokenVerifier(mockVerifier, realVerifier)).toBe(
+      mockVerifier,
+    );
 
-    afterEach(() => {
-      process.env = { ...original };
-    });
-
-    it('createGoogleTokenVerifier nunca devolve o mock em producao', () => {
-      Object.assign(process.env, PROD, { GOOGLE_AUTH_MODE: 'auto' });
-
-      expect(createGoogleTokenVerifier(mockVerifier, realVerifier)).toBe(
-        realVerifier,
-      );
-
-      process.env.GOOGLE_AUTH_MODE = 'mock';
-      expect(() =>
-        createGoogleTokenVerifier(mockVerifier, realVerifier),
-      ).toThrow();
-    });
-
-    function createAuthService() {
-      const findById = jest.fn().mockResolvedValue(null);
-      const findByEmail = jest.fn().mockResolvedValue(null);
-      const service = new AuthService(
-        { findById, findByEmail } as unknown as AuthRepository,
-        {} as never,
-        { signAsync: jest.fn() } as unknown as JwtService,
-      );
-
-      return { service, findById, findByEmail };
-    }
-
-    it('dev-login responde 403 em producao', async () => {
-      Object.assign(process.env, PROD);
-      const { service } = createAuthService();
-
-      await expect(service.devLogin('admin@ger.local')).rejects.toMatchObject({
-        status: HttpStatus.FORBIDDEN,
-      });
-    });
-
-    it('token de sessao dev e ignorado em producao, mesmo com GOOGLE_AUTH_MODE=mock', async () => {
-      Object.assign(process.env, PROD, { GOOGLE_AUTH_MODE: 'mock' });
-      const { service, findById, findByEmail } = createAuthService();
-
-      const user = await service.validateJwtPayload({
-        sub: 'usr_admin',
-        email: 'admin@ger.local',
-        roles: ['ADMIN'],
-        devSession: true,
-      });
-
-      expect(user).toBeNull();
-      expect(findByEmail).not.toHaveBeenCalled();
-      expect(findById).toHaveBeenCalledWith('usr_admin');
-    });
-
-    it('refresh "dev:" nao e aceito em producao com GOOGLE_AUTH_MODE=mock', async () => {
-      Object.assign(process.env, PROD, { GOOGLE_AUTH_MODE: 'mock' });
-      const { service, findById } = createAuthService();
-
-      await expect(
-        service.refresh({ refreshToken: 'dev:usr_admin' }),
-      ).rejects.toBeDefined();
-      expect(findById).not.toHaveBeenCalledWith('usr_admin');
-    });
+    const { service } = createAuthService();
+    const response = await service.devLogin('admin@ger.local');
+    expect(response.data.accessToken).toBe('jwt');
   });
 });
