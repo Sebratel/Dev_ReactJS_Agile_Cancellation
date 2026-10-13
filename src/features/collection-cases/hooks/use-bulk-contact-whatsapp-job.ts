@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 import { getBulkContactWhatsAppJob } from '@/features/collection-cases/services/collection-cases.service';
-import { type BulkContactWhatsAppJobResponse } from '@/features/collection-cases/types/collection-cases-api.types';
 import { queryKeys } from '@/services/api/query-keys';
 
 // Acompanha o progresso de um envio de HSM em lote ja criado, via polling —
@@ -12,7 +11,7 @@ export function useBulkContactWhatsAppJob(jobId: string | null) {
     queryFn: () => getBulkContactWhatsAppJob(jobId!),
     enabled: Boolean(jobId),
     refetchInterval: (query) => {
-      const data = query.state.data as BulkContactWhatsAppJobResponse | undefined;
+      const data = query.state.data;
       return data?.status === 'COMPLETED' ? false : 2_000;
     },
   });

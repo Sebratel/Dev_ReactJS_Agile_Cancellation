@@ -163,7 +163,7 @@ describe('SupervisionCasesTable', () => {
         x: 0,
         y: 0,
         toJSON: () => ({}),
-      } as DOMRect);
+      });
 
     try {
       renderTable();

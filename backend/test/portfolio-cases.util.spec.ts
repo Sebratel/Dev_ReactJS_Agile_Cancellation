@@ -1,4 +1,5 @@
-import { Prisma } from '@prisma/client';
+/* eslint-disable @typescript-eslint/no-unsafe-member-access -- matchers do jest (expect.*) e mocks tipados como any */
+import type { Prisma } from '@prisma/client';
 import {
   countContactedInCycleByAgent,
   PORTFOLIO_ACTIVE_STATUSES,
@@ -25,7 +26,7 @@ describe('portfolio-cases.util', () => {
 
     const result = await countContactedInCycleByAgent({
       $queryRaw: queryRaw,
-    } as unknown as PrismaService);
+    });
 
     expect(result.get('usr_1')).toBe(7);
     expect(result.get(null)).toBe(2);
@@ -43,7 +44,7 @@ describe('portfolio-cases.util', () => {
     const queryRaw = jest.fn().mockResolvedValue([]);
 
     await countContactedInCycleByAgent(
-      { $queryRaw: queryRaw } as unknown as PrismaService,
+      { $queryRaw: queryRaw },
       'usr_9',
     );
 

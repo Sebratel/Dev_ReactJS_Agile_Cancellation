@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { CalendarClock, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { PageContainer } from '@/components/navigation/page-container';
 import { PageHeader } from '@/components/data-display/page-header';
 import { SectionCard } from '@/components/data-display/section-card';

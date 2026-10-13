@@ -11,7 +11,6 @@ import {
 import type {
   AssignCaseParams,
   AssignCaseResult,
-  AutoDistributeCasesParams,
   AutoDistributeCasesResult,
   BulkAssignCasesParams,
   BulkAssignCasesResult,
@@ -924,9 +923,7 @@ export class CollectionCasesMockRepository implements CollectionCasesRepository 
     return Promise.resolve({ assigned, skipped: caseIds.length - assigned });
   }
 
-  autoDistributeCases(
-    _params: AutoDistributeCasesParams,
-  ): Promise<AutoDistributeCasesResult> {
+  autoDistributeCases(): Promise<AutoDistributeCasesResult> {
     return Promise.resolve({ distributed: 0, agents: 0 });
   }
 }

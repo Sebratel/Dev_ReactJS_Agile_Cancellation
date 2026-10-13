@@ -1203,7 +1203,10 @@ export class ErpSyncService {
     }>;
     try {
       const pool = this.getPool(config.db);
-      const result = await pool.query(RENEGOTIATION_HISTORY_QUERY, [ids]);
+      const result = await pool.query<(typeof rows)[number]>(
+        RENEGOTIATION_HISTORY_QUERY,
+        [ids],
+      );
       rows = result.rows;
     } catch (error) {
       this.logger.error(

@@ -118,14 +118,6 @@ type CollectionCaseWithRelations = Prisma.CollectionCaseGetPayload<{
   include: typeof collectionCaseDetailsInclude;
 }>;
 
-type MatrixTrackingFields = {
-  matrixAttendanceCode?: string | null;
-  matrixMessageCode?: string | null;
-  matrixAwaitingReply?: boolean;
-  matrixLastOutboundAt?: Date | null;
-  matrixLastReplyAt?: Date | null;
-};
-
 @Injectable()
 export class CollectionCasesPrismaRepository implements CollectionCasesRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -190,7 +182,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
     ]);
 
     const items: CollectionCaseListItemResponse[] = records.map((record) => {
-      const matrix = record as typeof record & MatrixTrackingFields;
+      const matrix = record;
 
       return {
         id: record.id,
@@ -953,7 +945,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
               }
             : {}),
           updatedAt: now,
-        } as Prisma.CollectionCaseUncheckedUpdateInput,
+        },
       });
 
       const integrationEvent = await tx.integrationEvent.create({
@@ -1375,7 +1367,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
   private mapDetails(
     record: CollectionCaseWithRelations,
   ): CollectionCaseDetailsResponse {
-    const matrix = record as CollectionCaseWithRelations & MatrixTrackingFields;
+    const matrix = record;
     const attempts = record.collectionAttempts.map((attempt) => ({
       id: attempt.id,
       channel: attempt.channel,

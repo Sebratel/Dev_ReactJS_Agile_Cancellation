@@ -82,7 +82,7 @@ export class AuthPrismaRepository implements AuthRepository {
       data: {
         name: profile.name ?? undefined,
         avatarUrl: profile.avatarUrl ?? undefined,
-      } as Record<string, string | undefined>,
+      },
     });
   }
 

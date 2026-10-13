@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access -- matchers do jest (expect.*) e mocks tipados como any */
 import { CollectionCasesPrismaRepository } from '@/modules/collection-cases/repositories/collection-cases-prisma.repository';
 import type { PrismaService } from '@/database/prisma/prisma.service';
 

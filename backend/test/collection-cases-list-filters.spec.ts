@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment -- matchers do jest (expect.*) e mocks tipados como any */
 import {
   buildCollectionCasesWhere,
   filterMockCollectionCases,
