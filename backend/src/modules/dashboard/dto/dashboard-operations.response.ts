@@ -8,6 +8,8 @@ export type DashboardOperationsCollectionMetrics = {
   newCasesToday: number;
   casesWithoutInteraction: number;
   overdueSlaCases: number;
+  // false = nenhum caso ativo tem slaDueAt (regra de SLA ainda nao definida).
+  slaConfigured: boolean;
 };
 
 export type DashboardOperationsPromiseMetrics = {

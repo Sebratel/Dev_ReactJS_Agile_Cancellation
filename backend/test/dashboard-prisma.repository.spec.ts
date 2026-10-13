@@ -7,7 +7,7 @@ describe('DashboardPrismaRepository operations', () => {
       .fn()
       .mockResolvedValueOnce(10)
       .mockResolvedValueOnce(2)
-      .mockResolvedValueOnce(3)
+      .mockResolvedValueOnce(6)
       .mockResolvedValueOnce(1)
       .mockResolvedValueOnce(4)
       .mockResolvedValueOnce(8)
@@ -41,7 +41,13 @@ describe('DashboardPrismaRepository operations', () => {
       },
     ]);
 
+    // 7 dos 10 ativos contatados no ciclo => 3 sem contato manual.
+    const queryRaw = jest
+      .fn()
+      .mockResolvedValue([{ assignedUserId: 'usr_1', total: BigInt(7) }]);
+
     const prisma = {
+      $queryRaw: queryRaw,
       collectionCase: { count, aggregate },
       paymentPromise: { count, aggregate },
       cancellationProcess: { count, findMany },
@@ -54,6 +60,7 @@ describe('DashboardPrismaRepository operations', () => {
     expect(operations.collection.activeCases).toBe(10);
     expect(operations.collection.newCasesToday).toBe(2);
     expect(operations.collection.casesWithoutInteraction).toBe(3);
+    expect(operations.collection.slaConfigured).toBe(true);
     expect(operations.collection.overdueSlaCases).toBe(1);
     expect(operations.promises.activePromises).toBe(4);
     expect(operations.promises.fulfilledPromises).toBe(8);

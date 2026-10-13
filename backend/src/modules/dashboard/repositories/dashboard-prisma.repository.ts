@@ -63,6 +63,9 @@ const ACTIVE_CANCELLATION_STATUSES: CancellationStatus[] = [
   CancellationStatus.AWAITING_PICKUP,
 ];
 
+const CANCELLED_ERP_STATUS = 'Cancelado';
+const NO_REASON_LABEL = 'Sem motivo registrado';
+
 @Injectable()
 export class DashboardPrismaRepository implements DashboardRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -82,6 +85,11 @@ export class DashboardPrismaRepository implements DashboardRepository {
     todayEnd.setDate(todayEnd.getDate() + 1);
     const scopedCaseWhere: Prisma.CollectionCaseWhereInput =
       params.assignedUserId ? { assignedUserId: params.assignedUserId } : {};
+    // Base unica dos numeros de carteira: so casos ATIVOS no escopo.
+    const activeScopedCaseWhere: Prisma.CollectionCaseWhereInput = {
+      ...scopedCaseWhere,
+      status: { in: PORTFOLIO_ACTIVE_STATUSES },
+    };
     const scopedPromiseWhere: Prisma.PaymentPromiseWhereInput =
       params.assignedUserId
         ? { collectionCase: { assignedUserId: params.assignedUserId } }
@@ -101,7 +109,7 @@ export class DashboardPrismaRepository implements DashboardRepository {
       overduePromises,
       cancellationsInProgress,
       statusGroups,
-      casesWithoutAttempts,
+      slaConfiguredCases,
       slaBreachedCases,
       awaitingProtocolCancellations,
       promisesDueToday,
@@ -110,34 +118,11 @@ export class DashboardPrismaRepository implements DashboardRepository {
       assignedActiveCases,
       contactedCases,
     ] = await Promise.all([
-      params.assignedUserId
-        ? this.countScopedDelinquentCustomers(scopedCaseWhere)
-        : this.prisma.customer.count({
-            where: {
-              OR: [
-                {
-                  collectionCases: {
-                    some: { daysOverdue: { gt: 0 } },
-                  },
-                },
-                {
-                  contracts: {
-                    some: {
-                      invoices: {
-                        some: {
-                          status: {
-                            in: [InvoiceStatus.OPEN, InvoiceStatus.OVERDUE],
-                          },
-                        },
-                      },
-                    },
-                  },
-                },
-              ],
-            },
-          }),
+      // Clientes distintos com caso ATIVO e atraso (auditoria #6).
+      this.countScopedDelinquentCustomers(activeScopedCaseWhere),
+      // Valor em aberto = so carteira ativa (auditoria #1/#16/#24).
       this.prisma.collectionCase.aggregate({
-        where: scopedCaseWhere,
+        where: activeScopedCaseWhere,
         _sum: { outstandingAmount: true },
       }),
       this.prisma.collectionCase.count({
@@ -198,21 +183,15 @@ export class DashboardPrismaRepository implements DashboardRepository {
         where: scopedCaseWhere,
         _count: { _all: true },
       }),
+      // Casos ativos com SLA definido (hoje nenhum codigo grava slaDueAt).
       this.prisma.collectionCase.count({
-        where: { ...scopedCaseWhere, collectionAttempts: { none: {} } },
+        where: { ...activeScopedCaseWhere, slaDueAt: { not: null } },
       }),
       this.prisma.collectionCase.count({
         where: {
           ...scopedCaseWhere,
           slaDueAt: { lt: now },
-          status: {
-            notIn: [
-              CollectionStatus.CLOSED,
-              CollectionStatus.RECOVERED,
-              CollectionStatus.PAYMENT_MADE,
-              CollectionStatus.RENEGOTIATED,
-            ],
-          },
+          status: { in: PORTFOLIO_ACTIVE_STATUSES },
         },
       }),
       this.prisma.cancellationProcess.count({
@@ -275,7 +254,17 @@ export class DashboardPrismaRepository implements DashboardRepository {
         status: group.status,
         label: STATUS_LABELS[group.status],
         count: group._count._all,
+        group: PORTFOLIO_ACTIVE_STATUSES.includes(group.status)
+          ? ('portfolio' as const)
+          : ('history' as const),
       }));
+
+    // Sem contato manual no ciclo atual — mesma definicao do anel da carteira.
+    const casesWithoutAttempts = Math.max(
+      Number(assignedActiveCases) - Number(contactedCases),
+      0,
+    );
+    const slaConfigured = Number(slaConfiguredCases) > 0;
 
     const recoveryTrend = await this.buildRecoveryTrend(
       monthStart,
@@ -298,9 +287,9 @@ export class DashboardPrismaRepository implements DashboardRepository {
       },
       {
         key: 'noContactAttempt',
-        title: 'Casos sem tentativa de contato',
+        title: 'Casos sem contato manual',
         description:
-          'Itens sem primeira acao registrada dentro da janela esperada.',
+          'Casos ativos sem contato manual de atendente no ciclo atual.',
         count: casesWithoutAttempts,
       },
       {
@@ -308,7 +297,8 @@ export class DashboardPrismaRepository implements DashboardRepository {
         title: 'Casos com SLA vencido',
         description:
           'Ocorrencias fora do prazo operacional definido pela supervisao.',
-        count: slaBreachedCases,
+        count: slaConfigured ? slaBreachedCases : 0,
+        ...(slaConfigured ? {} : { notice: 'SLA não configurado' }),
       },
       {
         key: 'awaitingProtocol',
@@ -331,7 +321,9 @@ export class DashboardPrismaRepository implements DashboardRepository {
           'Agentes ativos sem nenhuma tentativa de contato registrada hoje.',
         count: inactiveAgents,
       },
-    ].filter((alert) => !(params.assignedUserId && alert.key === 'inactiveAgents'));
+    ].filter(
+      (alert) => !(params.assignedUserId && alert.key === 'inactiveAgents'),
+    );
 
     return {
       metrics: {
@@ -367,7 +359,8 @@ export class DashboardPrismaRepository implements DashboardRepository {
     const [
       activeCases,
       newCasesToday,
-      casesWithoutInteraction,
+      contactedByAgent,
+      slaConfiguredCases,
       overdueSlaCases,
       activePromises,
       fulfilledPromises,
@@ -389,8 +382,13 @@ export class DashboardPrismaRepository implements DashboardRepository {
           createdAt: { gte: todayStart, lt: tomorrowStart },
         },
       }),
+      // Contatados no ciclo atual (mesma definicao da carteira).
+      countContactedInCycleByAgent(this.prisma),
       this.prisma.collectionCase.count({
-        where: { collectionAttempts: { none: {} } },
+        where: {
+          status: { in: PORTFOLIO_ACTIVE_STATUSES },
+          slaDueAt: { not: null },
+        },
       }),
       this.prisma.collectionCase.count({
         where: {
@@ -413,7 +411,9 @@ export class DashboardPrismaRepository implements DashboardRepository {
       this.prisma.cancellationProcess.count({
         where: { status: CancellationStatus.COMPLETED },
       }),
+      // Valor em aberto = so carteira ativa.
       this.prisma.collectionCase.aggregate({
+        where: { status: { in: PORTFOLIO_ACTIVE_STATUSES } },
         _sum: { outstandingAmount: true },
       }),
       this.prisma.paymentPromise.aggregate({
@@ -452,12 +452,18 @@ export class DashboardPrismaRepository implements DashboardRepository {
       }),
     ]);
 
+    const contactedActive = Array.from(contactedByAgent.values()).reduce(
+      (sum, total) => sum + total,
+      0,
+    );
+
     return {
       collection: {
         activeCases,
         newCasesToday,
-        casesWithoutInteraction,
-        overdueSlaCases,
+        casesWithoutInteraction: Math.max(activeCases - contactedActive, 0),
+        slaConfigured: slaConfiguredCases > 0,
+        overdueSlaCases: slaConfiguredCases > 0 ? overdueSlaCases : 0,
       },
       promises: {
         activePromises,
@@ -616,13 +622,25 @@ export class DashboardPrismaRepository implements DashboardRepository {
     return customers.length;
   }
 
-  // Relatório de encerrados por motivo (categorizado). Lê o motivo capturado do
-  // ERP em contract.cancellationReason para cada caso CLOSED.
+  // Relatório de encerrados por motivo (categorizado). Considera só CLOSED cujo
+  // contrato está Cancelado no ERP (erpStatus); quem fechou sem motivo capturado
+  // aparece como "Sem motivo registrado" e continua no total.
   async getCancellationReasons(): Promise<CancellationReasonsResponse> {
-    const closedCases = await this.prisma.collectionCase.findMany({
-      where: { status: CollectionStatus.CLOSED },
-      select: { contract: { select: { cancellationReason: true } } },
-    });
+    const [closedCases, excludedNotCancelled] = await Promise.all([
+      this.prisma.collectionCase.findMany({
+        where: {
+          status: CollectionStatus.CLOSED,
+          contract: { erpStatus: CANCELLED_ERP_STATUS },
+        },
+        select: { contract: { select: { cancellationReason: true } } },
+      }),
+      this.prisma.collectionCase.count({
+        where: {
+          status: CollectionStatus.CLOSED,
+          NOT: { contract: { erpStatus: CANCELLED_ERP_STATUS } },
+        },
+      }),
+    ]);
 
     const totalClosed = closedCases.length;
     const categoryCount = new Map<CancellationReasonCategory, number>();
@@ -640,7 +658,7 @@ export class DashboardPrismaRepository implements DashboardRepository {
       const category = categorizeCancellationReason(raw);
       categoryCount.set(category, (categoryCount.get(category) ?? 0) + 1);
 
-      const reason = cleanCancellationReasonLabel(raw) ?? 'Não informado';
+      const reason = cleanCancellationReasonLabel(raw) ?? NO_REASON_LABEL;
       const key = `${category}::${reason}`;
       const existing = reasonCount.get(key);
       reasonCount.set(key, {
@@ -662,9 +680,7 @@ export class DashboardPrismaRepository implements DashboardRepository {
         label: cancellationReasonCategoryLabel(category),
         count,
         percentage:
-          totalClosed > 0
-            ? Math.round((count / totalClosed) * 1000) / 10
-            : 0,
+          totalClosed > 0 ? Math.round((count / totalClosed) * 1000) / 10 : 0,
       };
     });
 
@@ -672,6 +688,12 @@ export class DashboardPrismaRepository implements DashboardRepository {
       .sort((a, b) => b.count - a.count)
       .slice(0, 12);
 
-    return { totalClosed, withReason, byCategory, topReasons };
+    return {
+      totalClosed,
+      withReason,
+      byCategory,
+      topReasons,
+      excludedNotCancelled,
+    };
   }
 }
