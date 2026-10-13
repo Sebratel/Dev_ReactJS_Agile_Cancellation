@@ -24,31 +24,37 @@ export const mockDashboardSummaryResponse: DashboardSummaryResponse = {
       status: 'WAITING_TRIAGE',
       label: 'Aguardando triagem',
       count: 18,
+      group: 'portfolio',
     },
     {
       status: 'IN_COLLECTION',
       label: 'Em cobrança',
       count: 76,
+      group: 'portfolio',
     },
     {
       status: 'AWAITING_PAYMENT',
       label: 'Aguardando pagamento',
       count: 34,
+      group: 'portfolio',
     },
     {
       status: 'NO_RESPONSE',
       label: 'Sem resposta',
       count: 22,
+      group: 'portfolio',
     },
     {
       status: 'ELIGIBLE_FOR_CANCELLATION',
       label: 'Elegível para cancelamento',
       count: 21,
+      group: 'portfolio',
     },
     {
       status: 'CANCELLATION_IN_PROGRESS',
       label: 'Cancelamento em andamento',
       count: 15,
+      group: 'portfolio',
     },
   ],
   recoveryTrend: [
@@ -66,6 +72,7 @@ export const mockDashboardSummaryResponse: DashboardSummaryResponse = {
       title: 'Promessas vencidas',
       description: 'Clientes com promessa descumprida aguardando reabordagem.',
       count: 9,
+      group: 'portfolio',
     },
     {
       key: 'noContactAttempt',
@@ -73,6 +80,7 @@ export const mockDashboardSummaryResponse: DashboardSummaryResponse = {
       description:
         'Itens sem primeira ação registrada dentro da janela esperada.',
       count: 12,
+      group: 'portfolio',
     },
     {
       key: 'slaBreached',
@@ -80,6 +88,7 @@ export const mockDashboardSummaryResponse: DashboardSummaryResponse = {
       description:
         'Ocorrências fora do prazo operacional definido pela supervisão.',
       count: 7,
+      group: 'portfolio',
     },
     {
       key: 'awaitingProtocol',
@@ -87,6 +96,7 @@ export const mockDashboardSummaryResponse: DashboardSummaryResponse = {
       description:
         'Processos sem protocolo de retirada devidamente registrado.',
       count: 5,
+      group: 'portfolio',
     },
   ],
 };
@@ -97,6 +107,7 @@ export const mockDashboardOperationsResponse: DashboardOperationsResponse = {
     newCasesToday: 4,
     casesWithoutInteraction: 12,
     overdueSlaCases: 7,
+    slaConfigured: true,
   },
   promises: {
     activePromises: 34,
@@ -111,6 +122,7 @@ export const mockDashboardOperationsResponse: DashboardOperationsResponse = {
     mostBlockedStep: {
       stepCode: 'OPEN_ELEVEN_REQUEST',
       count: 9,
+      group: 'portfolio',
     },
   },
   financial: {

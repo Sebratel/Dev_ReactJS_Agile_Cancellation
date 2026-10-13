@@ -70,7 +70,9 @@ export function OperationalAlerts({
               </div>
               <div className="flex shrink-0 items-center gap-3 pl-11 sm:pl-0">
                 <StatusBadge
-                  label={`${formatInteger(alert.count)} casos`}
+                  label={
+                    alert.notice ?? `${formatInteger(alert.count)} casos`
+                  }
                   variant={alert.variant}
                 />
                 {alert.supervisionHref ? (

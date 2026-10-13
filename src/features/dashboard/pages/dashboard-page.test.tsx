@@ -28,12 +28,14 @@ vi.mock(
     getCollectionCases: vi.fn(),
     getCollectionCaseById: vi.fn(),
     getCollectionCasePortfolios: vi.fn(),
+    getRenegotiationSummary: vi.fn(),
   }),
 );
 
 import {
   getCollectionCases,
   getCollectionCasePortfolios,
+  getRenegotiationSummary,
 } from '@/features/collection-cases/services/collection-cases.service';
 import {
   getDashboardOperations,
@@ -44,6 +46,11 @@ describe('DashboardPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(getCollectionCasePortfolios).mockResolvedValue({ portfolios: [] });
+    vi.mocked(getRenegotiationSummary).mockResolvedValue({
+      available: true,
+      count: 38,
+      openAmount: '5416.01',
+    });
   });
 
   it('renderiza o painel da supervisão com dados da API', async () => {
@@ -63,8 +70,27 @@ describe('DashboardPage', () => {
       screen.getAllByText('Elegíveis p/ cancelamento').length,
     ).toBeGreaterThan(0);
     expect(screen.getAllByText('R$ 184.750,42').length).toBeGreaterThan(0);
+    // Card "Renegociados em aberto" vem da fonte da aba (38), nao do status extinto.
+    expect(await screen.findByText('38')).toBeInTheDocument();
     expect(getDashboardOperations).not.toHaveBeenCalled();
     expect(getCollectionCases).not.toHaveBeenCalled();
+  });
+
+  it('ERP indisponivel: card de renegociados mostra "Indisponível", nao 0', async () => {
+    vi.mocked(getDashboardSummary).mockResolvedValue(
+      mockDashboardSummaryResponse,
+    );
+    vi.mocked(getRenegotiationSummary).mockResolvedValue({
+      available: false,
+      count: 0,
+      openAmount: '0.00',
+    });
+
+    renderWithProviders(<DashboardPage />, {
+      session: createMockSession(),
+    });
+
+    expect(await screen.findByText('Indisponível')).toBeInTheDocument();
   });
 
   it('exibe estado de erro quando a API falha', async () => {

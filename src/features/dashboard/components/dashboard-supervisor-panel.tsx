@@ -16,6 +16,7 @@ import { MetricCard } from '@/components/data-display/metric-card';
 import { SectionCard } from '@/components/data-display/section-card';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useRenegotiationSummary } from '@/features/dashboard/hooks/use-renegotiation-summary';
 import { type DashboardSummaryResponse } from '@/features/dashboard/types/dashboard-api.types';
 import { type CollectionCasePortfolioSummary } from '@/features/collection-cases/types/collection-cases-api.types';
 import {
@@ -66,14 +67,20 @@ export function DashboardSupervisorPanel({
     summary.operationalAlerts.find((alert) => alert.key === 'inactiveAgents')
       ?.count ?? 0;
 
-  const renegotiatedOpen =
-    summary.statusDistribution.find((item) => item.status === 'RENEGOTIATED')
-      ?.count ?? 0;
+  // Mesma fonte da aba Renegociados (ERP). Indisponivel != 0.
+  const renegotiationQuery = useRenegotiationSummary();
+  const renegotiationData = renegotiationQuery.data;
+  const renegotiatedOpen: number | string =
+    renegotiationData?.available === true
+      ? renegotiationData.count
+      : renegotiationQuery.isLoading
+        ? '…'
+        : 'Indisponível';
 
   const actions: Array<{
     label: string;
     helper: string;
-    value: number;
+    value: number | string;
     tone: SupervisorActionTone;
     icon: typeof ShieldAlert;
     href: string;
@@ -206,7 +213,9 @@ export function DashboardSupervisorPanel({
                   </span>
                 </span>
                 <span className="shrink-0 text-base font-bold tabular-nums">
-                  {formatInteger(action.value)}
+                  {typeof action.value === 'number'
+                    ? formatInteger(action.value)
+                    : action.value}
                 </span>
                 <ChevronRight className="h-4 w-4 shrink-0 text-neutral" aria-hidden="true" />
               </Link>

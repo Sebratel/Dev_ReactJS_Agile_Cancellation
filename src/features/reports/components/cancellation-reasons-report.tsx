@@ -144,7 +144,11 @@ export function CancellationReasonsReport() {
 
           <p className="text-xs text-neutral">
             Base: {formatInteger(data.totalClosed)} encerrados ·{' '}
-            {formatInteger(data.withReason)} com motivo identificado no ERP.
+            {formatInteger(data.withReason)} com motivo identificado no ERP
+            {data.excludedNotCancelled > 0
+              ? ` · ${formatInteger(data.excludedNotCancelled)} encerrados fora do total (contrato não está cancelado no ERP)`
+              : ''}
+            .
           </p>
         </div>
       )}

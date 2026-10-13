@@ -1,4 +1,5 @@
 import { httpClient } from '@/services/api/http-client';
+import { type RenegotiationSummaryResponse } from '@/features/dashboard/types/dashboard-api.types';
 import { type PaginatedResponse } from '@/services/api/types/api-envelope';
 import {
   type AssignCasePayload,
@@ -122,6 +123,14 @@ export async function getCollectionCasesStatusSummary() {
 export async function getRenegotiatedHistory() {
   const response = await httpClient.request<RenegotiatedHistoryResponse>({
     path: '/erp/renegotiation-history',
+  });
+
+  return response.data;
+}
+
+export async function getRenegotiationSummary() {
+  const response = await httpClient.request<RenegotiationSummaryResponse>({
+    path: '/erp/renegotiation-summary',
   });
 
   return response.data;

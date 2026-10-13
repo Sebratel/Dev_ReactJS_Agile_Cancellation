@@ -21,6 +21,7 @@ export const queryKeys = {
     },
   },
   dashboard: {
+    renegotiationSummary: ['dashboard', 'renegotiation-summary'] as const,
     summary: ['dashboard', 'summary'] as const,
     operations: ['dashboard', 'operations'] as const,
     recoveryRanking: (period: string) =>
