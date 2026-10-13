@@ -2,6 +2,7 @@
 import type { Prisma } from '@prisma/client';
 import {
   countContactedInCycleByAgent,
+  findStaleContactCaseIds,
   PORTFOLIO_ACTIVE_STATUSES,
 } from '@/modules/collection-cases/utils/portfolio-cases.util';
 import { CollectionCasesPrismaRepository } from '@/modules/collection-cases/repositories/collection-cases-prisma.repository';
@@ -43,10 +44,7 @@ describe('portfolio-cases.util', () => {
   it('filtra pelo atendente quando informado (dashboard do atendente)', async () => {
     const queryRaw = jest.fn().mockResolvedValue([]);
 
-    await countContactedInCycleByAgent(
-      { $queryRaw: queryRaw },
-      'usr_9',
-    );
+    await countContactedInCycleByAgent({ $queryRaw: queryRaw }, 'usr_9');
 
     const sql = queryRaw.mock.calls[0][0] as Prisma.Sql;
     expect(sql.sql).toContain('cc.assignedUserId = ?');
@@ -87,10 +85,28 @@ describe('CollectionCasesPrismaRepository.getPortfolios (A2)', () => {
       totalActive: 10,
       totalAssigned: 10,
       interacted: 4,
+      // contatados + sem interacao = total ativo (definicao unica).
+      noManualInteraction: 6,
     });
     // Nenhum groupBy conta casos de qualquer status (sem filtro de status).
     for (const [args] of groupBy.mock.calls) {
       expect(args.where?.status).toBeDefined();
     }
+  });
+});
+
+describe('findStaleContactCaseIds (caso reaberto com contato antigo)', () => {
+  it('seleciona casos com manual so de ciclo anterior', async () => {
+    const queryRaw = jest.fn().mockResolvedValue([{ id: 'case_1' }]);
+
+    const ids = await findStaleContactCaseIds({
+      $queryRaw: queryRaw,
+    });
+
+    expect(ids).toEqual(['case_1']);
+    const sql = queryRaw.mock.calls[0][0] as Prisma.Sql;
+    expect(sql.sql).toContain('cc.cycleStartedAt IS NOT NULL');
+    expect(sql.sql).toContain('NOT EXISTS');
+    expect(sql.sql).toContain('a.attemptedAt >= cc.cycleStartedAt');
   });
 });

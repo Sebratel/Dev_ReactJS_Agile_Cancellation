@@ -19,6 +19,7 @@ import { formatDecimal } from '@/common/utils/decimal.util';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import {
   countContactedInCycleByAgent,
+  findStaleContactCaseIds,
   PORTFOLIO_ACTIVE_STATUSES,
 } from '@/modules/collection-cases/utils/portfolio-cases.util';
 import type { CollectionCaseDetailsResponse } from '@/modules/collection-cases/dto/collection-case-details.response';
@@ -122,10 +123,22 @@ type CollectionCaseWithRelations = Prisma.CollectionCaseGetPayload<{
 export class CollectionCasesPrismaRepository implements CollectionCasesRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  // So consulta quando o filtro de contato esta ativo (definicao unica de
+  // "contatado": dentro do ciclo atual).
+  private async resolveStaleContactCaseIds(
+    params: CollectionCasesListParams,
+  ): Promise<string[]> {
+    return params.interactionStatus
+      ? findStaleContactCaseIds(this.prisma)
+      : [];
+  }
+
   async listCases(params: CollectionCasesListParams) {
     const normalized = normalizeListParams(params);
     const skip = (normalized.page - 1) * normalized.limit;
-    const where = buildCollectionCasesWhere(normalized);
+    const where = buildCollectionCasesWhere(normalized, new Date(), {
+      staleContactCaseIds: await this.resolveStaleContactCaseIds(normalized),
+    });
     const orderBy = buildCollectionCasesOrderBy(normalized);
     const now = new Date();
 
@@ -276,7 +289,9 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
   // BULK_CONTACT_MAX_CASES.
   async listCaseIds(params: CollectionCasesListParams): Promise<string[]> {
     const normalized = normalizeListParams(params);
-    const where = buildCollectionCasesWhere(normalized);
+    const where = buildCollectionCasesWhere(normalized, new Date(), {
+      staleContactCaseIds: await this.resolveStaleContactCaseIds(normalized),
+    });
     const now = new Date();
 
     const dueDateFilteredIds = await this.resolveDueDateFilteredIds(
@@ -314,6 +329,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
     const baseWhere = buildCollectionCasesWhere(
       { ...normalized, firstDueDate: undefined, secondDueDate: undefined },
       now,
+      { staleContactCaseIds: await this.resolveStaleContactCaseIds(normalized) },
     );
 
     const candidates = await this.prisma.collectionCase.findMany({
@@ -386,7 +402,6 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
       totals,
       slaOverdue,
       awaitingReply,
-      noManualInteraction,
       interactedMap,
     ] = await Promise.all([
       this.prisma.collectionCase.groupBy({
@@ -403,15 +418,6 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
       this.prisma.collectionCase.groupBy({
         by: ['assignedUserId'],
         where: { ...activeStatus, matrixAwaitingReply: true },
-        _count: { _all: true },
-      }),
-      this.prisma.collectionCase.groupBy({
-        by: ['assignedUserId'],
-        where: {
-          ...activeStatus,
-          // Sem nenhuma tentativa manual — so a automatica inicial existe.
-          collectionAttempts: { none: { isAutomatic: false } },
-        },
         _count: { _all: true },
       }),
       // Contatados: ativos com contato manual no ciclo atual (SQL — compara
@@ -431,7 +437,6 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
 
     const slaMap = countByUser(slaOverdue);
     const replyMap = countByUser(awaitingReply);
-    const noInteractionMap = countByUser(noManualInteraction);
 
     // Nomes/avatares dos atendentes que possuem casos ativos atribuidos.
     const assignedUserIds = totals
@@ -461,7 +466,9 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
         interacted: interactedMap.get(row.assignedUserId) ?? 0,
         slaOverdue: slaMap.get(row.assignedUserId) ?? 0,
         awaitingReply: replyMap.get(row.assignedUserId) ?? 0,
-        noManualInteraction: noInteractionMap.get(row.assignedUserId) ?? 0,
+        // Mesma definicao do anel: ativos - contatados no ciclo (soma = total).
+        noManualInteraction:
+          row._count._all - (interactedMap.get(row.assignedUserId) ?? 0),
         totalOutstanding: formatDecimal(row._sum.outstandingAmount),
       };
     });

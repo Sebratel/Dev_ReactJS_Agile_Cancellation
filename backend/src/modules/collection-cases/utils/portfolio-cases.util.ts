@@ -44,3 +44,33 @@ export async function countContactedInCycleByAgent(
 
   return new Map(rows.map((row) => [row.assignedUserId, Number(row.total)]));
 }
+
+/**
+ * Casos com contato manual ANTIGO apenas: ha tentativa manual, mas nenhuma
+ * dentro do ciclo atual (caso reaberto, cycleStartedAt posterior ao contato).
+ * Sao "nao contatados" pela definicao unica (contato manual com
+ * attemptedAt >= cycleStartedAt, ou qualquer manual se cycleStartedAt nulo).
+ * Conjunto pequeno (so reabertos) — usado como excecao nos filtros Prisma,
+ * que nao comparam campo do filho com campo do pai.
+ */
+export async function findStaleContactCaseIds(
+  prisma: Pick<PrismaService, '$queryRaw'>,
+): Promise<string[]> {
+  const rows = await prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+    SELECT cc.id AS id
+    FROM collection_cases cc
+    WHERE cc.cycleStartedAt IS NOT NULL
+      AND EXISTS (
+        SELECT 1 FROM collection_attempts a
+        WHERE a.collectionCaseId = cc.id AND a.isAutomatic = 0
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM collection_attempts a
+        WHERE a.collectionCaseId = cc.id
+          AND a.isAutomatic = 0
+          AND a.attemptedAt >= cc.cycleStartedAt
+      )
+  `);
+
+  return rows.map((row) => row.id);
+}

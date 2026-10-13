@@ -151,18 +151,26 @@ export function normalizeListParams(
   };
 }
 
+export type CollectionCasesWhereOptions = {
+  // Ids com contato manual so de ciclo anterior (ver findStaleContactCaseIds);
+  // necessario quando interactionStatus esta presente.
+  staleContactCaseIds?: string[];
+};
+
 export function buildCollectionCasesWhere(
   params: CollectionCasesListParams,
   now = new Date(),
+  options: CollectionCasesWhereOptions = {},
 ): Prisma.CollectionCaseWhereInput {
   const where: Prisma.CollectionCaseWhereInput = {};
 
   // Sem filtro de status explicito, a lista mostra so a carteira ativa (mesma
   // base do card de carteira). Status finalizado escolhido no filtro continua
-  // funcionando (historico/auditoria).
+  // funcionando (historico/auditoria). A busca por texto (nome/documento/
+  // contrato) tambem nao restringe: acha o cliente em qualquer status.
   if (params.status) {
     where.status = params.status as CollectionStatus;
-  } else {
+  } else if (!params.search) {
     where.status = { in: PORTFOLIO_ACTIVE_STATUSES };
   }
 
@@ -250,16 +258,29 @@ export function buildCollectionCasesWhere(
     };
   }
 
-  // "Contatado" = teve ao menos uma tentativa MANUAL do atendente (isAutomatic
-  // false). "Nao contatado" (ou o legado 'none') = so a tentativa automatica
-  // inicial existe.
+  // "Contatado" = contato manual (isAutomatic false) DENTRO do ciclo atual
+  // (attemptedAt >= cycleStartedAt; sem cycleStartedAt, qualquer manual) — mesma
+  // definicao do anel de carteira. "Nao contatado" (ou o legado 'none') = o
+  // resto, incluindo reabertos so com contato de ciclo anterior.
+  const staleIds = options.staleContactCaseIds ?? [];
   if (params.interactionStatus === 'contacted') {
     where.collectionAttempts = { some: { isAutomatic: false } };
+    if (staleIds.length > 0) {
+      where.AND = [...toArray(where.AND), { id: { notIn: staleIds } }];
+    }
   } else if (
     params.interactionStatus === 'not_contacted' ||
     params.interactionStatus === 'none'
   ) {
-    where.collectionAttempts = { none: { isAutomatic: false } };
+    where.AND = [
+      ...toArray(where.AND),
+      {
+        OR: [
+          { collectionAttempts: { none: { isAutomatic: false } } },
+          ...(staleIds.length > 0 ? [{ id: { in: staleIds } }] : []),
+        ],
+      },
+    ];
   }
 
   if (params.promiseStatus) {
@@ -269,6 +290,11 @@ export function buildCollectionCasesWhere(
   }
 
   return where;
+}
+
+function toArray<T>(value: T | T[] | undefined): T[] {
+  if (value === undefined) return [];
+  return Array.isArray(value) ? value : [value];
 }
 
 function applySlaStatusFilter(
@@ -407,6 +433,7 @@ export function filterMockCollectionCases(
         return false;
       }
     } else if (
+      !search &&
       !PORTFOLIO_ACTIVE_STATUSES.includes(record.status as CollectionStatus)
     ) {
       return false;

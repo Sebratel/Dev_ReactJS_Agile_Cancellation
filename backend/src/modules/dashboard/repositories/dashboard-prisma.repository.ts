@@ -63,13 +63,6 @@ const ACTIVE_CANCELLATION_STATUSES: CancellationStatus[] = [
   CancellationStatus.AWAITING_PICKUP,
 ];
 
-const CLOSED_COLLECTION_STATUSES: CollectionStatus[] = [
-  CollectionStatus.CLOSED,
-  CollectionStatus.RECOVERED,
-  CollectionStatus.PAYMENT_MADE,
-  CollectionStatus.RENEGOTIATED,
-];
-
 @Injectable()
 export class DashboardPrismaRepository implements DashboardRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -389,7 +382,7 @@ export class DashboardPrismaRepository implements DashboardRepository {
       completedProcesses,
     ] = await Promise.all([
       this.prisma.collectionCase.count({
-        where: { status: { notIn: CLOSED_COLLECTION_STATUSES } },
+        where: { status: { in: PORTFOLIO_ACTIVE_STATUSES } },
       }),
       this.prisma.collectionCase.count({
         where: {
@@ -402,7 +395,7 @@ export class DashboardPrismaRepository implements DashboardRepository {
       this.prisma.collectionCase.count({
         where: {
           slaDueAt: { lt: now },
-          status: { notIn: CLOSED_COLLECTION_STATUSES },
+          status: { in: PORTFOLIO_ACTIVE_STATUSES },
         },
       }),
       this.prisma.paymentPromise.count({
