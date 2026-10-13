@@ -39,6 +39,9 @@ export type CancellationProcessContextResult =
       context: {
         cancellationId: string;
         processStatus: string;
+        // Responsavel do caso de cobranca (autorizacao de escrita por dono).
+        // Ausente = nao informado.
+        caseAssignedUserId?: string | null;
         steps: Array<{
           stepCode: string;
           stepOrder: number;

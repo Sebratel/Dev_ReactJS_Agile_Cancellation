@@ -4,6 +4,7 @@ import { AppException } from '@/common/exceptions/app.exception';
 import { createApiResponse } from '@/common/responses/api-response';
 import type { CompleteCancellationStepDto } from '@/modules/cancellations/dto/complete-cancellation-step.dto';
 import type { AuthenticatedUser } from '@/modules/auth/types/authenticated-user.type';
+import { assertCanActOnCase } from '@/modules/collection-cases/utils/case-ownership.util';
 import { CancellationStepPolicyService } from '@/modules/cancellations/policies/cancellation-step-policy.service';
 import {
   type CancellationsRepository,
@@ -47,6 +48,8 @@ export class CancellationsService {
         HttpStatus.NOT_FOUND,
       );
     }
+
+    assertCanActOnCase(actor, processContextResult.context.caseAssignedUserId);
 
     this.cancellationStepPolicyService.assertStepCompletionAllowed({
       context: processContextResult.context,

@@ -32,6 +32,7 @@ export class CancellationsPrismaRepository implements CancellationsRepository {
         steps: {
           orderBy: { stepOrder: 'asc' },
         },
+        collectionCase: { select: { assignedUserId: true } },
       },
     });
 
@@ -44,6 +45,7 @@ export class CancellationsPrismaRepository implements CancellationsRepository {
       context: {
         cancellationId: process.id,
         processStatus: process.status,
+        caseAssignedUserId: process.collectionCase?.assignedUserId ?? null,
         steps: process.steps.map((step) => ({
           stepCode: step.name,
           stepOrder: step.stepOrder,

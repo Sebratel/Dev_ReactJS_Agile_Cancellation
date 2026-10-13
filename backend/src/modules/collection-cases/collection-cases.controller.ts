@@ -74,7 +74,12 @@ export class CollectionCasesController {
     @Body() body: CreateCollectionAttemptDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.collectionCasesService.createAttempt(id, body, user.id);
+    return this.collectionCasesService.createAttempt(
+      id,
+      body,
+      user.id,
+      user,
+    );
   }
 
   @Roles('COLLECTION_AGENT', 'SUPERVISOR', 'ADMIN')
@@ -83,7 +88,11 @@ export class CollectionCasesController {
     @Param('id') id: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.collectionCasesService.contactCustomerByWhatsApp(id, user.id);
+    return this.collectionCasesService.contactCustomerByWhatsApp(
+      id,
+      user.id,
+      user,
+    );
   }
 
   @Roles('COLLECTION_AGENT', 'SUPERVISOR', 'ADMIN')
@@ -93,7 +102,12 @@ export class CollectionCasesController {
     @Body() body: CreatePaymentPromiseDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.collectionCasesService.createPromise(id, body, user.id);
+    return this.collectionCasesService.createPromise(
+      id,
+      body,
+      user.id,
+      user,
+    );
   }
 
   @Roles('COLLECTION_AGENT', 'SUPERVISOR', 'ADMIN')
@@ -109,6 +123,7 @@ export class CollectionCasesController {
       promiseId,
       body,
       user.id,
+      user,
     );
   }
 
@@ -125,6 +140,7 @@ export class CollectionCasesController {
       promiseId,
       body,
       user.id,
+      user,
     );
   }
 
@@ -141,6 +157,7 @@ export class CollectionCasesController {
       promiseId,
       body,
       user.id,
+      user,
     );
   }
 
@@ -215,6 +232,7 @@ export class CollectionCasesController {
       caseId,
       body,
       user.id,
+      user,
     );
   }
 

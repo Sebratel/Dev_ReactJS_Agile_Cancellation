@@ -10,6 +10,15 @@ import type {
 export class CaseNotesPrismaRepository implements CaseNotesRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  async getCaseAssigneeId(caseId: string): Promise<string | null | undefined> {
+    const found = await this.prisma.collectionCase.findUnique({
+      where: { id: caseId },
+      select: { assignedUserId: true },
+    });
+
+    return found ? found.assignedUserId : undefined;
+  }
+
   async listByCase(caseId: string): Promise<CaseNoteResponse[] | null> {
     const caseExists = await this.prisma.collectionCase.findUnique({
       where: { id: caseId },

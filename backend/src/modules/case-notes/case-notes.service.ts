@@ -1,6 +1,8 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { AppException } from '@/common/exceptions/app.exception';
 import { createApiResponse } from '@/common/responses/api-response';
+import type { AuthenticatedUser } from '@/modules/auth/types/authenticated-user.type';
+import { assertCanActOnCase } from '@/modules/collection-cases/utils/case-ownership.util';
 import type { CreateCaseNoteDto } from '@/modules/case-notes/dto/create-case-note.dto';
 import {
   CASE_NOTES_REPOSITORY,
@@ -29,8 +31,15 @@ export class CaseNotesService {
     return createApiResponse(notes);
   }
 
-  async create(caseId: string, dto: CreateCaseNoteDto, authenticatedUserId: string) {
-    const authorId = this.performedByResolver.resolve(authenticatedUserId);
+  async create(caseId: string, dto: CreateCaseNoteDto, actor: AuthenticatedUser) {
+    const assigneeId = await this.repository.getCaseAssigneeId(caseId);
+
+    // Caso inexistente cai no 404 abaixo; atendente so anota em caso proprio.
+    if (assigneeId !== undefined) {
+      assertCanActOnCase(actor, assigneeId);
+    }
+
+    const authorId = this.performedByResolver.resolve(actor.id);
 
     const note = await this.repository.create({
       caseId,

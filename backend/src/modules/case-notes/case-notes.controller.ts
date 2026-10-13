@@ -22,6 +22,6 @@ export class CaseNotesController {
     @Body() body: CreateCaseNoteDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.caseNotesService.create(caseId, body, user.id);
+    return this.caseNotesService.create(caseId, body, user);
   }
 }

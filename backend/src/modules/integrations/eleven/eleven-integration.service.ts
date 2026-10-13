@@ -5,6 +5,7 @@ import type { ElevenConfig } from '@/config/eleven.config';
 import { AppException } from '@/common/exceptions/app.exception';
 import { createApiResponse } from '@/common/responses/api-response';
 import type { CreateElevenRequestDto } from '@/modules/cancellations/dto/create-eleven-request.dto';
+import { assertCanActOnCase } from '@/modules/collection-cases/utils/case-ownership.util';
 import type { AuthenticatedUser } from '@/modules/auth/types/authenticated-user.type';
 import { CancellationStepPolicyService } from '@/modules/cancellations/policies/cancellation-step-policy.service';
 import {
@@ -51,6 +52,8 @@ export class ElevenIntegrationService {
         HttpStatus.NOT_FOUND,
       );
     }
+
+    assertCanActOnCase(actor, processContextResult.context.caseAssignedUserId);
 
     this.cancellationStepPolicyService.assertStepCompletionAllowed({
       context: processContextResult.context,

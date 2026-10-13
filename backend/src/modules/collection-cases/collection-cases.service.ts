@@ -1,5 +1,9 @@
 import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import { COLLECTION_CASES_REPOSITORY } from '@/common/data-source/data-source.constants';
+import {
+  assertCanActOnCase,
+  isRestrictedToOwnCases,
+} from '@/modules/collection-cases/utils/case-ownership.util';
 import { AppException } from '@/common/exceptions/app.exception';
 import { createApiResponse } from '@/common/responses/api-response';
 import type { CreateCollectionAttemptDto } from '@/modules/collection-cases/dto/create-collection-attempt.dto';
@@ -190,7 +194,10 @@ export class CollectionCasesService {
     caseId: string,
     dto: CreateCollectionAttemptDto,
     performedByUserId: string,
+    actor?: AuthenticatedUser,
   ) {
+    await this.assertActorOwnsCase(caseId, actor);
+
     const resolvedPerformerId =
       this.performedByResolver.resolve(performedByUserId);
     const attempt = await this.collectionCasesRepository.createAttempt({
@@ -209,7 +216,13 @@ export class CollectionCasesService {
     return createApiResponse(attempt);
   }
 
-  async contactCustomerByWhatsApp(caseId: string, performedByUserId: string) {
+  async contactCustomerByWhatsApp(
+    caseId: string,
+    performedByUserId: string,
+    actor?: AuthenticatedUser,
+  ) {
+    await this.assertActorOwnsCase(caseId, actor);
+
     const outcome = await this.attemptWhatsAppContact(
       caseId,
       performedByUserId,
@@ -337,7 +350,10 @@ export class CollectionCasesService {
     caseId: string,
     dto: CreatePaymentPromiseDto,
     performedByUserId: string,
+    actor?: AuthenticatedUser,
   ) {
+    await this.assertActorOwnsCase(caseId, actor);
+
     const createdByUserId = this.performedByResolver.resolve(performedByUserId);
     const promise = await this.collectionCasesRepository.createPromise({
       caseId,
@@ -360,6 +376,7 @@ export class CollectionCasesService {
     promiseId: string,
     dto: UpdatePaymentPromiseStatusDto,
     performedByUserId: string,
+    actor?: AuthenticatedUser,
   ) {
     return this.handlePromiseStatusUpdate(
       caseId,
@@ -367,6 +384,7 @@ export class CollectionCasesService {
       'FULFILLED',
       dto,
       performedByUserId,
+      actor,
     );
   }
 
@@ -375,6 +393,7 @@ export class CollectionCasesService {
     promiseId: string,
     dto: UpdatePaymentPromiseStatusDto,
     performedByUserId: string,
+    actor?: AuthenticatedUser,
   ) {
     return this.handlePromiseStatusUpdate(
       caseId,
@@ -382,6 +401,7 @@ export class CollectionCasesService {
       'BROKEN',
       dto,
       performedByUserId,
+      actor,
     );
   }
 
@@ -390,6 +410,7 @@ export class CollectionCasesService {
     promiseId: string,
     dto: UpdatePaymentPromiseStatusDto,
     performedByUserId: string,
+    actor?: AuthenticatedUser,
   ) {
     return this.handlePromiseStatusUpdate(
       caseId,
@@ -397,6 +418,7 @@ export class CollectionCasesService {
       'CANCELLED',
       dto,
       performedByUserId,
+      actor,
     );
   }
 
@@ -406,7 +428,10 @@ export class CollectionCasesService {
     action: PaymentPromiseStatusAction,
     dto: UpdatePaymentPromiseStatusDto,
     performedByUserId: string,
+    actor?: AuthenticatedUser,
   ) {
+    await this.assertActorOwnsCase(caseId, actor);
+
     const resolvedPerformerId =
       this.performedByResolver.resolve(performedByUserId);
     const result = await this.collectionCasesRepository.updatePromiseStatus({
@@ -470,6 +495,7 @@ export class CollectionCasesService {
     performer: AuthenticatedUser,
   ) {
     await this.assertCanSendToCancellation(performer);
+    await this.assertActorOwnsCase(caseId, performer);
 
     const resolvedPerformerId = this.performedByResolver.resolve(performer.id);
     const result = await this.collectionCasesRepository.sendToCancellation({
@@ -534,7 +560,10 @@ export class CollectionCasesService {
     caseId: string,
     dto: RevertCancellationDto,
     performedByUserId: string,
+    actor?: AuthenticatedUser,
   ) {
+    await this.assertActorOwnsCase(caseId, actor);
+
     const resolvedPerformerId =
       this.performedByResolver.resolve(performedByUserId);
     const result = await this.collectionCasesRepository.revertCancellation({
@@ -633,6 +662,29 @@ export class CollectionCasesService {
     }
 
     return createApiResponse(result);
+  }
+
+  // Escrita so em caso atribuido ao proprio atendente (ADMIN/SUPERVISOR agem em
+  // qualquer caso). Sem `actor` (chamadas internas, ex.: worker de envio em
+  // lote iniciado pela supervisao) nao ha checagem.
+  private async assertActorOwnsCase(
+    caseId: string,
+    actor: AuthenticatedUser | undefined,
+  ) {
+    if (!actor || !isRestrictedToOwnCases(actor)) {
+      return;
+    }
+
+    const details = await this.collectionCasesRepository.getCaseById(caseId);
+
+    if (!details) {
+      throw new AppException(
+        `Caso de cobrança ${caseId} não encontrado.`,
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    assertCanActOnCase(actor, details.assignedTo?.id ?? null);
   }
 
   // SUPERVISOR/ADMIN sempre podem encaminhar. Atendente (COLLECTION_AGENT) só
