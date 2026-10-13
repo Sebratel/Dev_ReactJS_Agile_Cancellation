@@ -16,18 +16,18 @@ export function isRestrictedToOwnCases(user: AuthenticatedUser): boolean {
 /**
  * Autorizacao de ESCRITA por dono do caso (a leitura segue em
  * restrictToOwnCasesIfAgent). Lanca 403 quando um atendente tenta agir em caso
- * de outro atendente ou sem responsavel. `undefined` = dono nao informado pelo
- * chamador (ex.: contexto sem a informacao) — nao bloqueia.
+ * de outro atendente ou sem responsavel. Dono nao informado (`undefined`) e
+ * tratado como NEGADO para perfis restritos (fail-closed).
  */
 export function assertCanActOnCase(
   user: AuthenticatedUser | undefined,
   assignedUserId: string | null | undefined,
 ): void {
-  if (!user || !isRestrictedToOwnCases(user) || assignedUserId === undefined) {
+  if (!user || !isRestrictedToOwnCases(user)) {
     return;
   }
 
-  if (assignedUserId !== user.id) {
+  if (assignedUserId == null || assignedUserId !== user.id) {
     throw new AppException(CASE_NOT_OWNED_MESSAGE, HttpStatus.FORBIDDEN);
   }
 }

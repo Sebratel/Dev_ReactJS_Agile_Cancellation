@@ -73,6 +73,8 @@ export class CancellationsMockRepository implements CancellationsRepository {
       context: {
         cancellationId,
         processStatus: context.process.status,
+        caseAssignedUserId:
+          mockCollectionCaseDetails[context.caseId]?.assignedTo?.id ?? null,
         steps: context.process.steps.map((step) => ({
           stepCode: step.stepCode,
           stepOrder: step.stepOrder,

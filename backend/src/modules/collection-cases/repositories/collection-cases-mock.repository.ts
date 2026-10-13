@@ -725,6 +725,18 @@ export class CollectionCasesMockRepository implements CollectionCasesRepository 
       completedAt: null,
       steps: buildDefaultCancellationStepsForMock(processId),
     };
+    // Como no repositorio Prisma: o caso passa a ser do agente de cancelamento.
+    details.assignedTo = {
+      id: input.assignedUserId,
+      name: resolveMockActorName(input.assignedUserId) ?? input.assignedUserId,
+    };
+    const listRecord = mockCollectionCaseListRecords.find(
+      (item) => item.id === caseId,
+    );
+    if (listRecord) {
+      listRecord.assignedUserId = input.assignedUserId;
+      listRecord.assignedTo = details.assignedTo;
+    }
     details.updatedAt = now;
 
     pushMockAuditLog({

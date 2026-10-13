@@ -60,9 +60,13 @@ describe('assertCanActOnCase', () => {
     );
   });
 
-  it('sem ator ou sem dono informado nao bloqueia (chamada interna)', () => {
+  it('sem ator (chamada interna) nao bloqueia; dono nao informado e NEGADO', () => {
     expect(() => assertCanActOnCase(undefined, 'x')).not.toThrow();
-    expect(() => assertCanActOnCase(other, undefined)).not.toThrow();
+    expect(() => assertCanActOnCase(other, undefined)).toThrow(AppException);
+    expect(() => assertCanActOnCase(cancellationOwner, undefined)).toThrow(
+      AppException,
+    );
+    expect(() => assertCanActOnCase(supervisor, undefined)).not.toThrow();
   });
 });
 
@@ -193,7 +197,10 @@ describe('CollectionCasesService — escrita so no caso atribuido', () => {
 
   it('caso sem responsavel: atendente leva 403, supervisor passa', async () => {
     const { service, repository } = setup();
-    repository.getCaseById.mockResolvedValue({ id: 'case_1', assignedTo: null });
+    repository.getCaseById.mockResolvedValue({
+      id: 'case_1',
+      assignedTo: null,
+    });
 
     await expect(
       service.createAttempt('case_1', attemptDto, owner.id, owner),
@@ -270,6 +277,76 @@ describe('CaseNotesService — nota so no caso atribuido', () => {
   });
 });
 
+describe('CaseNotesService.listByCase — leitura so do caso atribuido', () => {
+  function setup(assigneeId: string | null | undefined) {
+    const listByCase = jest.fn().mockResolvedValue([]);
+    const repository = {
+      getCaseAssigneeId: jest.fn().mockResolvedValue(assigneeId),
+      listByCase,
+      create: jest.fn(),
+    } as unknown as CaseNotesRepository;
+
+    return { service: new CaseNotesService(repository, resolver), listByCase };
+  }
+
+  it('nao-dono (e caso sem responsavel) recebe 404 sem ler as notas', async () => {
+    for (const assignee of ['usr_owner', null]) {
+      const { service, listByCase } = setup(assignee);
+
+      await expect(service.listByCase('case_1', other)).rejects.toMatchObject({
+        status: HttpStatus.NOT_FOUND,
+      });
+      await expect(
+        service.listByCase('case_1', cancellationOwner),
+      ).rejects.toMatchObject({ status: HttpStatus.NOT_FOUND });
+      expect(listByCase).not.toHaveBeenCalled();
+    }
+  });
+
+  it('dono, supervisor e admin leem', async () => {
+    for (const actor of [owner, supervisor, admin]) {
+      const { service, listByCase } = setup('usr_owner');
+
+      await service.listByCase('case_1', actor);
+
+      expect(listByCase).toHaveBeenCalledWith('case_1');
+    }
+  });
+});
+
+describe('CancellationsMockRepository — informa o dono do caso', () => {
+  it('getProcessContext preenche caseAssignedUserId', async () => {
+    const mocks =
+      await import('@/modules/collection-cases/mocks/collection-cases.mock');
+    const { CollectionCasesMockRepository } =
+      await import('@/modules/collection-cases/repositories/collection-cases-mock.repository');
+    const { CancellationsMockRepository } =
+      await import('@/modules/cancellations/repositories/cancellations-mock.repository');
+    mocks.resetMockCollectionCases();
+
+    const sent = await new CollectionCasesMockRepository().sendToCancellation({
+      caseId: 'case_0002',
+      input: { reason: 'teste', assignedUserId: 'usr_canc' },
+      performedByUserId: 'usr_sup',
+    });
+    expect(sent.outcome).toBe('success');
+    const processId =
+      mocks.mockCollectionCaseDetails['case_0002']?.cancellationProcess?.id;
+
+    const result = await new CancellationsMockRepository().getProcessContext(
+      processId ?? '',
+    );
+
+    expect(result.outcome).toBe('found');
+    if (result.outcome === 'found') {
+      expect(result.context.caseAssignedUserId).toBe(
+        mocks.mockCollectionCaseDetails['case_0002']?.assignedTo?.id ?? null,
+      );
+    }
+    mocks.resetMockCollectionCases();
+  });
+});
+
 describe('CancellationsService.completeStep — etapa so no caso atribuido', () => {
   function setup(caseAssignedUserId: string | null) {
     const completeStep = jest
@@ -300,12 +377,7 @@ describe('CancellationsService.completeStep — etapa so no caso atribuido', () 
     const { service, completeStep } = setup('usr_owner');
 
     await expect(
-      service.completeStep(
-        'canc_1',
-        'ROUTE_PROTOCOL',
-        {},
-        cancellationOwner,
-      ),
+      service.completeStep('canc_1', 'ROUTE_PROTOCOL', {}, cancellationOwner),
     ).rejects.toMatchObject({ status: HttpStatus.FORBIDDEN });
     expect(completeStep).not.toHaveBeenCalled();
   });
@@ -321,12 +393,7 @@ describe('CancellationsService.completeStep — etapa so no caso atribuido', () 
     expect(mine.completeStep).toHaveBeenCalled();
 
     const sup = setup('usr_canc');
-    await sup.service.completeStep(
-      'canc_1',
-      'ROUTE_PROTOCOL',
-      {},
-      supervisor,
-    );
+    await sup.service.completeStep('canc_1', 'ROUTE_PROTOCOL', {}, supervisor);
     expect(sup.completeStep).toHaveBeenCalled();
   });
 });
