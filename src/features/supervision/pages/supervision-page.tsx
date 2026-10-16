@@ -23,6 +23,7 @@ import { useAutoDistribute } from '@/features/collection-cases/hooks/use-auto-di
 import { useExportCasesCsv } from '@/features/collection-cases/hooks/use-export-cases-csv';
 import { SupervisionCasesTable } from '@/features/supervision/components/supervision-cases-table';
 import { SyncHealthBanner } from '@/features/supervision/components/sync-health-banner';
+import { SupervisionIntakeSummary } from '@/features/supervision/components/supervision-intake-summary';
 import { RecoveryNotificationsInfo } from '@/features/supervision/components/recovery-notifications-info';
 import { SupervisionPortfolios } from '@/features/supervision/components/supervision-portfolios';
 import { SupervisionRenegotiated } from '@/features/supervision/components/supervision-renegotiated';
@@ -270,6 +271,8 @@ export default function SupervisionPage() {
       />
 
       {canDistribute ? <SyncHealthBanner /> : null}
+
+      {canDistribute ? <SupervisionIntakeSummary /> : null}
 
       {canDistribute ? (
         <div className="flex self-start rounded-lg border border-border bg-card p-1">

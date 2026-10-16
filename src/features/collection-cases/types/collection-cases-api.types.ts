@@ -36,6 +36,7 @@ export type CollectionCaseListItemResponse = {
   outstandingAmount: string;
   totalAttempts: number;
   assignedTo: CollectionCaseAssigneeSummary | null;
+  assignedAt: string | null;
   slaDueAt: string | null;
   matrixAwaitingReply: boolean;
   matrixLastOutboundAt: string | null;
@@ -210,6 +211,11 @@ export type CollectionCasePortfolioSummary = {
 
 export type CollectionCasesStatusSummaryResponse = {
   byStatus: Record<string, number>;
+};
+
+export type CollectionCasesIntakeSummaryResponse = {
+  today: number;
+  yesterday: number;
 };
 
 export type CollectionCasePortfoliosResponse = {
@@ -392,6 +398,8 @@ export type CollectionCasesListParams = {
   totalOutstandingMax?: number;
   firstDueDate?: string;
   secondDueDate?: string;
+  assignedFrom?: string;
+  assignedTo?: string;
   slaStatus?: CollectionCasesSlaStatus;
   createdToday?: boolean;
   interactionStatus?: 'none' | 'contacted' | 'not_contacted';

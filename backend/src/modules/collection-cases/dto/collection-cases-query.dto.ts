@@ -166,6 +166,17 @@ export class CollectionCasesQueryDto {
   @IsDateString()
   secondDueDate?: string;
 
+  // Intervalo de data de atribuicao (YYYY-MM-DD). Filtra casos cujo
+  // assignedAt cai no periodo — usado na supervisao para ver o que foi
+  // atribuido num dia/intervalo.
+  @IsOptional()
+  @IsDateString()
+  assignedFrom?: string;
+
+  @IsOptional()
+  @IsDateString()
+  assignedTo?: string;
+
   @IsOptional()
   @IsIn(COLLECTION_CASES_SLA_STATUS)
   slaStatus?: CollectionCasesSlaStatus;

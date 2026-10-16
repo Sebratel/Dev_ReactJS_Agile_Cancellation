@@ -67,6 +67,14 @@ export class CollectionCasesController {
     return this.collectionCasesService.getStatusSummary();
   }
 
+  // Quantos casos entraram hoje x ontem (createdAt) — acompanhamento diario do
+  // inflow para conferir com o fluxo de automacao (N8N).
+  @Roles('ADMIN', 'SUPERVISOR')
+  @Get('intake-summary')
+  getIntakeSummary() {
+    return this.collectionCasesService.getIntakeSummary();
+  }
+
   @Roles('COLLECTION_AGENT', 'SUPERVISOR', 'ADMIN')
   @Post(':id/attempts')
   createAttempt(

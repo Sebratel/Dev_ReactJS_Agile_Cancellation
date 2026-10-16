@@ -1075,6 +1075,8 @@ export class ErpSyncService {
           type: 'CASES_CANCELLED_EXTERNAL_SUMMARY',
           title: supervisorSummary.title,
           body: supervisorSummary.body,
+          entityType: supervisorSummary.entityId ? 'COLLECTION_CASE' : undefined,
+          entityId: supervisorSummary.entityId ?? undefined,
         });
       }
     } catch (error) {
@@ -1134,6 +1136,8 @@ export class ErpSyncService {
           type: 'CASES_RECOVERED_SUMMARY',
           title: supervisorSummary.title,
           body: supervisorSummary.body,
+          entityType: supervisorSummary.entityId ? 'COLLECTION_CASE' : undefined,
+          entityId: supervisorSummary.entityId ?? undefined,
         });
       }
 

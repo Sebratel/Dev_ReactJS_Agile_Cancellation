@@ -99,6 +99,7 @@ function buildListRecord(index: number): MockCollectionCaseListRecord {
     matrixLastOutboundAt: null,
     matrixLastReplyAt: null,
     assignedUserId: assignee?.id ?? null,
+    assignedAt: assignee ? createdAt : null,
     customerDocument: customer.document,
     contractExternalId: `EXT-${contractNumber}`,
     slaDueAt:
@@ -140,6 +141,7 @@ export function createMockCollectionCaseListItems(
     outstandingAmount: record.outstandingAmount,
     totalAttempts: record.totalAttempts,
     assignedTo: record.assignedTo,
+    assignedAt: record.assignedAt ?? null,
     slaDueAt: record.slaDueAt,
     matrixAwaitingReply: record.matrixAwaitingReply,
     matrixLastOutboundAt: record.matrixLastOutboundAt,

@@ -159,6 +159,12 @@ export class CollectionCasesService {
     return createApiResponse({ byStatus });
   }
 
+  async getIntakeSummary() {
+    const intake = await this.collectionCasesRepository.getIntakeSummary();
+
+    return createApiResponse(intake);
+  }
+
   async getCaseById(id: string, user?: AuthenticatedUser) {
     const details = await this.collectionCasesRepository.getCaseById(id);
 

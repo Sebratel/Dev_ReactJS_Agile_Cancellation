@@ -21,6 +21,7 @@ import {
   type OverdueDateSummaryResponse,
   type CollectionCasePortfoliosResponse,
   type CollectionCasesStatusSummaryResponse,
+  type CollectionCasesIntakeSummaryResponse,
   type RenegotiatedHistoryResponse,
   type RenegotiationDetailResponse,
   type CreatePaymentPromisePayload,
@@ -57,6 +58,8 @@ function buildCollectionCasesSearchParams(params: CollectionCasesListParams) {
   appendParam(searchParams, 'totalOutstandingMax', params.totalOutstandingMax);
   appendParam(searchParams, 'firstDueDate', params.firstDueDate);
   appendParam(searchParams, 'secondDueDate', params.secondDueDate);
+  appendParam(searchParams, 'assignedFrom', params.assignedFrom);
+  appendParam(searchParams, 'assignedTo', params.assignedTo);
   appendParam(searchParams, 'slaStatus', params.slaStatus);
   if (params.createdToday) {
     searchParams.set('createdToday', 'true');
@@ -115,6 +118,15 @@ export async function getCollectionCasesStatusSummary() {
   const response =
     await httpClient.request<CollectionCasesStatusSummaryResponse>({
       path: '/collection-cases/status-summary',
+    });
+
+  return response.data;
+}
+
+export async function getCollectionCasesIntakeSummary() {
+  const response =
+    await httpClient.request<CollectionCasesIntakeSummaryResponse>({
+      path: '/collection-cases/intake-summary',
     });
 
   return response.data;

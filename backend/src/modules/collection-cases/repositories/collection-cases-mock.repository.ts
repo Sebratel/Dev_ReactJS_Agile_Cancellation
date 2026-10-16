@@ -35,6 +35,7 @@ import {
 import { buildDefaultCancellationStepsForMock } from '@/modules/cancellations/utils/create-default-cancellation-steps.util';
 import type { PaymentPromiseResponse } from '@/modules/collection-cases/dto/payment-promise.response';
 import type {
+  CollectionCaseIntakeSummary,
   CollectionCasesListParams,
   CollectionCasesRepository,
   CreateCollectionAttemptParams,
@@ -229,6 +230,31 @@ export class CollectionCasesMockRepository implements CollectionCasesRepository 
       byStatus[record.status] = (byStatus[record.status] ?? 0) + 1;
     }
     return Promise.resolve(byStatus);
+  }
+
+  getIntakeSummary(now: Date = new Date()): Promise<CollectionCaseIntakeSummary> {
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+    const tomorrowStart = new Date(todayStart);
+    tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+    const yesterdayStart = new Date(todayStart);
+    yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+
+    let today = 0;
+    let yesterday = 0;
+    for (const record of mockCollectionCaseListRecords) {
+      const createdAt = new Date(record.createdAt).getTime();
+      if (createdAt >= todayStart.getTime() && createdAt < tomorrowStart.getTime()) {
+        today += 1;
+      } else if (
+        createdAt >= yesterdayStart.getTime() &&
+        createdAt < todayStart.getTime()
+      ) {
+        yesterday += 1;
+      }
+    }
+
+    return Promise.resolve({ today, yesterday });
   }
 
   getCaseById(id: string) {

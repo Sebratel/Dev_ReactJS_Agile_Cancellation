@@ -16,6 +16,9 @@ vi.mock(
     getCollectionCasesStatusSummary: vi
       .fn()
       .mockResolvedValue({ byStatus: {} }),
+    getCollectionCasesIntakeSummary: vi
+      .fn()
+      .mockResolvedValue({ today: 0, yesterday: 0 }),
     getRenegotiatedHistory: vi.fn().mockResolvedValue({
       items: [],
       summary: {

@@ -47,6 +47,7 @@ import type {
   AutoDistributeCasesResult,
   BulkAssignCasesParams,
   BulkAssignCasesResult,
+  CollectionCaseIntakeSummary,
   CollectionCasesListParams,
   CollectionCasesRepository,
   CreateCollectionAttemptParams,
@@ -222,6 +223,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
         assignedTo: record.assignedUser
           ? { id: record.assignedUser.id, name: record.assignedUser.name }
           : null,
+        assignedAt: record.assignedAt?.toISOString() ?? null,
         slaDueAt: record.slaDueAt?.toISOString() ?? null,
         matrixAwaitingReply: matrix.matrixAwaitingReply ?? false,
         matrixLastOutboundAt:
@@ -490,6 +492,25 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
     return byStatus;
   }
 
+  async getIntakeSummary(now: Date = new Date()): Promise<CollectionCaseIntakeSummary> {
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+    const tomorrowStart = new Date(todayStart);
+    tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+    const yesterdayStart = new Date(todayStart);
+    yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+
+    const [today, yesterday] = await Promise.all([
+      this.prisma.collectionCase.count({
+        where: { createdAt: { gte: todayStart, lt: tomorrowStart } },
+      }),
+      this.prisma.collectionCase.count({
+        where: { createdAt: { gte: yesterdayStart, lt: todayStart } },
+      }),
+    ]);
+
+    return { today, yesterday };
+  }
 
   async getCaseById(id: string) {
     const record = await this.prisma.collectionCase.findUnique({
@@ -664,6 +685,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
         data: {
           status: CollectionStatus.CANCELLATION_IN_PROGRESS,
           assignedUserId: input.assignedUserId,
+          assignedAt: now,
           updatedAt: now,
         },
       });
@@ -758,6 +780,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
           status: CollectionStatus.IN_COLLECTION,
           recoveredAt: null,
           assignedUserId,
+          assignedAt: now,
           updatedAt: now,
         },
       });
@@ -1214,7 +1237,10 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
     await this.prisma.$transaction(async (tx) => {
       await tx.collectionCase.update({
         where: { id: caseId },
-        data: { assignedUserId, updatedAt: now },
+        // assignedAt acompanha o responsavel: data da atribuicao quando ha
+        // responsavel, null ao remover (para o filtro por data nao casar casos
+        // sem dono).
+        data: { assignedUserId, assignedAt: assignedUserId ? now : null, updatedAt: now },
       });
 
       await tx.auditLog.create({
@@ -1281,7 +1307,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
     await this.prisma.$transaction([
       this.prisma.collectionCase.updateMany({
         where: { id: { in: validIds } },
-        data: { assignedUserId, updatedAt: now },
+        data: { assignedUserId, assignedAt: assignedUserId ? now : null, updatedAt: now },
       }),
       ...validIds.map((id) =>
         this.prisma.auditLog.create({
@@ -1350,7 +1376,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
       ...Array.from(byAgent.entries()).map(([agentId, ids]) =>
         this.prisma.collectionCase.updateMany({
           where: { id: { in: ids } },
-          data: { assignedUserId: agentId, updatedAt: now },
+          data: { assignedUserId: agentId, assignedAt: now, updatedAt: now },
         }),
       ),
       ...assignments.map(({ caseId, agentId }) =>

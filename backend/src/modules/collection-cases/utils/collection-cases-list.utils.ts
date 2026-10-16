@@ -29,6 +29,7 @@ export const OPEN_INVOICE_STATUSES: InvoiceStatus[] = [
 
 export type MockCollectionCaseListRecord = CollectionCaseListItemResponse & {
   assignedUserId: string | null;
+  assignedAt?: string | null;
   customerDocument: string;
   contractExternalId: string | null;
   createdAt: string;
@@ -255,6 +256,18 @@ export function buildCollectionCasesWhere(
     where.createdAt = {
       gte: getStartOfDay(now),
       lt: getTomorrowStart(now),
+    };
+  }
+
+  // Filtro por data de atribuicao (assignedAt). Intervalo inclusivo por dia
+  // (UTC, como os demais filtros por data). So casa casos com responsavel
+  // (assignedAt preenchido).
+  const assignedFrom = parseDateInput(params.assignedFrom);
+  const assignedTo = parseDateInput(params.assignedTo);
+  if (assignedFrom || assignedTo) {
+    where.assignedAt = {
+      ...(assignedFrom ? { gte: getStartOfDayUTC(assignedFrom) } : {}),
+      ...(assignedTo ? { lte: getEndOfDayUTC(assignedTo) } : {}),
     };
   }
 
@@ -539,6 +552,21 @@ export function filterMockCollectionCases(
       }
     }
 
+    const assignedFrom = parseDateInput(params.assignedFrom);
+    const assignedTo = parseDateInput(params.assignedTo);
+    if (assignedFrom || assignedTo) {
+      if (!record.assignedAt) {
+        return false;
+      }
+      const assignedTime = new Date(record.assignedAt).getTime();
+      if (assignedFrom && assignedTime < getStartOfDayUTC(assignedFrom).getTime()) {
+        return false;
+      }
+      if (assignedTo && assignedTime > getEndOfDayUTC(assignedTo).getTime()) {
+        return false;
+      }
+    }
+
     // Mock: totalAttempts > 1 = teve tentativa manual (alem da automatica).
     if (params.interactionStatus === 'contacted' && record.totalAttempts <= 1) {
       return false;
@@ -658,6 +686,7 @@ export function toListItemResponse(
     outstandingAmount: record.outstandingAmount,
     totalAttempts: record.totalAttempts,
     assignedTo: record.assignedTo,
+    assignedAt: record.assignedAt ?? null,
     slaDueAt: record.slaDueAt,
     matrixAwaitingReply: record.matrixAwaitingReply,
     matrixLastOutboundAt: record.matrixLastOutboundAt,

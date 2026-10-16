@@ -6,14 +6,25 @@ import { useNotifications } from '@/features/notifications/hooks/use-notificatio
 import { useUnreadNotificationsCount } from '@/features/notifications/hooks/use-unread-notifications-count';
 import { useMarkNotificationAsRead } from '@/features/notifications/hooks/use-mark-notification-read';
 import { useMarkAllNotificationsAsRead } from '@/features/notifications/hooks/use-mark-all-notifications-read';
+import { useAuth } from '@/features/auth/auth-context';
 import { cn } from '@/lib/utils';
 import { toast } from '@/lib/toast';
 import { formatDateTimePtBR } from '@/utils/formatters';
 import type { NotificationResponse } from '@/features/notifications/types/notifications-api.types';
 
-function getEntityHref(entityType: string | null, entityId: string | null): string | null {
+// O backend grava entityType em caixa alta ('COLLECTION_CASE'); comparamos sem
+// diferenciar caixa para não depender da convenção do emissor. O caminho base
+// depende do papel: atendente abre o caso na sua carteira, supervisão na visão
+// de supervisão.
+function getEntityHref(
+  entityType: string | null,
+  entityId: string | null,
+  caseBasePath: string,
+): string | null {
   if (!entityId) return null;
-  if (entityType === 'collection_case') return `/supervisao/${entityId}`;
+  if (entityType?.toLowerCase() === 'collection_case') {
+    return `${caseBasePath}/${entityId}`;
+  }
   return null;
 }
 
@@ -69,8 +80,18 @@ function getPromiseNotificationTone(type: string) {
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
+  const { session } = useAuth();
   const containerRef = useRef<HTMLDivElement>(null);
   const latestPromiseNotificationId = useRef<string | null>(null);
+
+  // Atendente de cobrança navega para o caso dentro da sua carteira; demais
+  // papéis (supervisão/admin) usam a visão de supervisão.
+  const roles = session?.user.roles ?? [];
+  const isAgentOnly =
+    roles.includes('COLLECTION_AGENT') &&
+    !roles.includes('SUPERVISOR') &&
+    !roles.includes('ADMIN');
+  const caseBasePath = isAgentOnly ? '/minha-cobranca' : '/supervisao';
 
   const unreadQuery = useUnreadNotificationsCount();
   const listQuery = useNotifications({ limit: 10 });
@@ -109,13 +130,14 @@ export function NotificationBell() {
               getEntityHref(
                 latestPromiseNotification.entityType,
                 latestPromiseNotification.entityId,
+                caseBasePath,
               ) ?? '/promessas',
             );
           },
         },
       });
     }
-  }, [navigate, notifications]);
+  }, [navigate, notifications, caseBasePath]);
 
   useEffect(() => {
     if (!open) return;
@@ -180,7 +202,11 @@ export function NotificationBell() {
             ) : (
               <ul className="divide-y divide-border">
                 {notifications.map((notification) => {
-                  const href = getEntityHref(notification.entityType, notification.entityId);
+                  const href = getEntityHref(
+                    notification.entityType,
+                    notification.entityId,
+                    caseBasePath,
+                  );
                   const isUnread = !notification.readAt;
                   const isPromise = isPromiseNotification(notification);
                   const promiseTone = isPromise
