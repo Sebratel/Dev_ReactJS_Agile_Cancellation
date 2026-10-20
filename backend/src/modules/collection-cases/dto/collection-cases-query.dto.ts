@@ -25,6 +25,7 @@ export const COLLECTION_CASES_SORT_BY = [
   'slaDueAt',
   'createdAt',
   'updatedAt',
+  'lastContactAt',
 ] as const;
 
 export const COLLECTION_CASES_SORT_DIRECTION = ['asc', 'desc'] as const;

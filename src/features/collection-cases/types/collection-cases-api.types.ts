@@ -2,7 +2,8 @@ export type CollectionCasesSortBy =
   | 'daysOverdue'
   | 'totalOutstanding'
   | 'slaDueAt'
-  | 'createdAt';
+  | 'createdAt'
+  | 'lastContactAt';
 
 export type CollectionCasesSortDirection = 'asc' | 'desc';
 

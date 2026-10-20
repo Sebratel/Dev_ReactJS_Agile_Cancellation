@@ -87,6 +87,7 @@ function createRepository(
     assignCase: jest.fn(),
     bulkAssignCases: jest.fn(),
     autoDistributeCases: jest.fn(),
+    getIntakeSummary: jest.fn().mockResolvedValue({ today: 0, yesterday: 0 }),
     ...overrides,
   };
 }

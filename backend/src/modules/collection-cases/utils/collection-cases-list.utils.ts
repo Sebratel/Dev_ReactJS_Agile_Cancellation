@@ -373,6 +373,10 @@ function mapSortField(
       return { createdAt: direction };
     case 'updatedAt':
       return { updatedAt: direction };
+    case 'lastContactAt':
+      // Prisma nao suporta _max em orderBy de findMany; updatedAt e atualizado
+      // a cada tentativa de contato registrada, servindo como proxy fiel.
+      return { updatedAt: direction };
     case 'daysOverdue':
     default:
       return { daysOverdue: direction };
@@ -643,6 +647,15 @@ export function sortMockCollectionCases(
       return (
         (new Date(left.createdAt).getTime() -
           new Date(right.createdAt).getTime()) *
+        multiplier
+      );
+    }
+
+    if (sortBy === 'lastContactAt') {
+      // Mock nao tem data de tentativa individual; usa updatedAt como proxy.
+      return (
+        (new Date(left.updatedAt).getTime() -
+          new Date(right.updatedAt).getTime()) *
         multiplier
       );
     }

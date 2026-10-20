@@ -30,6 +30,7 @@ function createRecord(
     matrixLastOutboundAt: null,
     matrixLastReplyAt: null,
     assignedUserId: 'usr_1',
+    assignedAt: new Date().toISOString(),
     customerDocument: '00.000.000/0001-00',
     contractExternalId: 'EXT-1',
     createdAt: new Date().toISOString(),

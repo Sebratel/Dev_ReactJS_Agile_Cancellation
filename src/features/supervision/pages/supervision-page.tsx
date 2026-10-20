@@ -465,6 +465,13 @@ export default function SupervisionPage() {
             <BulkActionBar
               selectedCount={selectedIds.size}
               selectedCaseIds={Array.from(selectedIds)}
+              selectedCasesInfo={items
+                .filter((i) => selectedIds.has(i.id))
+                .map((i) => ({
+                  id: i.id,
+                  name: i.customerName,
+                  phone: i.customerPhone,
+                }))}
               agents={agents}
               workload={workloadQuery.data}
               onBulkAssign={(id) => { void handleBulkAssign(id); }}

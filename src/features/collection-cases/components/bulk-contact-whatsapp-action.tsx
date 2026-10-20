@@ -1,13 +1,21 @@
 import * as AlertDialog from '@radix-ui/react-alert-dialog';
 import { useState } from 'react';
+import { Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useBulkContactWhatsApp } from '@/features/collection-cases/hooks/use-bulk-contact-whatsapp';
 import { useBulkContactWhatsAppJob } from '@/features/collection-cases/hooks/use-bulk-contact-whatsapp-job';
 import { toast } from '@/lib/toast';
 import { ApiError } from '@/services/api/api-error';
 
+export type BulkCaseInfo = {
+  id: string;
+  name: string;
+  phone: string | null;
+};
+
 type BulkContactWhatsAppActionProps = {
   caseIds: string[];
+  cases?: BulkCaseInfo[];
   onFinished: () => void;
 };
 
@@ -21,6 +29,7 @@ function getErrorMessage(error: unknown) {
 
 export function BulkContactWhatsAppAction({
   caseIds,
+  cases,
   onFinished,
 }: BulkContactWhatsAppActionProps) {
   const [open, setOpen] = useState(false);
@@ -87,10 +96,34 @@ export function BulkContactWhatsAppAction({
                     {caseIds.length}{' '}
                     {caseIds.length === 1 ? 'caso selecionado' : 'casos selecionados'}
                   </strong>
-                  . Casos com status não elegível ou sem telefone válido são
-                  pulados automaticamente. O envio acontece aos poucos em
-                  segundo plano — você pode acompanhar o progresso aqui.
+                  . Casos sem telefone válido ou com status não elegível são
+                  pulados automaticamente.
                 </AlertDialog.Description>
+
+                {cases && cases.length > 0 ? (
+                  <ul className="mt-3 max-h-52 divide-y divide-border overflow-y-auto rounded-lg border border-border bg-muted/40">
+                    {cases.map((c) => (
+                      <li
+                        key={c.id}
+                        className="flex items-center justify-between gap-3 px-3 py-2 text-sm"
+                      >
+                        <span className="min-w-0 truncate font-medium">
+                          {c.name}
+                        </span>
+                        {c.phone ? (
+                          <span className="flex shrink-0 items-center gap-1 text-xs text-neutral">
+                            <Phone className="h-3 w-3" />
+                            {c.phone}
+                          </span>
+                        ) : (
+                          <span className="shrink-0 text-xs text-neutral/60">
+                            sem telefone
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
 
                 <div className="mt-6 flex justify-end gap-3">
                   <AlertDialog.Cancel asChild>
