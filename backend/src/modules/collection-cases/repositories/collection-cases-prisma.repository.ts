@@ -192,6 +192,11 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
           },
           assignedUser: { select: { id: true, name: true } },
           _count: { select: { collectionAttempts: true } },
+          collectionAttempts: {
+            orderBy: { attemptedAt: 'desc' as const },
+            take: 1,
+            select: { attemptedAt: true },
+          },
         },
       }),
       this.prisma.collectionCase.count({ where }),
@@ -232,6 +237,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
         matrixLastOutboundAt:
           matrix.matrixLastOutboundAt?.toISOString() ?? null,
         matrixLastReplyAt: matrix.matrixLastReplyAt?.toISOString() ?? null,
+        lastContactAt: record.collectionAttempts[0]?.attemptedAt?.toISOString() ?? null,
         origin: record.origin ?? null,
       };
     });

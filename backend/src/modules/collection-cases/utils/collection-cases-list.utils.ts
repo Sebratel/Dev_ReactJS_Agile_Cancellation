@@ -716,6 +716,7 @@ export function toListItemResponse(
     matrixAwaitingReply: record.matrixAwaitingReply,
     matrixLastOutboundAt: record.matrixLastOutboundAt,
     matrixLastReplyAt: record.matrixLastReplyAt,
+    lastContactAt: record.lastContactAt ?? null,
     origin: record.origin ?? null,
   };
 }

@@ -152,6 +152,7 @@ export const mockCollectionCaseListItems: CollectionCaseListItemResponse[] = [
     matrixAwaitingReply: false,
     matrixLastOutboundAt: null,
     matrixLastReplyAt: null,
+    lastContactAt: null,
     origin: null,
   },
   {
@@ -177,6 +178,7 @@ export const mockCollectionCaseListItems: CollectionCaseListItemResponse[] = [
     matrixAwaitingReply: false,
     matrixLastOutboundAt: null,
     matrixLastReplyAt: null,
+    lastContactAt: null,
     origin: null,
   },
 ];

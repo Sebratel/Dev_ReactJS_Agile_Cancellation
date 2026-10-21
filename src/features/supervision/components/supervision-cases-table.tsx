@@ -38,6 +38,7 @@ import { InlineAssigneeSelect } from '@/features/supervision/components/inline-a
 import { type UserResponse } from '@/features/users/types/users-api.types';
 import {
   formatDateOnlyPtBR,
+  formatDateTimePtBR,
   formatCurrencyFromDecimalString,
   formatInteger,
 } from '@/utils/formatters';
@@ -398,6 +399,13 @@ export function SupervisionCasesTable({
     );
   };
 
+  const handleLastContactSort = () => {
+    onSortChange(
+      'lastContactAt',
+      sortBy === 'lastContactAt' && sortDirection === 'desc' ? 'asc' : 'desc',
+    );
+  };
+
   useLayoutEffect(() => {
     const position = lastPageChangePosition.current;
     if (!position) return;
@@ -468,14 +476,15 @@ export function SupervisionCasesTable({
         className="max-h-[70vh] overflow-y-auto"
         data-supervision-table-scroll
       >
-        <Table className="min-w-[900px] table-fixed">
+        <Table className="min-w-[1000px] table-fixed">
           <colgroup>
             {canDistribute ? <col className="w-10" /> : null}
-            <col className="w-[28%]" />
-            <col className="w-[18%]" />
             <col className="w-[24%]" />
+            <col className="w-[16%]" />
             <col className="w-[20%]" />
-            <col className="w-[10%]" />
+            <col className="w-[16%]" />
+            <col className="w-[16%]" />
+            <col className="w-[8%]" />
           </colgroup>
           <TableHead sticky>
             <tr>
@@ -513,6 +522,29 @@ export function SupervisionCasesTable({
                 </button>
               </TableHeaderCell>
               <TableHeaderCell>Situação</TableHeaderCell>
+              <TableHeaderCell>
+                <button
+                  type="button"
+                  onClick={handleLastContactSort}
+                  className="inline-flex items-center gap-1 rounded px-1 py-0.5 text-[11px] font-bold uppercase tracking-[0.1em] text-neutral transition-colors hover:bg-primary/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                  aria-label={`Último contato ${
+                    sortBy === 'lastContactAt'
+                      ? sortDirection === 'desc'
+                        ? 'ordenado decrescente'
+                        : 'ordenado crescente'
+                      : 'sem ordenação'
+                  }`}
+                >
+                  Último contato
+                  <span aria-hidden="true">
+                    {sortBy === 'lastContactAt'
+                      ? sortDirection === 'desc'
+                        ? '↓'
+                        : '↑'
+                      : '↕'}
+                  </span>
+                </button>
+              </TableHeaderCell>
               <TableHeaderCell>Responsável</TableHeaderCell>
               <TableHeaderCell align="center">Ação</TableHeaderCell>
             </tr>
@@ -592,6 +624,11 @@ export function SupervisionCasesTable({
                           getContractStatusLabel(item.contractStatus)}
                       </div>
                     </div>
+                  </TableCell>
+                  <TableCell className="text-xs text-neutral">
+                    {item.lastContactAt
+                      ? formatDateTimePtBR(item.lastContactAt)
+                      : '—'}
                   </TableCell>
                   <TableCell className="text-neutral">
                     {canDistribute ? (

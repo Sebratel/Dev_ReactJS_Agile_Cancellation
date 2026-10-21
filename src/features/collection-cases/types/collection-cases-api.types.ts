@@ -43,6 +43,7 @@ export type CollectionCaseListItemResponse = {
   matrixAwaitingReply: boolean;
   matrixLastOutboundAt: string | null;
   matrixLastReplyAt: string | null;
+  lastContactAt: string | null;
   origin: string | null;
 };
 
