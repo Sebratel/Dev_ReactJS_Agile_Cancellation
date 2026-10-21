@@ -705,5 +705,6 @@ export function toListItemResponse(
     matrixAwaitingReply: record.matrixAwaitingReply,
     matrixLastOutboundAt: record.matrixLastOutboundAt,
     matrixLastReplyAt: record.matrixLastReplyAt,
+    origin: record.origin ?? null,
   };
 }

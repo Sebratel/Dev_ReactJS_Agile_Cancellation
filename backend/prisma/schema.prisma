@@ -278,6 +278,9 @@ model CollectionCase {
   // (contrato finalizado que volta a ficar elegivel). Usado para classificar
   // Recuperado x Pagamento realizado olhando so as tentativas do ciclo atual.
   cycleStartedAt       DateTime?
+  // Origem do caso: PRE_COLLECTION (criado pela distribuicao de pre-cobranca),
+  // ERP_SYNC (ingestao normal via webhook/n8n), null (legados).
+  origin               String?          @db.VarChar(64)
   matrixAttendanceCode String?          @unique
   matrixMessageCode    String?          @unique
   matrixAwaitingReply  Boolean          @default(false)

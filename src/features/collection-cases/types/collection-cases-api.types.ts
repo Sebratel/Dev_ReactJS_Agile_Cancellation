@@ -43,6 +43,7 @@ export type CollectionCaseListItemResponse = {
   matrixAwaitingReply: boolean;
   matrixLastOutboundAt: string | null;
   matrixLastReplyAt: string | null;
+  origin: string | null;
 };
 
 export type CollectionCaseInvoiceSummary = {
@@ -326,6 +327,7 @@ export type CollectionCaseDetailsResponse = {
   invoices: CollectionCaseInvoiceSummary[];
   matrixContact: CollectionCaseMatrixContactSummary;
   cancellationProcess: CollectionCaseCancellationSummary | null;
+  origin: string | null;
   createdAt: string;
   updatedAt: string;
 };

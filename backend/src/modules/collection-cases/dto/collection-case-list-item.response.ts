@@ -27,4 +27,6 @@ export type CollectionCaseListItemResponse = {
   matrixAwaitingReply: boolean;
   matrixLastOutboundAt: string | null;
   matrixLastReplyAt: string | null;
+  // PRE_COLLECTION | ERP_SYNC | null (legados)
+  origin: string | null;
 };

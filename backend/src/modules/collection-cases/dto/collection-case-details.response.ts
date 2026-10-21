@@ -101,6 +101,7 @@ export type CollectionCaseDetailsResponse = {
   invoices: CollectionCaseInvoiceSummary[];
   matrixContact: CollectionCaseMatrixContactSummary;
   cancellationProcess: CollectionCaseCancellationSummary | null;
+  origin: string | null;
   createdAt: string;
   updatedAt: string;
 };

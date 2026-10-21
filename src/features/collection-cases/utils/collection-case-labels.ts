@@ -325,3 +325,14 @@ export function getTimelineEventVariant(type: string): StatusVariant {
 
   return 'neutral';
 }
+
+export function getCaseOriginLabel(origin: string | null): string {
+  if (origin === 'PRE_COLLECTION') return 'Pré-cobrança';
+  if (origin === 'ERP_SYNC') return 'Cobrança';
+  return 'Legado';
+}
+
+export function getCaseOriginVariant(origin: string | null): StatusVariant {
+  if (origin === 'PRE_COLLECTION') return 'warning';
+  return 'neutral';
+}

@@ -37,6 +37,8 @@ import { useHighlightOnGrow } from '@/hooks/use-highlight-on-grow';
 import {
   getAttemptChannelLabel,
   getAttemptResultLabel,
+  getCaseOriginLabel,
+  getCaseOriginVariant,
   getCollectionStatusLabel,
   getCollectionStatusVariant,
   canSendCaseToCancellation,
@@ -360,6 +362,12 @@ export default function CollectionCaseDetailPage() {
                 />
                 {caseQuery.data.matrixContact.awaitingReply ? (
                   <StatusBadge label="Aguardando Matrix" variant="warning" />
+                ) : null}
+                {caseQuery.data.origin !== 'ERP_SYNC' ? (
+                  <StatusBadge
+                    label={getCaseOriginLabel(caseQuery.data.origin)}
+                    variant={getCaseOriginVariant(caseQuery.data.origin)}
+                  />
                 ) : null}
               </div>
             }

@@ -232,6 +232,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
         matrixLastOutboundAt:
           matrix.matrixLastOutboundAt?.toISOString() ?? null,
         matrixLastReplyAt: matrix.matrixLastReplyAt?.toISOString() ?? null,
+        origin: record.origin ?? null,
       };
     });
 
@@ -1609,6 +1610,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
             }),
           }
         : null,
+      origin: record.origin ?? null,
       createdAt: record.createdAt.toISOString(),
       updatedAt: record.updatedAt.toISOString(),
     };

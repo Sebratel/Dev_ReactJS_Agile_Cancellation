@@ -330,6 +330,7 @@ export class PreCollectionService implements OnModuleInit {
           outstandingAmount: Number(item.totalOpenAmount),
           daysOverdue: Math.max(0, Math.round(overdueMs / 86_400_000)),
           cycleStartedAt: new Date(),
+          origin: 'PRE_COLLECTION',
         },
       });
 

@@ -154,6 +154,7 @@ export class WebhooksPrismaRepository implements WebhooksRepository {
             daysOverdue: event.case.daysOverdue ?? 0,
             externalId: event.externalId,
             cycleStartedAt: now,
+            origin: 'ERP_SYNC',
           },
         });
         summary.casesUpserted += 1;

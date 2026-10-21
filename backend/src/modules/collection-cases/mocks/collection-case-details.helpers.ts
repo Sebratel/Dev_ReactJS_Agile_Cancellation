@@ -12,5 +12,6 @@ export function buildMockDetailExtensions(
     promises: activePromise ? [activePromise] : [],
     invoices: [],
     cancellationProcess: null,
+    origin: null,
   };
 }
