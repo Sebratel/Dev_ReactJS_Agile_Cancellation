@@ -153,6 +153,7 @@ export function createMockCollectionCaseListItems(
     matrixAwaitingReply: record.matrixAwaitingReply,
     matrixLastOutboundAt: record.matrixLastOutboundAt,
     matrixLastReplyAt: record.matrixLastReplyAt,
+    origin: null,
   }));
 }
 
