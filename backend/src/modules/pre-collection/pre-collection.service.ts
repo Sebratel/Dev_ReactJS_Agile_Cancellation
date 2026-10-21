@@ -188,6 +188,26 @@ export class PreCollectionService implements OnModuleInit {
     void this.refreshCache();
   }
 
+  // Distribui automaticamente casos de pre-cobrança todo dia às 7h.
+  // O método distribute é idempotente: contratos com caso ativo já existente
+  // são pulados, então rodar diariamente não gera duplicatas.
+  @Cron('0 7 * * *')
+  async handleScheduledDistribute(): Promise<void> {
+    if (getDataSourceMode() !== 'database') {
+      return;
+    }
+
+    this.logger.log('Distribuição automática de pré-cobrança iniciada');
+    try {
+      const result = await this.distribute('system');
+      this.logger.log(
+        `Distribuição automática concluída: ${result.created} criados, ${result.distributed} distribuídos, ${result.existing} já existentes`,
+      );
+    } catch (error) {
+      this.logger.error('Erro na distribuição automática de pré-cobrança', error);
+    }
+  }
+
   private getPool(db: ErpSyncDbConfig): Pool {
     this.pool ??= new Pool({
       host: db.host,
