@@ -79,8 +79,15 @@ function getMatrixReplyPresentation(item: CollectionCaseListItemResponse) {
     };
   }
 
+  if (item.totalAttempts > 0) {
+    return {
+      label: 'Contatado',
+      variant: 'neutral' as const,
+    };
+  }
+
   return {
-    label: 'Não acionado',
+    label: 'Sem contato',
     variant: 'neutral' as const,
   };
 }
