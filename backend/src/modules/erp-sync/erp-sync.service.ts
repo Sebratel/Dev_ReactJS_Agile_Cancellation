@@ -204,6 +204,7 @@ SELECT
   p.name,
   p.email,
   p.phone,
+  p.celular                 AS phone2,
   c.id::text                AS erp_contract_id,
   c.public_id::text         AS contract_external_id,
   c.contract_number::text   AS contract_number,

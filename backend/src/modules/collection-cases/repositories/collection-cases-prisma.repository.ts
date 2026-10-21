@@ -164,7 +164,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
         take: normalized.limit,
         orderBy,
         include: {
-          customer: { select: { name: true, phone: true } },
+          customer: { select: { name: true, phone: true, phone2: true } },
           contract: {
             select: {
               code: true,
@@ -202,6 +202,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
         id: record.id,
         customerName: record.customer.name,
         customerPhone: record.customer.phone,
+        customerPhone2: record.customer.phone2,
         contractCode: record.contract.code,
         contractStatus: record.contract.status,
         contractErpStatus: record.contract.erpStatus,
@@ -1464,6 +1465,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
         name: record.customer.name,
         document: record.customer.document,
         phone: record.customer.phone,
+        phone2: record.customer.phone2,
       },
       contract: {
         id: record.contract.id,

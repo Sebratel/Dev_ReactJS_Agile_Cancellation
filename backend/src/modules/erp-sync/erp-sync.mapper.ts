@@ -19,6 +19,8 @@ export type ErpEligibleRow = {
   name: string;
   email: string | null;
   phone: string | null;
+  // Campo do celular no Voalle (ajustar se o nome for diferente, ex: mobile, phone2).
+  phone2: string | null;
   erp_contract_id: string;
   contract_external_id: string;
   contract_number: string;
@@ -151,6 +153,7 @@ export function mapErpRowsToIngestPayload(
         document,
         email: toOptionalString(first.email),
         phone: toOptionalString(first.phone),
+        phone2: toOptionalString(first.phone2),
         externalId: first.erp_client_id,
       },
       contract: {

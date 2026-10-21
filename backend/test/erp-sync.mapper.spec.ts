@@ -11,6 +11,7 @@ function buildRow(overrides: Partial<ErpEligibleRow> = {}): ErpEligibleRow {
     name: 'CLIENTE TESTE',
     email: 'cliente@teste.com',
     phone: '(51)99999-0000',
+    phone2: null,
     erp_contract_id: '285431',
     contract_external_id: 'daf0095c-90c7-31fd-69ec-0c59cb12820e',
     contract_number: '285431',

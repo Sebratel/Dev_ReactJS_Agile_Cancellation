@@ -24,6 +24,7 @@ export type CollectionCaseListItemResponse = {
   id: string;
   customerName: string;
   customerPhone: string | null;
+  customerPhone2: string | null;
   contractCode: string;
   contractStatus: string;
   contractErpStatus: string | null;
@@ -77,6 +78,7 @@ export type CollectionCaseCustomerSummary = {
   name: string;
   document: string;
   phone: string | null;
+  phone2: string | null;
 };
 
 export type CollectionCaseContractSummary = {

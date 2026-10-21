@@ -4,6 +4,7 @@ export type CollectionCaseListItemResponse = {
   id: string;
   customerName: string;
   customerPhone: string | null;
+  customerPhone2: string | null;
   contractCode: string;
   contractStatus: string;
   // Status bruto do ERP (v_status do Elleven), para exibicao fiel.

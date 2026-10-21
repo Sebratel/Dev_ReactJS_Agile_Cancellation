@@ -683,6 +683,7 @@ export function toListItemResponse(
     id: record.id,
     customerName: record.customerName,
     customerPhone: record.customerPhone,
+    customerPhone2: record.customerPhone2,
     contractCode: record.contractCode,
     contractStatus: record.contractStatus,
     contractErpStatus: record.contractErpStatus ?? null,

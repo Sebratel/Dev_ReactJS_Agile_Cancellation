@@ -13,6 +13,7 @@ function createRecord(
     id: 'case_test',
     customerName: 'Cliente Teste',
     customerPhone: '(51) 99999-0000',
+    customerPhone2: null,
     contractCode: 'CTR-1',
     contractStatus: 'ACTIVE',
     contractErpStatus: 'Normal',
