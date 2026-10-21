@@ -133,6 +133,7 @@ export const mockCollectionCaseListItems: CollectionCaseListItemResponse[] = [
     id: 'case_0001',
     customerName: 'Construtora Horizonte',
     customerPhone: '(51) 99911-2233',
+    customerPhone2: null,
     contractCode: 'CTR-10428',
     contractStatus: 'ACTIVE',
     contractErpStatus: 'Normal',
@@ -151,11 +152,13 @@ export const mockCollectionCaseListItems: CollectionCaseListItemResponse[] = [
     matrixAwaitingReply: false,
     matrixLastOutboundAt: null,
     matrixLastReplyAt: null,
+    origin: null,
   },
   {
     id: 'case_0002',
     customerName: 'Mercado Litoral',
     customerPhone: '(51) 99944-5566',
+    customerPhone2: null,
     contractCode: 'CTR-10311',
     contractStatus: 'SUSPENDED',
     contractErpStatus: 'Bloqueio Financeiro',
@@ -174,6 +177,7 @@ export const mockCollectionCaseListItems: CollectionCaseListItemResponse[] = [
     matrixAwaitingReply: false,
     matrixLastOutboundAt: null,
     matrixLastReplyAt: null,
+    origin: null,
   },
 ];
 
@@ -222,6 +226,7 @@ export const mockCollectionCaseDetails: CollectionCaseDetailsResponse = {
     name: 'Construtora Horizonte',
     document: '12.345.678/0001-90',
     phone: '(51) 99911-2233',
+    phone2: null,
   },
   contract: {
     id: 'ctr_10428',
@@ -311,6 +316,7 @@ export const mockCollectionCaseDetails: CollectionCaseDetailsResponse = {
     lastReplyAt: null,
   },
   cancellationProcess: null,
+  origin: null,
   createdAt: new Date(Date.now() - 2_592_000_000).toISOString(),
   updatedAt: new Date(Date.now() - 86_400_000).toISOString(),
 };

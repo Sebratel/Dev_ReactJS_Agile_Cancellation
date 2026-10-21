@@ -44,6 +44,7 @@ const items: CollectionCaseListItemResponse[] = [
     id: 'case_0001',
     customerName: 'Construtora Horizonte',
     customerPhone: '(51) 99911-2233',
+    customerPhone2: null,
     contractCode: 'CTR-10428',
     contractStatus: 'ACTIVE',
     contractErpStatus: 'Normal',
@@ -62,6 +63,7 @@ const items: CollectionCaseListItemResponse[] = [
     matrixAwaitingReply: false,
     matrixLastOutboundAt: null,
     matrixLastReplyAt: null,
+    origin: null,
   },
 ];
 
