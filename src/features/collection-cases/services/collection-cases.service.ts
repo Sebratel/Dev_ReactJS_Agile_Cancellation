@@ -286,6 +286,15 @@ export async function cancelPaymentPromise(
   return response.data;
 }
 
+export async function recoverCancelledCase(caseId: string) {
+  const response = await httpClient.request<CollectionCaseDetailsResponse>({
+    path: `/collection-cases/${caseId}/recover-cancelled`,
+    method: 'POST',
+  });
+
+  return response.data;
+}
+
 export async function bulkAssignCases(payload: BulkAssignCasesPayload) {
   const response = await httpClient.request<BulkAssignCasesResponse>({
     path: '/collection-cases/bulk-assign',

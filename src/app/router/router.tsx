@@ -7,6 +7,7 @@ import { RoleGuard } from '@/features/auth/guards/role-guard';
 import {
   LazyBacklogPage,
   LazyCancellationsPage,
+  LazyCancelledClientsPage,
   LazyCollectionCaseDetailPage,
   LazyCustomerDetailPage,
   LazyCustomersPage,
@@ -132,6 +133,19 @@ export function createAppRouter() {
                 },
                 {
                   path: 'cancelamentos/:caseId',
+                  element: withRouteFallback(<LazyCollectionCaseDetailPage />),
+                },
+              ],
+            },
+            {
+              element: <RoleGuard allowedRoles={['ADMIN', 'SUPERVISOR']} />,
+              children: [
+                {
+                  path: 'cancelados',
+                  element: withRouteFallback(<LazyCancelledClientsPage />),
+                },
+                {
+                  path: 'cancelados/:caseId',
                   element: withRouteFallback(<LazyCollectionCaseDetailPage />),
                 },
               ],

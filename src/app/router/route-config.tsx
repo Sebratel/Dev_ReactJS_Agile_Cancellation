@@ -12,6 +12,7 @@ import {
   ShieldAlert,
   Trophy,
   UserCog,
+  UserX,
   Users,
 } from 'lucide-react';
 import { type UserRole } from '@/types/auth';
@@ -104,6 +105,15 @@ export const appRoutes: AppRouteItem[] = [
     shortTitle: 'Cancelamentos',
     icon: ShieldAlert,
     allowedRoles: ['ADMIN', 'SUPERVISOR', 'CANCELLATION_AGENT'],
+    ready: true,
+    group: 'operacao',
+  },
+  {
+    label: 'Cancelados',
+    path: '/cancelados',
+    shortTitle: 'Cancelados',
+    icon: UserX,
+    allowedRoles: ['ADMIN', 'SUPERVISOR'],
     ready: true,
     group: 'operacao',
   },

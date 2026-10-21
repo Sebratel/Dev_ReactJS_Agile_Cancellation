@@ -54,6 +54,8 @@ import type {
   CreatePaymentPromiseParams,
   RecordWhatsAppContactIntegrationParams,
   RecordWhatsAppContactIntegrationResult,
+  RecoverCancelledParams,
+  RecoverCancelledResult,
   RevertCancellationParams,
   RevertCancellationResult,
   SendToCancellationParams,
@@ -1326,6 +1328,77 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
     ]);
 
     return { assigned: validIds.length, skipped: caseIds.length - validIds.length };
+  }
+
+  async recoverCancelled({
+    caseId,
+    performedByUserId,
+  }: RecoverCancelledParams): Promise<RecoverCancelledResult> {
+    const existingCase = await this.prisma.collectionCase.findUnique({
+      where: { id: caseId },
+      include: { collectionAttempts: { select: { id: true, isAutomatic: true } } },
+    });
+
+    if (!existingCase) {
+      return { outcome: 'case_not_found' };
+    }
+
+    if (existingCase.status !== CollectionStatus.CLOSED) {
+      return { outcome: 'status_not_allowed', currentStatus: existingCase.status };
+    }
+
+    const hasManualAttempt = existingCase.collectionAttempts.some(
+      (a) => !a.isAutomatic,
+    );
+
+    if (!hasManualAttempt) {
+      return { outcome: 'no_manual_attempt' };
+    }
+
+    const now = new Date();
+
+    const beforeSnapshot: Prisma.InputJsonValue = {
+      status: existingCase.status,
+      recoveredAt: existingCase.recoveredAt?.toISOString() ?? null,
+    };
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.collectionCase.update({
+        where: { id: caseId },
+        data: {
+          status: CollectionStatus.RECOVERED,
+          recoveredAt: now,
+          updatedAt: now,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          entityType: 'COLLECTION_CASE',
+          entityId: caseId,
+          action: AuditAction.STATUS_CHANGE,
+          performedByUserId,
+          beforeSnapshot,
+          afterSnapshot: {
+            status: CollectionStatus.RECOVERED,
+            recoveredAt: now.toISOString(),
+          },
+          metadata: {
+            resourceType: 'COLLECTION_CASE',
+            action: 'RECOVER_CANCELLED',
+            description: 'Cliente cancelado recuperado',
+          },
+        },
+      });
+    });
+
+    const details = await this.getCaseById(caseId);
+
+    if (!details) {
+      return { outcome: 'case_not_found' };
+    }
+
+    return { outcome: 'success', case: details };
   }
 
   async autoDistributeCases({

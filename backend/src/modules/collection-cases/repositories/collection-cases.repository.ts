@@ -171,6 +171,17 @@ export type RevertCancellationResult =
   | { outcome: 'case_not_found' }
   | { outcome: 'status_not_allowed'; currentStatus: string };
 
+export type RecoverCancelledParams = {
+  caseId: string;
+  performedByUserId: string | null;
+};
+
+export type RecoverCancelledResult =
+  | { outcome: 'success'; case: CollectionCaseDetailsResponse }
+  | { outcome: 'case_not_found' }
+  | { outcome: 'status_not_allowed'; currentStatus: string }
+  | { outcome: 'no_manual_attempt' };
+
 export type CollectionCaseIntakeSummary = {
   today: number;
   yesterday: number;
@@ -254,6 +265,10 @@ export interface CollectionCasesRepository {
   revertCancellation(
     params: RevertCancellationParams,
   ): Promise<RevertCancellationResult>;
+
+  recoverCancelled(
+    params: RecoverCancelledParams,
+  ): Promise<RecoverCancelledResult>;
 
   assignCase(params: AssignCaseParams): Promise<AssignCaseResult>;
 

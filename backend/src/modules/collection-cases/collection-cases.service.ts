@@ -21,6 +21,7 @@ import type {
   CollectionCasesListParams,
   CollectionCasesRepository,
   PaymentPromiseStatusAction,
+  RecoverCancelledResult,
   RevertCancellationResult,
   SendToCancellationResult,
   UpdatePaymentPromiseStatusResult,
@@ -562,6 +563,26 @@ export class CollectionCasesService {
     });
   }
 
+  async recoverCancelled(caseId: string, performedByUserId: string) {
+    const resolvedPerformerId =
+      this.performedByResolver.resolve(performedByUserId);
+    const result = await this.collectionCasesRepository.recoverCancelled({
+      caseId,
+      performedByUserId: resolvedPerformerId,
+    });
+
+    this.assertRecoverCancelledResult(result, caseId);
+
+    if (result.outcome !== 'success') {
+      throw new AppException(
+        'Falha ao marcar o caso como recuperado.',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    return createApiResponse(result.case);
+  }
+
   async revertCancellation(
     caseId: string,
     dto: RevertCancellationDto,
@@ -746,6 +767,32 @@ export class CollectionCasesService {
     if (result.outcome === 'assignee_invalid') {
       throw new AppException(
         'Selecione um agente de cancelamento ativo para receber o caso.',
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    }
+  }
+
+  private assertRecoverCancelledResult(
+    result: RecoverCancelledResult,
+    caseId: string,
+  ) {
+    if (result.outcome === 'case_not_found') {
+      throw new AppException(
+        `Caso de cobrança ${caseId} não encontrado.`,
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    if (result.outcome === 'status_not_allowed') {
+      throw new AppException(
+        `Caso de cobrança ${caseId} não pode ser recuperado a partir do status ${result.currentStatus}.`,
+        HttpStatus.CONFLICT,
+      );
+    }
+
+    if (result.outcome === 'no_manual_attempt') {
+      throw new AppException(
+        'O caso precisa ter ao menos uma tentativa de contato manual registrada para ser marcado como recuperado.',
         HttpStatus.UNPROCESSABLE_ENTITY,
       );
     }

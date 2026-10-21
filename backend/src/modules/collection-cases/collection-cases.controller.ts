@@ -229,6 +229,15 @@ export class CollectionCasesController {
     return this.collectionCasesService.bulkSendToCancellation(body, user);
   }
 
+  @Roles('COLLECTION_AGENT', 'SUPERVISOR', 'ADMIN')
+  @Post(':id/recover-cancelled')
+  recoverCancelled(
+    @Param('id') caseId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.collectionCasesService.recoverCancelled(caseId, user.id);
+  }
+
   @Roles('COLLECTION_AGENT', 'SUPERVISOR', 'ADMIN', 'CANCELLATION_AGENT')
   @Post(':id/revert-cancellation')
   revertCancellation(

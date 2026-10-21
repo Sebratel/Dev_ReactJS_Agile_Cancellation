@@ -42,6 +42,8 @@ import type {
   CreatePaymentPromiseParams,
   RecordWhatsAppContactIntegrationParams,
   RecordWhatsAppContactIntegrationResult,
+  RecoverCancelledParams,
+  RecoverCancelledResult,
   RevertCancellationParams,
   RevertCancellationResult,
   SendToCancellationParams,
@@ -877,6 +879,57 @@ export class CollectionCasesMockRepository implements CollectionCasesRepository 
         reason: input.reason,
         notes: input.notes ?? null,
         outstandingAmount: details.outstandingAmount,
+      },
+    });
+
+    return Promise.resolve({ outcome: 'success', case: details });
+  }
+
+  recoverCancelled({
+    caseId,
+    performedByUserId,
+  }: RecoverCancelledParams): Promise<RecoverCancelledResult> {
+    const details = mockCollectionCaseDetails[caseId];
+
+    if (!details) {
+      return Promise.resolve({ outcome: 'case_not_found' });
+    }
+
+    if (details.status !== 'CLOSED') {
+      return Promise.resolve({
+        outcome: 'status_not_allowed',
+        currentStatus: details.status,
+      });
+    }
+
+    const hasManualAttempt = details.attempts.some((a) => !a.isAutomatic);
+
+    if (!hasManualAttempt) {
+      return Promise.resolve({ outcome: 'no_manual_attempt' });
+    }
+
+    const now = new Date().toISOString();
+    const previousStatus = details.status;
+    details.status = 'RECOVERED';
+    details.updatedAt = now;
+
+    const record = mockCollectionCaseListRecords.find((item) => item.id === caseId);
+    if (record) {
+      record.status = 'RECOVERED';
+      record.updatedAt = now;
+    }
+
+    pushMockAuditLog({
+      entityType: 'COLLECTION_CASE',
+      entityId: caseId,
+      action: 'STATUS_CHANGE',
+      performedByUserId,
+      beforeSnapshot: { status: previousStatus },
+      afterSnapshot: { status: 'RECOVERED', recoveredAt: now },
+      metadata: {
+        resourceType: 'COLLECTION_CASE',
+        action: 'RECOVER_CANCELLED',
+        description: 'Cliente cancelado recuperado',
       },
     });
 

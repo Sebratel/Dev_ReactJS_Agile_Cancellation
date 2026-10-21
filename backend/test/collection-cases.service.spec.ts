@@ -84,6 +84,7 @@ function createRepository(
     updatePromiseStatus: jest.fn(),
     sendToCancellation: jest.fn(),
     revertCancellation: jest.fn(),
+    recoverCancelled: jest.fn(),
     assignCase: jest.fn(),
     bulkAssignCases: jest.fn(),
     autoDistributeCases: jest.fn(),
