@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Shuffle } from 'lucide-react';
 import { PageContainer } from '@/components/navigation/page-container';
 import { PageHeader } from '@/components/data-display/page-header';
 import { SectionCard } from '@/components/data-display/section-card';
@@ -18,8 +18,14 @@ import {
   TableHeaderCell,
   TableRow,
 } from '@/components/ui/table';
-import { usePreCollection } from '@/features/pre-collection/hooks/use-pre-collection';
+import { useAuth } from '@/features/auth/auth-context';
+import {
+  useDistributePreCollection,
+  usePreCollection,
+} from '@/features/pre-collection/hooks/use-pre-collection';
 import { type PreCollectionItem } from '@/features/pre-collection/types/pre-collection-api.types';
+import { toast } from '@/lib/toast';
+import { ApiError } from '@/services/api/api-error';
 import {
   formatCurrencyFromDecimalString,
   formatDateOnlyPtBR,
@@ -48,11 +54,34 @@ function matchesSearch(item: PreCollectionItem, term: string) {
 }
 
 export default function PreCollectionPage() {
+  const { session } = useAuth();
+  const canDistribute =
+    session?.user.roles.some((r) => r === 'ADMIN' || r === 'SUPERVISOR') ?? false;
+
   const [daysWindow, setDaysWindow] = useState<number>(7);
   const [search, setSearch] = useState('');
 
   const query = usePreCollection(daysWindow);
   const data = query.data;
+
+  const distributeMutation = useDistributePreCollection();
+
+  async function handleDistribute() {
+    try {
+      const result = await distributeMutation.mutateAsync();
+      const msg =
+        result.created === 0
+          ? `Nenhum caso novo criado (${result.existing} já estavam na plataforma).`
+          : result.distributed > 0
+            ? `${result.created} ${result.created === 1 ? 'caso criado' : 'casos criados'} e ${result.distributed} distribuídos entre ${result.agents} ${result.agents === 1 ? 'atendente' : 'atendentes'}.`
+            : `${result.created} ${result.created === 1 ? 'caso criado' : 'casos criados'} — nenhum agente disponível para distribuir.`;
+      toast.success(msg);
+    } catch (error) {
+      toast.error(
+        error instanceof ApiError ? error.message : 'Erro ao distribuir clientes da pré-cobrança.',
+      );
+    }
+  }
 
   const items = useMemo(() => {
     const all = data?.items ?? [];
@@ -73,16 +102,29 @@ export default function PreCollectionPage() {
         title="Prestes a vencer a 2ª"
         description="Clientes com 1 mensalidade vencida e a 2ª próxima de vencer — visão preventiva, direto do ERP. Não são casos de cobrança."
         actions={
-          <Button
-            variant="secondary"
-            onClick={() => {
-              void query.refetch();
-            }}
-            disabled={query.isFetching}
-          >
-            <RefreshCw className="h-4 w-4" />
-            Atualizar
-          </Button>
+          <>
+            {canDistribute ? (
+              <Button
+                variant="secondary"
+                onClick={() => { void handleDistribute(); }}
+                disabled={distributeMutation.isPending}
+                title="Cria casos de cobrança para clientes com 2ª vencendo em até 5 dias e distribui entre os atendentes"
+              >
+                <Shuffle className="h-4 w-4" />
+                {distributeMutation.isPending ? 'Distribuindo...' : 'Distribuir (5 dias)'}
+              </Button>
+            ) : null}
+            <Button
+              variant="secondary"
+              onClick={() => {
+                void query.refetch();
+              }}
+              disabled={query.isFetching}
+            >
+              <RefreshCw className="h-4 w-4" />
+              Atualizar
+            </Button>
+          </>
         }
       />
 

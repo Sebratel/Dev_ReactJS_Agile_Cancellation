@@ -8,6 +8,16 @@ import type {
   PreCollectionItemResponse,
   PreCollectionListResponse,
 } from '@/modules/pre-collection/dto/pre-collection-item.response';
+import { PrismaService } from '@/database/prisma/prisma.service';
+
+export type PreCollectionDistributeResult = {
+  eligible: number;
+  skipped: number;
+  created: number;
+  existing: number;
+  distributed: number;
+  agents: number;
+};
 
 const DEFAULT_DAYS_WINDOW = 7;
 const MIN_DAYS_WINDOW = 1;
@@ -155,6 +165,9 @@ function mapRow(row: PreCollectionRow): PreCollectionItemResponse {
  * A consulta ao ERP e cara (varre a tabela de titulos), entao servimos um
  * snapshot em cache atualizado em background — o endpoint responde na hora.
  */
+const DISTRIBUTION_WINDOW_DAYS = 5;
+const FINALIZED_STATUSES = ['CLOSED', 'RECOVERED', 'PAYMENT_MADE', 'RENEGOTIATED'];
+
 @Injectable()
 export class PreCollectionService implements OnModuleInit {
   private readonly logger = new Logger(PreCollectionService.name);
@@ -162,6 +175,8 @@ export class PreCollectionService implements OnModuleInit {
   private cache: { items: PreCollectionItemResponse[]; refreshedAt: string } | null =
     null;
   private refreshing = false;
+
+  constructor(private readonly prisma: PrismaService) {}
 
   onModuleInit(): void {
     // Primeiro carregamento em background (nao bloqueia o boot).
@@ -249,5 +264,131 @@ export class PreCollectionService implements OnModuleInit {
       items,
     };
     return createApiResponse(response);
+  }
+
+  async distribute(performedByUserId: string): Promise<PreCollectionDistributeResult> {
+    if (!this.cache || getDataSourceMode() !== 'database') {
+      return { eligible: 0, skipped: 0, created: 0, existing: 0, distributed: 0, agents: 0 };
+    }
+
+    const eligible = this.cache.items.filter(
+      (item) => item.daysUntilSecond <= DISTRIBUTION_WINDOW_DAYS,
+    );
+
+    let skipped = 0;
+    let created = 0;
+    let existing = 0;
+
+    for (const item of eligible) {
+      if (!item.customerDocument) {
+        skipped++;
+        continue;
+      }
+
+      const customer = await this.prisma.customer.upsert({
+        where: { document: item.customerDocument },
+        update: { name: item.customerName, phone: item.customerPhone ?? undefined },
+        create: {
+          name: item.customerName,
+          document: item.customerDocument,
+          phone: item.customerPhone ?? undefined,
+        },
+      });
+
+      const contract = await this.prisma.contract.upsert({
+        where: { code: item.contractCode },
+        update: { externalId: item.contractExternalId ?? undefined },
+        create: {
+          customerId: customer.id,
+          code: item.contractCode,
+          externalId: item.contractExternalId ?? undefined,
+          startDate: new Date(item.firstOverdueDate),
+          status: 'ACTIVE',
+        },
+      });
+
+      const existingCase = await this.prisma.collectionCase.findFirst({
+        where: {
+          contractId: contract.id,
+          status: { notIn: FINALIZED_STATUSES as any },
+        },
+        select: { id: true },
+      });
+
+      if (existingCase) {
+        existing++;
+        continue;
+      }
+
+      const overdueMs = Date.now() - new Date(item.firstOverdueDate).getTime();
+      await this.prisma.collectionCase.create({
+        data: {
+          contractId: contract.id,
+          customerId: customer.id,
+          status: 'WAITING_TRIAGE',
+          priority: 'LOW',
+          outstandingAmount: Number(item.totalOpenAmount),
+          daysOverdue: Math.max(0, Math.round(overdueMs / 86_400_000)),
+          cycleStartedAt: new Date(),
+        },
+      });
+
+      created++;
+    }
+
+    // Distribui TODOS os casos WAITING_TRIAGE sem responsável (incluindo os criados agora).
+    const unassigned = await this.prisma.collectionCase.findMany({
+      where: { status: 'WAITING_TRIAGE', assignedUserId: null },
+      select: { id: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const agents = await this.prisma.user.findMany({
+      where: {
+        status: 'ACTIVE',
+        userRoles: { some: { role: { code: 'COLLECTION_AGENT' } } },
+      },
+      select: { id: true },
+      orderBy: { name: 'asc' },
+    });
+
+    if (unassigned.length === 0 || agents.length === 0) {
+      return { eligible: eligible.length, skipped, created, existing, distributed: 0, agents: agents.length };
+    }
+
+    const now = new Date();
+    const assignments = unassigned.map((c, i) => ({
+      caseId: c.id,
+      agentId: agents[i % agents.length]!.id,
+    }));
+
+    const byAgent = new Map<string, string[]>();
+    for (const { caseId, agentId } of assignments) {
+      const list = byAgent.get(agentId) ?? [];
+      list.push(caseId);
+      byAgent.set(agentId, list);
+    }
+
+    await this.prisma.$transaction(
+      Array.from(byAgent.entries()).map(([agentId, ids]) =>
+        this.prisma.collectionCase.updateMany({
+          where: { id: { in: ids } },
+          data: { assignedUserId: agentId, assignedAt: now, updatedAt: now },
+        }),
+      ),
+    );
+
+    this.logger.log(
+      `Pre-cobranca: ${created} casos criados, ${assignments.length} distribuídos entre ${agents.length} agentes.`,
+    );
+
+    return {
+      eligible: eligible.length,
+      skipped,
+      created,
+      existing,
+      distributed: assignments.length,
+      agents: agents.length,
+    };
   }
 }

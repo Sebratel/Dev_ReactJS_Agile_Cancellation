@@ -1,3 +1,12 @@
+export type PreCollectionDistributeResult = {
+  eligible: number;
+  skipped: number;
+  created: number;
+  existing: number;
+  distributed: number;
+  agents: number;
+};
+
 export type PreCollectionItem = {
   contractExternalId: string | null;
   contractCode: string;
