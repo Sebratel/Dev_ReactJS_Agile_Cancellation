@@ -91,7 +91,7 @@ const metricDefinitions: Array<{
   },
   {
     key: 'recoveredMonth',
-    title: 'Recuperados no mês',
+    title: 'Retidos no mês',
     description: 'Valor efetivamente recuperado com confirmação de pagamento.',
     variant: 'success',
     format: (value) => formatCurrencyFromDecimalString(String(value)),
@@ -116,7 +116,7 @@ export function mapDashboardSummaryToOperationalSummary(
 ): OperationalSummaryItem[] {
   return [
     {
-      label: 'Recuperados no mês',
+      label: 'Retidos no mês',
       value: formatCurrencyFromDecimalString(
         String(summary.metrics.recoveredMonth),
       ),

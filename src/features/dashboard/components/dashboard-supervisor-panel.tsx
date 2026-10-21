@@ -164,7 +164,7 @@ export function DashboardSupervisorPanel({
           density="compact"
         />
         <MetricCard
-          title="Recuperado no mês"
+          title="Retido no mês"
           value={formatCurrencyFromDecimalString(
             String(summary.metrics.recoveredMonth),
           )}

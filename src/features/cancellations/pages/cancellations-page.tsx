@@ -271,7 +271,7 @@ export default function CancellationsPage() {
           density="compact"
         />
         <MetricCard
-          title="Recuperados"
+          title="Retidos"
           value={formatInteger(recoveredTotal)}
           description="Cliente reverteu o cancelamento"
           icon={TrendingUp}
@@ -321,7 +321,7 @@ export default function CancellationsPage() {
               onChange={(e) => updateFilters({ status: e.target.value, page: 1 })}
             >
               <option value="CANCELLATION_IN_PROGRESS">Em andamento</option>
-              <option value="RECOVERED">Recuperados</option>
+              <option value="RECOVERED">Retidos</option>
               <option value="CLOSED">Encerrados</option>
             </Select>
           </label>
