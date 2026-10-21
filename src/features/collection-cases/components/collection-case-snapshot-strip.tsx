@@ -34,41 +34,45 @@ export function CollectionCaseSnapshotStrip({
   className,
 }: CollectionCaseSnapshotStripProps) {
   const notAssigned = items.filter((item) => !item.assignedTo).length;
-  const noResponse = items.filter((item) => item.status === 'NO_RESPONSE').length;
-  const overdueSla = items.filter(
+  const noResponseItems = items.filter((item) => item.status === 'NO_RESPONSE');
+  const noResponse = noResponseItems.length;
+  const overdueSlaItems = items.filter(
     (item) => getSlaPresentation(item.slaDueAt).variant === 'danger',
-  ).length;
-  const pageOutstanding = items.reduce(
+  );
+  const overdueSla = overdueSlaItems.length;
+  const overdueSlaOutstanding = overdueSlaItems.reduce(
     (sum, item) => sum + (Number(item.outstandingAmount) || 0),
     0,
   );
 
   const snapshot: SnapshotItem[] = [
     {
-      label: 'Casos',
+      label: 'Casos ativos',
       value: formatInteger(totalCases ?? items.length),
-      hint: `${formatInteger(items.length)} nesta página`,
+      hint: `${formatInteger(items.length)} exibidos nesta página`,
       tone: 'neutral',
       icon: ClipboardList,
     },
     {
-      label: 'Não atribuídos',
+      label: 'Sem responsável',
       value: formatInteger(notAssigned),
-      hint: 'Precisam de responsável',
+      hint: notAssigned > 0 ? 'Aguardam atribuição de atendente' : 'Todos com atendente definido',
       tone: notAssigned > 0 ? 'warning' : 'success',
       icon: CheckCircle2,
     },
     {
       label: 'Sem resposta',
       value: formatInteger(noResponse),
-      hint: 'Exigem nova tentativa',
+      hint: noResponse > 0 ? 'Clientes que não responderam ao contato' : 'Nenhum caso neste status',
       tone: noResponse > 0 ? 'danger' : 'neutral',
       icon: PhoneOff,
     },
     {
       label: 'SLA vencido',
       value: formatInteger(overdueSla),
-      hint: formatCurrencyBRL(pageOutstanding),
+      hint: overdueSla > 0
+        ? `${formatCurrencyBRL(overdueSlaOutstanding)} em aberto nesses casos`
+        : 'Nenhum prazo de atendimento vencido',
       tone: overdueSla > 0 ? 'danger' : 'success',
       icon: AlertTriangle,
     },
