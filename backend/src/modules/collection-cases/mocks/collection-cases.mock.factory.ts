@@ -103,6 +103,7 @@ function buildListRecord(index: number): MockCollectionCaseListRecord {
     matrixAwaitingReply: false,
     matrixLastOutboundAt: null,
     matrixLastReplyAt: null,
+    lastContactAt: null,
     origin: null,
     assignedUserId: assignee?.id ?? null,
     assignedAt: assignee ? createdAt : null,
