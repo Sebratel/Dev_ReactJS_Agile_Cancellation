@@ -207,6 +207,7 @@ export type CollectionCasesListParams = {
   createdToday?: boolean;
   interactionStatus?: CollectionCasesInteractionStatus;
   promiseStatus?: CollectionCasesPromiseStatus;
+  origin?: string;
   sortBy?: CollectionCasesSortBy;
   sortDirection?: CollectionCasesSortDirection;
 };
@@ -299,6 +300,7 @@ export function mapQueryDtoToListParams(
     createdToday: query.createdToday,
     interactionStatus: query.interactionStatus,
     promiseStatus: query.promiseStatus,
+    origin: query.origin,
     sortBy: query.sortBy,
     sortDirection: query.sortDirection,
   };

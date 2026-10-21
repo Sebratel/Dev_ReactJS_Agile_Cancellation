@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import {
+  getCaseOriginLabel,
   getCollectionStatusLabel,
   getPriorityLabel,
 } from '@/features/collection-cases/utils/collection-case-labels';
@@ -79,6 +80,7 @@ function hasAdvancedFilters(filters: SupervisionFiltersState): boolean {
     filters.createdToday ||
     filters.interactionStatus ||
     filters.promiseStatus ||
+    filters.origin ||
     filters.daysOverdueMin ||
     filters.daysOverdueMax ||
     filters.totalOutstandingMin ||
@@ -113,6 +115,7 @@ export function SupervisionFilters({
     filters.createdToday,
     filters.interactionStatus,
     filters.promiseStatus,
+    filters.origin,
     filters.daysOverdueMin,
     filters.daysOverdueMax,
     filters.totalOutstandingMin,
@@ -238,6 +241,14 @@ export function SupervisionFilters({
       key: 'promiseStatus',
       label: PROMISE_LABELS[filters.promiseStatus] ?? filters.promiseStatus,
       onRemove: () => clearFilter({ promiseStatus: '' }),
+    });
+  }
+
+  if (filters.origin) {
+    chips.push({
+      key: 'origin',
+      label: `Origem: ${getCaseOriginLabel(filters.origin)}`,
+      onRemove: () => clearFilter({ origin: '' }),
     });
   }
 
@@ -452,6 +463,20 @@ export function SupervisionFilters({
                   {option.label}
                 </option>
               ))}
+            </Select>
+          </label>
+
+          <label className="space-y-1 text-sm">
+            <span className={labelClassName}>Origem</span>
+            <Select
+              value={filters.origin}
+              onChange={(event) =>
+                onFilterChange({ origin: event.target.value, page: 1 })
+              }
+            >
+              <option value="">Todas as origens</option>
+              <option value="PRE_COLLECTION">Pré-cobrança</option>
+              <option value="ERP_SYNC">Cobrança</option>
             </Select>
           </label>
 

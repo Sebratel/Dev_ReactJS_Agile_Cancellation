@@ -409,6 +409,7 @@ export type CollectionCasesListParams = {
   createdToday?: boolean;
   interactionStatus?: 'none' | 'contacted' | 'not_contacted';
   promiseStatus?: CollectionCasesPromiseStatus;
+  origin?: string;
   sortBy?: CollectionCasesSortBy;
   sortDirection?: CollectionCasesSortDirection;
 };

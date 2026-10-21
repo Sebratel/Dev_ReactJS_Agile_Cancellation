@@ -302,6 +302,10 @@ export function buildCollectionCasesWhere(
     };
   }
 
+  if (params.origin !== undefined) {
+    where.origin = params.origin === 'null' ? null : params.origin;
+  }
+
   return where;
 }
 
@@ -588,6 +592,13 @@ export function filterMockCollectionCases(
       !record.paymentPromiseStatuses.includes(params.promiseStatus)
     ) {
       return false;
+    }
+
+    if (params.origin !== undefined) {
+      const expected = params.origin === 'null' ? null : params.origin;
+      if (record.origin !== expected) {
+        return false;
+      }
     }
 
     return true;

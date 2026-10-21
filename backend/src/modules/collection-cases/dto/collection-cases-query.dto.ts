@@ -196,6 +196,10 @@ export class CollectionCasesQueryDto {
   promiseStatus?: CollectionCasesPromiseStatus;
 
   @IsOptional()
+  @IsString()
+  origin?: string;
+
+  @IsOptional()
   @IsIn(COLLECTION_CASES_SORT_BY)
   sortBy?: CollectionCasesSortBy;
 
