@@ -81,7 +81,7 @@ export default function BacklogPage() {
 
   const handleRetry = () => { void casesQuery.refetch(); };
 
-  const items = casesQuery.data?.items ?? [];
+  const items = useMemo(() => casesQuery.data?.items ?? [], [casesQuery.data]);
   const totalPages = Math.max(casesQuery.data?.pagination.totalPages ?? 1, 1);
   const hasActiveFilters = hasActiveSupervisionFilters({
     ...filters,

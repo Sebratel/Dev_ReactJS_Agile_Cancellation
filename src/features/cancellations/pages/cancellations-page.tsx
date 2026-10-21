@@ -130,7 +130,7 @@ export default function CancellationsPage() {
       status: filters.status || undefined,
       priority: filters.priority || undefined,
       search: debouncedSearch.trim() || undefined,
-      sortBy: (filters.sortBy || undefined) as CollectionCasesSortBy | undefined,
+      sortBy: (filters.sortBy || undefined),
       sortDirection: filters.sortBy ? filters.sortDirection : undefined,
     }),
     [filters, debouncedSearch],
@@ -156,7 +156,7 @@ export default function CancellationsPage() {
 
   const handleRetry = () => { void casesQuery.refetch(); };
 
-  const items = casesQuery.data?.items ?? [];
+  const items = useMemo(() => casesQuery.data?.items ?? [], [casesQuery.data]);
   const totalPages = Math.max(casesQuery.data?.pagination.totalPages ?? 1, 1);
 
   const inProgressTotal = inProgressQuery.data?.pagination.total ?? 0;
@@ -271,7 +271,7 @@ export default function CancellationsPage() {
           density="compact"
         />
         <MetricCard
-          title="Recuperados"
+          title="Retidos"
           value={formatInteger(recoveredTotal)}
           description="Cliente reverteu o cancelamento"
           icon={TrendingUp}
@@ -321,7 +321,7 @@ export default function CancellationsPage() {
               onChange={(e) => updateFilters({ status: e.target.value, page: 1 })}
             >
               <option value="CANCELLATION_IN_PROGRESS">Em andamento</option>
-              <option value="RECOVERED">Recuperados</option>
+              <option value="RECOVERED">Retidos</option>
               <option value="CLOSED">Encerrados</option>
             </Select>
           </label>

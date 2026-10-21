@@ -11,8 +11,11 @@ export class CaseNotesController {
 
   @Roles('ADMIN', 'SUPERVISOR', 'COLLECTION_AGENT', 'CANCELLATION_AGENT')
   @Get()
-  list(@Param('caseId') caseId: string) {
-    return this.caseNotesService.listByCase(caseId);
+  list(
+    @Param('caseId') caseId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.caseNotesService.listByCase(caseId, user);
   }
 
   @Roles('ADMIN', 'SUPERVISOR', 'COLLECTION_AGENT', 'CANCELLATION_AGENT')
@@ -22,6 +25,6 @@ export class CaseNotesController {
     @Body() body: CreateCaseNoteDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.caseNotesService.create(caseId, body, user.id);
+    return this.caseNotesService.create(caseId, body, user);
   }
 }

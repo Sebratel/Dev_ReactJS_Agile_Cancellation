@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment -- matchers do jest (expect.*) e mocks tipados como any */
 import {
   buildCollectionCasesWhere,
   filterMockCollectionCases,
@@ -12,9 +13,12 @@ function createRecord(
     id: 'case_test',
     customerName: 'Cliente Teste',
     customerPhone: '(51) 99999-0000',
+    customerPhone2: null,
     contractCode: 'CTR-1',
     contractStatus: 'ACTIVE',
     contractErpStatus: 'Normal',
+    contractCancellationReason: null,
+    contractCancellationReasonCategory: null,
     firstOverdueDate: null,
     secondOverdueDate: null,
     status: 'IN_COLLECTION',
@@ -27,6 +31,7 @@ function createRecord(
     matrixLastOutboundAt: null,
     matrixLastReplyAt: null,
     assignedUserId: 'usr_1',
+    assignedAt: new Date().toISOString(),
     customerDocument: '00.000.000/0001-00',
     contractExternalId: 'EXT-1',
     createdAt: new Date().toISOString(),
@@ -65,9 +70,9 @@ describe('collection-cases list filters', () => {
       now,
     );
 
-    expect(where.collectionAttempts).toEqual({
-      none: { isAutomatic: false },
-    });
+    expect(where.AND).toEqual([
+      { OR: [{ collectionAttempts: { none: { isAutomatic: false } } }] },
+    ]);
   });
 
   it('filtra "ja contatados" (com tentativa manual) no Prisma where', () => {
@@ -87,9 +92,9 @@ describe('collection-cases list filters', () => {
       now,
     );
 
-    expect(where.collectionAttempts).toEqual({
-      none: { isAutomatic: false },
-    });
+    expect(where.AND).toEqual([
+      { OR: [{ collectionAttempts: { none: { isAutomatic: false } } }] },
+    ]);
   });
 
   it('filtra casos com promessa ativa no Prisma where', () => {
@@ -255,5 +260,144 @@ describe('collection-cases list filters', () => {
     it('sem filtros de vencimento, sempre bate', () => {
       expect(matchesOverdueDateFilters([], {})).toBe(true);
     });
+  });
+});
+
+describe('lista de casos — so carteira ativa por padrao (A4)', () => {
+  it('sem status explicito o where exclui finalizados e AWAITING_PAYMENT', () => {
+    const where = buildCollectionCasesWhere({ page: 1, limit: 10 });
+
+    expect(where.status).toEqual({
+      in: [
+        'WAITING_TRIAGE',
+        'IN_COLLECTION',
+        'NO_RESPONSE',
+        'ELIGIBLE_FOR_CANCELLATION',
+        'CANCELLATION_IN_PROGRESS',
+      ],
+    });
+  });
+
+  it('status finalizado escolhido explicitamente continua listando', () => {
+    const where = buildCollectionCasesWhere({
+      page: 1,
+      limit: 10,
+      status: 'CLOSED',
+    });
+
+    expect(where.status).toBe('CLOSED');
+  });
+
+  it('SLA vencido sem status nao reabre os finalizados', () => {
+    const where = buildCollectionCasesWhere({
+      page: 1,
+      limit: 10,
+      slaStatus: 'overdue',
+    });
+
+    expect(where.status).toEqual({
+      in: expect.arrayContaining(['IN_COLLECTION']),
+    });
+  });
+
+  it('mock: lista sem status exclui finalizados; com status=CLOSED inclui', () => {
+    const records = [
+      createRecord({ id: 'ativo', status: 'IN_COLLECTION' }),
+      createRecord({ id: 'fechado', status: 'CLOSED' }),
+      createRecord({ id: 'pago', status: 'PAYMENT_MADE' }),
+    ];
+
+    expect(
+      filterMockCollectionCases(records, { page: 1, limit: 10 }).map(
+        (record) => record.id,
+      ),
+    ).toEqual(['ativo']);
+    expect(
+      filterMockCollectionCases(records, {
+        page: 1,
+        limit: 10,
+        status: 'CLOSED',
+      }).map((record) => record.id),
+    ).toEqual(['fechado']);
+  });
+});
+
+describe('lista de casos — busca e definicao unica de contatado (rodada 2)', () => {
+  const now = new Date('2026-06-10T12:00:00.000Z');
+
+  it('busca por texto sem status NAO restringe a ativos (acha finalizados)', () => {
+    const where = buildCollectionCasesWhere({
+      page: 1,
+      limit: 10,
+      search: 'Cliente',
+    });
+
+    expect(where.status).toBeUndefined();
+    expect(where.OR).toBeDefined();
+  });
+
+  it('sem busca e sem status continua so ativos', () => {
+    expect(buildCollectionCasesWhere({ page: 1, limit: 10 }).status).toEqual({
+      in: expect.arrayContaining(['IN_COLLECTION']),
+    });
+  });
+
+  it('mock: busca sem status inclui CLOSED; sem busca exclui', () => {
+    const records = [
+      createRecord({ id: 'ativo', status: 'IN_COLLECTION' }),
+      createRecord({ id: 'fechado', status: 'CLOSED' }),
+    ];
+
+    expect(
+      filterMockCollectionCases(records, {
+        page: 1,
+        limit: 10,
+        search: 'cliente teste',
+      }).map((record) => record.id),
+    ).toEqual(['ativo', 'fechado']);
+    expect(
+      filterMockCollectionCases(records, { page: 1, limit: 10 }).map(
+        (record) => record.id,
+      ),
+    ).toEqual(['ativo']);
+  });
+
+  it('caso reaberto (contato so de ciclo anterior) conta como NAO contatado', () => {
+    const stale = ['case_reaberto'];
+
+    const contacted = buildCollectionCasesWhere(
+      { page: 1, limit: 10, interactionStatus: 'contacted' },
+      now,
+      { staleContactCaseIds: stale },
+    );
+    const notContacted = buildCollectionCasesWhere(
+      { page: 1, limit: 10, interactionStatus: 'not_contacted' },
+      now,
+      { staleContactCaseIds: stale },
+    );
+
+    expect(contacted.collectionAttempts).toEqual({
+      some: { isAutomatic: false },
+    });
+    expect(contacted.AND).toEqual([{ id: { notIn: stale } }]);
+    expect(notContacted.AND).toEqual([
+      {
+        OR: [
+          { collectionAttempts: { none: { isAutomatic: false } } },
+          { id: { in: stale } },
+        ],
+      },
+    ]);
+  });
+
+  it('busca + contatado preserva o OR da busca (nao sobrescreve)', () => {
+    const where = buildCollectionCasesWhere(
+      { page: 1, limit: 10, search: 'ana', interactionStatus: 'not_contacted' },
+      now,
+      { staleContactCaseIds: ['x'] },
+    );
+
+    expect(where.OR).toHaveLength(4);
+    expect(where.AND).toHaveLength(1);
   });
 });

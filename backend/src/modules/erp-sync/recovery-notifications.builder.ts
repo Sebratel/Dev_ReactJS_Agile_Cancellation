@@ -19,6 +19,10 @@ export type SupervisorRecoverySummary = {
   totalAmount: number;
   title: string;
   body: string;
+  // Quando a rodada regularizou UM único cliente, aponta o caso para a
+  // notificação da supervisão virar clicável (abre o cliente). Null quando há
+  // mais de um cliente (resumo consolidado, sem alvo único).
+  entityId: string | null;
 };
 
 export type RecoveryNotifications = {
@@ -129,17 +133,20 @@ export function buildRecoveryNotifications(
     0,
   );
 
+  // Com 1 cliente, o resumo identifica o cliente e vira clicável (abre o caso).
+  const single = count === 1 ? recoveredCases[0] : null;
   const supervisorSummary: SupervisorRecoverySummary = {
     count,
     totalAmount,
-    title:
-      count === 1
-        ? '1 cliente regularizou o pagamento'
-        : `${count} clientes regularizaram o pagamento`,
-    body:
-      count === 1
-        ? `1 cliente regularizou o pagamento nesta sincronização (${formatBRL(totalAmount)} recuperado).`
-        : `${count} clientes regularizaram o pagamento nesta sincronização (${formatBRL(totalAmount)} recuperado).`,
+    entityId: single?.caseId ?? null,
+    title: single
+      ? single.hadActivePromise
+        ? `${single.customerName} cumpriu a promessa`
+        : `${single.customerName} regularizou o pagamento`
+      : `${count} clientes regularizaram o pagamento`,
+    body: single
+      ? `${single.customerName} regularizou o pagamento nesta sincronização (${formatBRL(totalAmount)} recuperado).`
+      : `${count} clientes regularizaram o pagamento nesta sincronização (${formatBRL(totalAmount)} recuperado).`,
   };
 
   return { agentNotifications, supervisorSummary };

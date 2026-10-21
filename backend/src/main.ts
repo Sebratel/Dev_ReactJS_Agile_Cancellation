@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
 import { json, urlencoded } from 'express';
 import { AppModule } from '@/app.module';
@@ -9,11 +10,13 @@ import { TimeoutInterceptor } from '@/common/interceptors/timeout.interceptor';
 import { createGlobalValidationPipe } from '@/common/validation/validation-pipe.config';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bufferLogs: true,
   });
   const appConfig = getAppConfig();
 
+  // Atras do nginx: usa X-Forwarded-For para req.ip (limite por IP do Throttler).
+  app.set('trust proxy', appConfig.trustProxy);
   app.use(helmet());
   app.enableCors({
     origin: appConfig.corsOrigin,

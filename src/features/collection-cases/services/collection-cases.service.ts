@@ -1,4 +1,5 @@
 import { httpClient } from '@/services/api/http-client';
+import { type RenegotiationSummaryResponse } from '@/features/dashboard/types/dashboard-api.types';
 import { type PaginatedResponse } from '@/services/api/types/api-envelope';
 import {
   type AssignCasePayload,
@@ -20,6 +21,7 @@ import {
   type OverdueDateSummaryResponse,
   type CollectionCasePortfoliosResponse,
   type CollectionCasesStatusSummaryResponse,
+  type CollectionCasesIntakeSummaryResponse,
   type RenegotiatedHistoryResponse,
   type RenegotiationDetailResponse,
   type CreatePaymentPromisePayload,
@@ -56,6 +58,8 @@ function buildCollectionCasesSearchParams(params: CollectionCasesListParams) {
   appendParam(searchParams, 'totalOutstandingMax', params.totalOutstandingMax);
   appendParam(searchParams, 'firstDueDate', params.firstDueDate);
   appendParam(searchParams, 'secondDueDate', params.secondDueDate);
+  appendParam(searchParams, 'assignedFrom', params.assignedFrom);
+  appendParam(searchParams, 'assignedTo', params.assignedTo);
   appendParam(searchParams, 'slaStatus', params.slaStatus);
   if (params.createdToday) {
     searchParams.set('createdToday', 'true');
@@ -119,9 +123,26 @@ export async function getCollectionCasesStatusSummary() {
   return response.data;
 }
 
+export async function getCollectionCasesIntakeSummary() {
+  const response =
+    await httpClient.request<CollectionCasesIntakeSummaryResponse>({
+      path: '/collection-cases/intake-summary',
+    });
+
+  return response.data;
+}
+
 export async function getRenegotiatedHistory() {
   const response = await httpClient.request<RenegotiatedHistoryResponse>({
     path: '/erp/renegotiation-history',
+  });
+
+  return response.data;
+}
+
+export async function getRenegotiationSummary() {
+  const response = await httpClient.request<RenegotiationSummaryResponse>({
+    path: '/erp/renegotiation-summary',
   });
 
   return response.data;
@@ -260,6 +281,15 @@ export async function cancelPaymentPromise(
     path: `/collection-cases/${caseId}/promises/${promiseId}/cancel`,
     method: 'POST',
     body: JSON.stringify(payload),
+  });
+
+  return response.data;
+}
+
+export async function recoverCancelledCase(caseId: string) {
+  const response = await httpClient.request<CollectionCaseDetailsResponse>({
+    path: `/collection-cases/${caseId}/recover-cancelled`,
+    method: 'POST',
   });
 
   return response.data;

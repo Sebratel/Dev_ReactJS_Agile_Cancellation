@@ -57,6 +57,7 @@ const items: CollectionCaseListItemResponse[] = [
     outstandingAmount: '12890.55',
     totalAttempts: 1,
     assignedTo: null,
+    assignedAt: null,
     slaDueAt: null,
     matrixAwaitingReply: false,
     matrixLastOutboundAt: null,
@@ -163,7 +164,7 @@ describe('SupervisionCasesTable', () => {
         x: 0,
         y: 0,
         toJSON: () => ({}),
-      } as DOMRect);
+      });
 
     try {
       renderTable();

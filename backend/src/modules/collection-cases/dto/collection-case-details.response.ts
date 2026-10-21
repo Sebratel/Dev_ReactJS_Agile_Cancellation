@@ -31,6 +31,7 @@ export type CollectionCaseCustomerSummary = {
   name: string;
   document: string;
   phone: string | null;
+  phone2: string | null;
 };
 
 export type CollectionCaseContractSummary = {

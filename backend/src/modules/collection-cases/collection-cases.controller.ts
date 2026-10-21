@@ -67,6 +67,14 @@ export class CollectionCasesController {
     return this.collectionCasesService.getStatusSummary();
   }
 
+  // Quantos casos entraram hoje x ontem (createdAt) — acompanhamento diario do
+  // inflow para conferir com o fluxo de automacao (N8N).
+  @Roles('ADMIN', 'SUPERVISOR')
+  @Get('intake-summary')
+  getIntakeSummary() {
+    return this.collectionCasesService.getIntakeSummary();
+  }
+
   @Roles('COLLECTION_AGENT', 'SUPERVISOR', 'ADMIN')
   @Post(':id/attempts')
   createAttempt(
@@ -74,7 +82,12 @@ export class CollectionCasesController {
     @Body() body: CreateCollectionAttemptDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.collectionCasesService.createAttempt(id, body, user.id);
+    return this.collectionCasesService.createAttempt(
+      id,
+      body,
+      user.id,
+      user,
+    );
   }
 
   @Roles('COLLECTION_AGENT', 'SUPERVISOR', 'ADMIN')
@@ -83,7 +96,11 @@ export class CollectionCasesController {
     @Param('id') id: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.collectionCasesService.contactCustomerByWhatsApp(id, user.id);
+    return this.collectionCasesService.contactCustomerByWhatsApp(
+      id,
+      user.id,
+      user,
+    );
   }
 
   @Roles('COLLECTION_AGENT', 'SUPERVISOR', 'ADMIN')
@@ -93,7 +110,12 @@ export class CollectionCasesController {
     @Body() body: CreatePaymentPromiseDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.collectionCasesService.createPromise(id, body, user.id);
+    return this.collectionCasesService.createPromise(
+      id,
+      body,
+      user.id,
+      user,
+    );
   }
 
   @Roles('COLLECTION_AGENT', 'SUPERVISOR', 'ADMIN')
@@ -109,6 +131,7 @@ export class CollectionCasesController {
       promiseId,
       body,
       user.id,
+      user,
     );
   }
 
@@ -125,6 +148,7 @@ export class CollectionCasesController {
       promiseId,
       body,
       user.id,
+      user,
     );
   }
 
@@ -141,6 +165,7 @@ export class CollectionCasesController {
       promiseId,
       body,
       user.id,
+      user,
     );
   }
 
@@ -204,6 +229,15 @@ export class CollectionCasesController {
     return this.collectionCasesService.bulkSendToCancellation(body, user);
   }
 
+  @Roles('COLLECTION_AGENT', 'SUPERVISOR', 'ADMIN')
+  @Post(':id/recover-cancelled')
+  recoverCancelled(
+    @Param('id') caseId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.collectionCasesService.recoverCancelled(caseId, user.id);
+  }
+
   @Roles('COLLECTION_AGENT', 'SUPERVISOR', 'ADMIN', 'CANCELLATION_AGENT')
   @Post(':id/revert-cancellation')
   revertCancellation(
@@ -215,6 +249,7 @@ export class CollectionCasesController {
       caseId,
       body,
       user.id,
+      user,
     );
   }
 

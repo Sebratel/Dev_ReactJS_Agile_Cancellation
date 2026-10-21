@@ -9,6 +9,16 @@ export class ErpSyncController {
 
   // Historico de renegociacoes (supervisao): clientes da carteira que
   // renegociaram alguma vez, com nº de vezes e datas (fonte financial_renegotiations).
+  // Card "Renegociados em aberto" da visao geral (cacheado; available=false
+  // quando o ERP nao responde).
+  @Roles('ADMIN', 'SUPERVISOR')
+  @Get('renegotiation-summary')
+  async getRenegotiationSummary() {
+    const summary = await this.erpSyncService.getRenegotiationSummary();
+
+    return createApiResponse(summary);
+  }
+
   @Roles('ADMIN', 'SUPERVISOR')
   @Get('renegotiation-history')
   async getRenegotiationHistory() {

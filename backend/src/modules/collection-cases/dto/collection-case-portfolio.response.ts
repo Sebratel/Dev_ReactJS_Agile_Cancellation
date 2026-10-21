@@ -8,11 +8,12 @@ export type CollectionCasePortfolioSummary = {
   // null representa a carteira "Sem responsavel" (casos ativos nao atribuidos).
   agent: CollectionCasePortfolioAgentSummary | null;
   totalActive: number;
-  // Total de casos atribuidos ao atendente em QUALQUER status (inclui
-  // Recuperados/Pagos que seguem vinculados a ele) — "quantos ele tem".
+  // Casos ATIVOS atribuidos ao atendente (mesma base de totalActive) — a
+  // carteira do anel "contatados/carteira". Mantido separado de totalActive
+  // por compatibilidade do contrato.
   totalAssigned: number;
-  // Casos atribuidos que tiveram ao menos um contato manual do atendente
-  // (tentativa nao-automatica) — "quantos ele interagiu".
+  // Casos ativos com contato manual (tentativa nao-automatica) dentro do ciclo
+  // atual (attemptedAt >= cycleStartedAt) — "quantos ele ja trabalhou".
   interacted: number;
   slaOverdue: number;
   awaitingReply: number;

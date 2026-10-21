@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import type { RenegotiationSummaryResponse } from '@/modules/erp-sync/dto/renegotiation-summary.response';
 import { Cron } from '@nestjs/schedule';
 import {
   AuditAction,
@@ -147,6 +148,9 @@ import {
   type ReconcileOutcome,
 } from '@/modules/erp-sync/reconcile-classification';
 
+const RENEGOTIATION_SUMMARY_TTL_MS = 5 * 60_000;
+const RENEGOTIATION_SUMMARY_TIMEOUT_MS = 10_000;
+
 // Confirma PAGAMENTO REAL: dos titulos informados, quais tem baixa
 // (client_paid_date). Usado como prova de que o caso foi de fato recuperado —
 // e nao apenas "sumiu da regra" por adiamento/apagamento de titulo.
@@ -200,6 +204,7 @@ SELECT
   p.name,
   p.email,
   p.phone,
+  p.celular                 AS phone2,
   c.id::text                AS erp_contract_id,
   c.public_id::text         AS contract_external_id,
   c.contract_number::text   AS contract_number,
@@ -1071,6 +1076,8 @@ export class ErpSyncService {
           type: 'CASES_CANCELLED_EXTERNAL_SUMMARY',
           title: supervisorSummary.title,
           body: supervisorSummary.body,
+          entityType: supervisorSummary.entityId ? 'COLLECTION_CASE' : undefined,
+          entityId: supervisorSummary.entityId ?? undefined,
         });
       }
     } catch (error) {
@@ -1130,6 +1137,8 @@ export class ErpSyncService {
           type: 'CASES_RECOVERED_SUMMARY',
           title: supervisorSummary.title,
           body: supervisorSummary.body,
+          entityType: supervisorSummary.entityId ? 'COLLECTION_CASE' : undefined,
+          entityId: supervisorSummary.entityId ?? undefined,
         });
       }
 
@@ -1168,11 +1177,64 @@ export class ErpSyncService {
       .filter((email): email is string => Boolean(email));
   }
 
+  private renegotiationSummaryCache: {
+    at: number;
+    value: RenegotiationSummaryResponse;
+  } | null = null;
+
+  /**
+   * Renegociacoes em aberto para o card do dashboard: reaproveita a consulta da
+   * aba Renegociados (fonte unica), com cache de 5 min e timeout de 10 s para
+   * nao deixar o dashboard lento. Se o ERP falhar devolve o ultimo valor em
+   * cache (se houver) ou available=false — nunca um 0 falso.
+   */
+  async getRenegotiationSummary(): Promise<RenegotiationSummaryResponse> {
+    const cached = this.renegotiationSummaryCache;
+    if (cached && Date.now() - cached.at < RENEGOTIATION_SUMMARY_TTL_MS) {
+      return cached.value;
+    }
+
+    try {
+      let timer: NodeJS.Timeout | undefined;
+      const timeout = new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error('Timeout ao consultar renegociacoes.')),
+          RENEGOTIATION_SUMMARY_TIMEOUT_MS,
+        );
+      });
+      const history = await Promise.race([
+        this.getRenegotiationHistory({ strict: true }),
+        timeout,
+      ]).finally(() => clearTimeout(timer));
+
+      const value: RenegotiationSummaryResponse = {
+        available: true,
+        count: history.summary.currentlyRenegotiated,
+        openAmount: history.summary.openRenegotiationTotal,
+      };
+      this.renegotiationSummaryCache = { at: Date.now(), value };
+
+      return value;
+    } catch (error) {
+      this.logger.warn(
+        `Resumo de renegociacoes indisponivel: ${error instanceof Error ? error.message : String(error)}`,
+      );
+
+      return (
+        cached?.value ?? { available: false, count: 0, openAmount: '0.00' }
+      );
+    }
+  }
+
   // Relatorio historico de renegociacoes: clientes da nossa carteira que
   // renegociaram alguma vez no ERP (fonte financial_renegotiations), com nº de
   // vezes e datas. Fonte CORRETA — diferente do flag `renegotiated` do titulo,
   // que marca titulos substituidos em renegociacoes antigas (resquicio).
-  async getRenegotiationHistory(): Promise<RenegotiatedHistoryResponse> {
+  // `strict`: em vez de devolver um resumo vazio quando o ERP falha, lanca o
+  // erro (para o resumo do dashboard distinguir "indisponivel" de "0").
+  async getRenegotiationHistory(
+    options: { strict?: boolean } = {},
+  ): Promise<RenegotiatedHistoryResponse> {
     const emptySummary = {
       totalCases: 0,
       totalRenegotiations: 0,
@@ -1190,7 +1252,13 @@ export class ErpSyncService {
       .filter((x): x is string => Boolean(x && UUID_PATTERN.test(x)));
 
     const config = getErpSyncConfig();
-    if (!config.db || ids.length === 0) {
+    if (!config.db) {
+      if (options.strict) {
+        throw new Error('ERP nao configurado.');
+      }
+      return { items: [], summary: emptySummary };
+    }
+    if (ids.length === 0) {
       return { items: [], summary: emptySummary };
     }
 
@@ -1203,13 +1271,19 @@ export class ErpSyncService {
     }>;
     try {
       const pool = this.getPool(config.db);
-      const result = await pool.query(RENEGOTIATION_HISTORY_QUERY, [ids]);
+      const result = await pool.query<(typeof rows)[number]>(
+        RENEGOTIATION_HISTORY_QUERY,
+        [ids],
+      );
       rows = result.rows;
     } catch (error) {
       this.logger.error(
         'Falha ao buscar historico de renegociacoes no ERP.',
         error instanceof Error ? error.stack : String(error),
       );
+      if (options.strict) {
+        throw error;
+      }
       return { items: [], summary: emptySummary };
     }
 

@@ -40,7 +40,7 @@ export const dashboardMetrics: DashboardMetric[] = [
   },
   {
     key: 'recoveredMonth',
-    title: 'Recuperados no mês',
+    title: 'Retidos no mês',
     value: formatCurrencyBRL(48320.9),
     description: 'Valor efetivamente recuperado com confirmação de pagamento.',
     variant: 'success',
@@ -70,7 +70,7 @@ export const dashboardMetrics: DashboardMetric[] = [
 
 export const operationalSummary: OperationalSummaryItem[] = [
   {
-    label: 'Recuperados no mês',
+    label: 'Retidos no mês',
     value: formatCurrencyBRL(48320.9),
     helperText: 'Receita recuperada no ciclo atual da operação.',
   },

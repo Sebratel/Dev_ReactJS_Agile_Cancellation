@@ -2,7 +2,8 @@ export type CollectionCasesSortBy =
   | 'daysOverdue'
   | 'totalOutstanding'
   | 'slaDueAt'
-  | 'createdAt';
+  | 'createdAt'
+  | 'lastContactAt';
 
 export type CollectionCasesSortDirection = 'asc' | 'desc';
 
@@ -23,6 +24,7 @@ export type CollectionCaseListItemResponse = {
   id: string;
   customerName: string;
   customerPhone: string | null;
+  customerPhone2: string | null;
   contractCode: string;
   contractStatus: string;
   contractErpStatus: string | null;
@@ -36,6 +38,7 @@ export type CollectionCaseListItemResponse = {
   outstandingAmount: string;
   totalAttempts: number;
   assignedTo: CollectionCaseAssigneeSummary | null;
+  assignedAt: string | null;
   slaDueAt: string | null;
   matrixAwaitingReply: boolean;
   matrixLastOutboundAt: string | null;
@@ -75,6 +78,7 @@ export type CollectionCaseCustomerSummary = {
   name: string;
   document: string;
   phone: string | null;
+  phone2: string | null;
 };
 
 export type CollectionCaseContractSummary = {
@@ -210,6 +214,11 @@ export type CollectionCasePortfolioSummary = {
 
 export type CollectionCasesStatusSummaryResponse = {
   byStatus: Record<string, number>;
+};
+
+export type CollectionCasesIntakeSummaryResponse = {
+  today: number;
+  yesterday: number;
 };
 
 export type CollectionCasePortfoliosResponse = {
@@ -392,6 +401,8 @@ export type CollectionCasesListParams = {
   totalOutstandingMax?: number;
   firstDueDate?: string;
   secondDueDate?: string;
+  assignedFrom?: string;
+  assignedTo?: string;
   slaStatus?: CollectionCasesSlaStatus;
   createdToday?: boolean;
   interactionStatus?: 'none' | 'contacted' | 'not_contacted';

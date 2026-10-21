@@ -4,6 +4,7 @@ export type CollectionCaseListItemResponse = {
   id: string;
   customerName: string;
   customerPhone: string | null;
+  customerPhone2: string | null;
   contractCode: string;
   contractStatus: string;
   // Status bruto do ERP (v_status do Elleven), para exibicao fiel.
@@ -19,6 +20,9 @@ export type CollectionCaseListItemResponse = {
   outstandingAmount: string;
   totalAttempts: number;
   assignedTo: CollectionCaseAssigneeSummary | null;
+  // Data em que o caso foi atribuido ao responsavel atual (ISO) — null quando
+  // sem responsavel. Alimenta a coluna/tooltip "atribuido em" e o filtro.
+  assignedAt: string | null;
   slaDueAt: string | null;
   matrixAwaitingReply: boolean;
   matrixLastOutboundAt: string | null;

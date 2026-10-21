@@ -17,6 +17,11 @@ import {
 } from '@/common/cancellation-reason';
 import { formatDecimal } from '@/common/utils/decimal.util';
 import { PrismaService } from '@/database/prisma/prisma.service';
+import {
+  countContactedInCycleByAgent,
+  findStaleContactCaseIds,
+  PORTFOLIO_ACTIVE_STATUSES,
+} from '@/modules/collection-cases/utils/portfolio-cases.util';
 import type { CollectionCaseDetailsResponse } from '@/modules/collection-cases/dto/collection-case-details.response';
 import type { CollectionCaseListItemResponse } from '@/modules/collection-cases/dto/collection-case-list-item.response';
 import {
@@ -42,12 +47,15 @@ import type {
   AutoDistributeCasesResult,
   BulkAssignCasesParams,
   BulkAssignCasesResult,
+  CollectionCaseIntakeSummary,
   CollectionCasesListParams,
   CollectionCasesRepository,
   CreateCollectionAttemptParams,
   CreatePaymentPromiseParams,
   RecordWhatsAppContactIntegrationParams,
   RecordWhatsAppContactIntegrationResult,
+  RecoverCancelledParams,
+  RecoverCancelledResult,
   RevertCancellationParams,
   RevertCancellationResult,
   SendToCancellationParams,
@@ -114,22 +122,26 @@ type CollectionCaseWithRelations = Prisma.CollectionCaseGetPayload<{
   include: typeof collectionCaseDetailsInclude;
 }>;
 
-type MatrixTrackingFields = {
-  matrixAttendanceCode?: string | null;
-  matrixMessageCode?: string | null;
-  matrixAwaitingReply?: boolean;
-  matrixLastOutboundAt?: Date | null;
-  matrixLastReplyAt?: Date | null;
-};
-
 @Injectable()
 export class CollectionCasesPrismaRepository implements CollectionCasesRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  // So consulta quando o filtro de contato esta ativo (definicao unica de
+  // "contatado": dentro do ciclo atual).
+  private async resolveStaleContactCaseIds(
+    params: CollectionCasesListParams,
+  ): Promise<string[]> {
+    return params.interactionStatus
+      ? findStaleContactCaseIds(this.prisma)
+      : [];
+  }
+
   async listCases(params: CollectionCasesListParams) {
     const normalized = normalizeListParams(params);
     const skip = (normalized.page - 1) * normalized.limit;
-    const where = buildCollectionCasesWhere(normalized);
+    const where = buildCollectionCasesWhere(normalized, new Date(), {
+      staleContactCaseIds: await this.resolveStaleContactCaseIds(normalized),
+    });
     const orderBy = buildCollectionCasesOrderBy(normalized);
     const now = new Date();
 
@@ -154,7 +166,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
         take: normalized.limit,
         orderBy,
         include: {
-          customer: { select: { name: true, phone: true } },
+          customer: { select: { name: true, phone: true, phone2: true } },
           contract: {
             select: {
               code: true,
@@ -186,12 +198,13 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
     ]);
 
     const items: CollectionCaseListItemResponse[] = records.map((record) => {
-      const matrix = record as typeof record & MatrixTrackingFields;
+      const matrix = record;
 
       return {
         id: record.id,
         customerName: record.customer.name,
         customerPhone: record.customer.phone,
+        customerPhone2: record.customer.phone2,
         contractCode: record.contract.code,
         contractStatus: record.contract.status,
         contractErpStatus: record.contract.erpStatus,
@@ -213,6 +226,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
         assignedTo: record.assignedUser
           ? { id: record.assignedUser.id, name: record.assignedUser.name }
           : null,
+        assignedAt: record.assignedAt?.toISOString() ?? null,
         slaDueAt: record.slaDueAt?.toISOString() ?? null,
         matrixAwaitingReply: matrix.matrixAwaitingReply ?? false,
         matrixLastOutboundAt:
@@ -280,7 +294,9 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
   // BULK_CONTACT_MAX_CASES.
   async listCaseIds(params: CollectionCasesListParams): Promise<string[]> {
     const normalized = normalizeListParams(params);
-    const where = buildCollectionCasesWhere(normalized);
+    const where = buildCollectionCasesWhere(normalized, new Date(), {
+      staleContactCaseIds: await this.resolveStaleContactCaseIds(normalized),
+    });
     const now = new Date();
 
     const dueDateFilteredIds = await this.resolveDueDateFilteredIds(
@@ -318,6 +334,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
     const baseWhere = buildCollectionCasesWhere(
       { ...normalized, firstDueDate: undefined, secondDueDate: undefined },
       now,
+      { staleContactCaseIds: await this.resolveStaleContactCaseIds(normalized) },
     );
 
     const candidates = await this.prisma.collectionCase.findMany({
@@ -378,22 +395,11 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
     };
   }
 
-  // Casos considerados "em carteira" (ativos) — mesma regra da distribuicao e
-  // do workload (ver users.service.ts): exclui CLOSED/RECOVERED e triagem ja
-  // finalizada.
-  private static readonly PORTFOLIO_ACTIVE_STATUSES: CollectionStatus[] = [
-    CollectionStatus.WAITING_TRIAGE,
-    CollectionStatus.IN_COLLECTION,
-    CollectionStatus.NO_RESPONSE,
-    CollectionStatus.ELIGIBLE_FOR_CANCELLATION,
-    CollectionStatus.CANCELLATION_IN_PROGRESS,
-  ];
-
   async getPortfolios(): Promise<CollectionCasePortfoliosResponse> {
     const now = new Date();
     const activeStatus = {
       status: {
-        in: CollectionCasesPrismaRepository.PORTFOLIO_ACTIVE_STATUSES,
+        in: PORTFOLIO_ACTIVE_STATUSES,
       },
     } satisfies Prisma.CollectionCaseWhereInput;
 
@@ -401,9 +407,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
       totals,
       slaOverdue,
       awaitingReply,
-      noManualInteraction,
-      assignedTotals,
-      interactedTotals,
+      interactedMap,
     ] = await Promise.all([
       this.prisma.collectionCase.groupBy({
         by: ['assignedUserId'],
@@ -421,26 +425,9 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
         where: { ...activeStatus, matrixAwaitingReply: true },
         _count: { _all: true },
       }),
-      this.prisma.collectionCase.groupBy({
-        by: ['assignedUserId'],
-        where: {
-          ...activeStatus,
-          // Sem nenhuma tentativa manual — so a automatica inicial existe.
-          collectionAttempts: { none: { isAutomatic: false } },
-        },
-        _count: { _all: true },
-      }),
-      // Total atribuido ao atendente em QUALQUER status (inclui finalizados).
-      this.prisma.collectionCase.groupBy({
-        by: ['assignedUserId'],
-        _count: { _all: true },
-      }),
-      // Casos atribuidos com ao menos um contato manual do atendente.
-      this.prisma.collectionCase.groupBy({
-        by: ['assignedUserId'],
-        where: { collectionAttempts: { some: { isAutomatic: false } } },
-        _count: { _all: true },
-      }),
+      // Contatados: ativos com contato manual no ciclo atual (SQL — compara
+      // attemptedAt com o cycleStartedAt do proprio caso).
+      countContactedInCycleByAgent(this.prisma),
     ]);
 
     const countByUser = (
@@ -455,9 +442,6 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
 
     const slaMap = countByUser(slaOverdue);
     const replyMap = countByUser(awaitingReply);
-    const noInteractionMap = countByUser(noManualInteraction);
-    const assignedMap = countByUser(assignedTotals);
-    const interactedMap = countByUser(interactedTotals);
 
     // Nomes/avatares dos atendentes que possuem casos ativos atribuidos.
     const assignedUserIds = totals
@@ -483,11 +467,13 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
           ? { id: user.id, name: user.name, avatarUrl: user.avatarUrl }
           : null,
         totalActive: row._count._all,
-        totalAssigned: assignedMap.get(row.assignedUserId) ?? row._count._all,
+        totalAssigned: row._count._all,
         interacted: interactedMap.get(row.assignedUserId) ?? 0,
         slaOverdue: slaMap.get(row.assignedUserId) ?? 0,
         awaitingReply: replyMap.get(row.assignedUserId) ?? 0,
-        noManualInteraction: noInteractionMap.get(row.assignedUserId) ?? 0,
+        // Mesma definicao do anel: ativos - contatados no ciclo (soma = total).
+        noManualInteraction:
+          row._count._all - (interactedMap.get(row.assignedUserId) ?? 0),
         totalOutstanding: formatDecimal(row._sum.outstandingAmount),
       };
     });
@@ -509,6 +495,25 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
     return byStatus;
   }
 
+  async getIntakeSummary(now: Date = new Date()): Promise<CollectionCaseIntakeSummary> {
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+    const tomorrowStart = new Date(todayStart);
+    tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+    const yesterdayStart = new Date(todayStart);
+    yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+
+    const [today, yesterday] = await Promise.all([
+      this.prisma.collectionCase.count({
+        where: { createdAt: { gte: todayStart, lt: tomorrowStart } },
+      }),
+      this.prisma.collectionCase.count({
+        where: { createdAt: { gte: yesterdayStart, lt: todayStart } },
+      }),
+    ]);
+
+    return { today, yesterday };
+  }
 
   async getCaseById(id: string) {
     const record = await this.prisma.collectionCase.findUnique({
@@ -683,6 +688,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
         data: {
           status: CollectionStatus.CANCELLATION_IN_PROGRESS,
           assignedUserId: input.assignedUserId,
+          assignedAt: now,
           updatedAt: now,
         },
       });
@@ -777,6 +783,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
           status: CollectionStatus.IN_COLLECTION,
           recoveredAt: null,
           assignedUserId,
+          assignedAt: now,
           updatedAt: now,
         },
       });
@@ -971,7 +978,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
               }
             : {}),
           updatedAt: now,
-        } as Prisma.CollectionCaseUncheckedUpdateInput,
+        },
       });
 
       const integrationEvent = await tx.integrationEvent.create({
@@ -1233,7 +1240,10 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
     await this.prisma.$transaction(async (tx) => {
       await tx.collectionCase.update({
         where: { id: caseId },
-        data: { assignedUserId, updatedAt: now },
+        // assignedAt acompanha o responsavel: data da atribuicao quando ha
+        // responsavel, null ao remover (para o filtro por data nao casar casos
+        // sem dono).
+        data: { assignedUserId, assignedAt: assignedUserId ? now : null, updatedAt: now },
       });
 
       await tx.auditLog.create({
@@ -1300,7 +1310,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
     await this.prisma.$transaction([
       this.prisma.collectionCase.updateMany({
         where: { id: { in: validIds } },
-        data: { assignedUserId, updatedAt: now },
+        data: { assignedUserId, assignedAt: assignedUserId ? now : null, updatedAt: now },
       }),
       ...validIds.map((id) =>
         this.prisma.auditLog.create({
@@ -1318,6 +1328,77 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
     ]);
 
     return { assigned: validIds.length, skipped: caseIds.length - validIds.length };
+  }
+
+  async recoverCancelled({
+    caseId,
+    performedByUserId,
+  }: RecoverCancelledParams): Promise<RecoverCancelledResult> {
+    const existingCase = await this.prisma.collectionCase.findUnique({
+      where: { id: caseId },
+      include: { collectionAttempts: { select: { id: true, isAutomatic: true } } },
+    });
+
+    if (!existingCase) {
+      return { outcome: 'case_not_found' };
+    }
+
+    if (existingCase.status !== CollectionStatus.CLOSED) {
+      return { outcome: 'status_not_allowed', currentStatus: existingCase.status };
+    }
+
+    const hasManualAttempt = existingCase.collectionAttempts.some(
+      (a) => !a.isAutomatic,
+    );
+
+    if (!hasManualAttempt) {
+      return { outcome: 'no_manual_attempt' };
+    }
+
+    const now = new Date();
+
+    const beforeSnapshot: Prisma.InputJsonValue = {
+      status: existingCase.status,
+      recoveredAt: existingCase.recoveredAt?.toISOString() ?? null,
+    };
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.collectionCase.update({
+        where: { id: caseId },
+        data: {
+          status: CollectionStatus.RECOVERED,
+          recoveredAt: now,
+          updatedAt: now,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          entityType: 'COLLECTION_CASE',
+          entityId: caseId,
+          action: AuditAction.STATUS_CHANGE,
+          performedByUserId,
+          beforeSnapshot,
+          afterSnapshot: {
+            status: CollectionStatus.RECOVERED,
+            recoveredAt: now.toISOString(),
+          },
+          metadata: {
+            resourceType: 'COLLECTION_CASE',
+            action: 'RECOVER_CANCELLED',
+            description: 'Cliente cancelado recuperado',
+          },
+        },
+      });
+    });
+
+    const details = await this.getCaseById(caseId);
+
+    if (!details) {
+      return { outcome: 'case_not_found' };
+    }
+
+    return { outcome: 'success', case: details };
   }
 
   async autoDistributeCases({
@@ -1369,7 +1450,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
       ...Array.from(byAgent.entries()).map(([agentId, ids]) =>
         this.prisma.collectionCase.updateMany({
           where: { id: { in: ids } },
-          data: { assignedUserId: agentId, updatedAt: now },
+          data: { assignedUserId: agentId, assignedAt: now, updatedAt: now },
         }),
       ),
       ...assignments.map(({ caseId, agentId }) =>
@@ -1393,7 +1474,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
   private mapDetails(
     record: CollectionCaseWithRelations,
   ): CollectionCaseDetailsResponse {
-    const matrix = record as CollectionCaseWithRelations & MatrixTrackingFields;
+    const matrix = record;
     const attempts = record.collectionAttempts.map((attempt) => ({
       id: attempt.id,
       channel: attempt.channel,
@@ -1457,6 +1538,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
         name: record.customer.name,
         document: record.customer.document,
         phone: record.customer.phone,
+        phone2: record.customer.phone2,
       },
       contract: {
         id: record.contract.id,

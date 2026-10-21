@@ -8,7 +8,8 @@ import { type PreCollectionListResponse } from '@/features/pre-collection/types/
 const usePreCollection = vi.fn();
 
 vi.mock('@/features/pre-collection/hooks/use-pre-collection', () => ({
-  usePreCollection: (daysWindow: number) => usePreCollection(daysWindow),
+  usePreCollection: (daysWindow: number): unknown =>
+    usePreCollection(daysWindow),
 }));
 
 function buildData(

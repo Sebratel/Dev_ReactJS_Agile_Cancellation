@@ -1,4 +1,5 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { isDevLoginEnabled } from '@/modules/auth/utils/dev-login.util';
 import { JwtService } from '@nestjs/jwt';
 import { UserStatus } from '@prisma/client';
 import { MOCK_AUTH_USER_DEFINITIONS } from '@/modules/auth/mocks/mock-auth-users';
@@ -41,9 +42,9 @@ export class AuthService {
   ) {}
 
   async devLogin(email: string) {
-    if (process.env.NODE_ENV === 'production') {
+    if (!isDevLoginEnabled()) {
       throw new AppException(
-        'Não disponível em produção.',
+        'Não disponível neste ambiente.',
         HttpStatus.FORBIDDEN,
       );
     }
@@ -211,7 +212,7 @@ export class AuthService {
   async refresh(dto: RefreshTokenDto) {
     if (
       dto.refreshToken.startsWith('dev:') &&
-      (process.env.NODE_ENV !== 'production' || this.isMockGoogleAuthMode())
+      isDevLoginEnabled()
     ) {
       const userId = dto.refreshToken.slice(4);
 
@@ -287,7 +288,7 @@ export class AuthService {
   ): Promise<AuthenticatedUser | null> {
     if (
       payload.devSession &&
-      (process.env.NODE_ENV !== 'production' || this.isMockGoogleAuthMode())
+      isDevLoginEnabled()
     ) {
       const dbUser = await this.authRepository
         .findByEmail(payload.email)
@@ -426,7 +427,8 @@ export class AuthService {
     };
   }
 
+  // Mock so existe com a lista de permissao de dev (ver dev-login.util).
   private isMockGoogleAuthMode(): boolean {
-    return process.env.GOOGLE_AUTH_MODE === 'mock';
+    return isDevLoginEnabled() && process.env.GOOGLE_AUTH_MODE === 'mock';
   }
 }

@@ -42,7 +42,7 @@ describe('useOverdueDateSummary', () => {
     expect(getOverdueDateSummary).toHaveBeenCalledWith(
       expect.objectContaining({ contractStatus: 'ACTIVE' }),
     );
-    const calledWith = vi.mocked(getOverdueDateSummary).mock.calls[0]![0];
+    const calledWith = vi.mocked(getOverdueDateSummary).mock.calls[0][0];
     expect(calledWith?.page).toBeUndefined();
     expect(calledWith?.sortBy).toBeUndefined();
     expect(result.current.data?.firstDueDates).toHaveLength(1);

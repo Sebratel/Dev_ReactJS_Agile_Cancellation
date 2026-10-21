@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { BulkContactWhatsAppAction } from '@/features/collection-cases/components/bulk-contact-whatsapp-action';
+import {
+  BulkContactWhatsAppAction,
+  type BulkCaseInfo,
+} from '@/features/collection-cases/components/bulk-contact-whatsapp-action';
 import { BulkSendToCancellationAction } from '@/features/collection-cases/components/bulk-send-to-cancellation-action';
 import {
   BulkAssigneePicker,
@@ -12,6 +15,7 @@ import { type UserResponse } from '@/features/users/types/users-api.types';
 type BulkActionBarProps = {
   selectedCount: number;
   selectedCaseIds: string[];
+  selectedCasesInfo?: BulkCaseInfo[];
   agents: UserResponse[];
   workload?: Record<string, number>;
   onBulkAssign: (assignedUserId: string | null) => void;
@@ -22,6 +26,7 @@ type BulkActionBarProps = {
 export function BulkActionBar({
   selectedCount,
   selectedCaseIds,
+  selectedCasesInfo,
   agents,
   workload,
   onBulkAssign,
@@ -66,6 +71,7 @@ export function BulkActionBar({
         <div className="shrink-0">
           <BulkContactWhatsAppAction
             caseIds={selectedCaseIds}
+            cases={selectedCasesInfo}
             onFinished={onClearSelection}
           />
         </div>

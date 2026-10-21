@@ -1,4 +1,5 @@
-import { ConfigService } from '@nestjs/config';
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/require-await -- matchers do jest (expect.*) e mocks tipados como any */
+import type { ConfigService } from '@nestjs/config';
 import { MatrixWhatsappContactService } from '@/modules/collection-cases/services/matrix-whatsapp-contact.service';
 
 function createService() {
@@ -41,7 +42,7 @@ describe('MatrixWhatsappContactService', () => {
           codError: 13,
           statusCode: 400,
         }),
-    }) as unknown as typeof fetch;
+    });
 
     const service = createService();
 
@@ -55,7 +56,7 @@ describe('MatrixWhatsappContactService', () => {
       ok: false,
       status: 502,
       text: async () => JSON.stringify({ success: false }),
-    }) as unknown as typeof fetch;
+    });
 
     const service = createService();
 
@@ -73,7 +74,7 @@ describe('MatrixWhatsappContactService', () => {
           success: true,
           matrixResponse: { cod_atendimento: 55, cod_mensagem: 77 },
         }),
-    }) as unknown as typeof fetch;
+    });
 
     const service = createService();
     const result = await service.sendHsm(payload);

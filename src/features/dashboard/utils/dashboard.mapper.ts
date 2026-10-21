@@ -42,7 +42,7 @@ const metricDefinitions: Array<{
   {
     key: 'openAmount',
     title: 'Valor em aberto',
-    description: 'Montante consolidado aguardando regularização.',
+    description: 'Soma dos casos ativos aguardando regularização.',
     variant: 'neutral',
     emphasis: 'primary',
     format: (value) => formatCurrencyFromDecimalString(String(value)),
@@ -78,7 +78,7 @@ const metricDefinitions: Array<{
   {
     key: 'delinquentCustomers',
     title: 'Clientes inadimplentes',
-    description: 'Carteira ativa com atraso superior a dois meses.',
+    description: 'Clientes distintos com caso ativo em atraso.',
     variant: 'neutral',
     format: (value) => formatInteger(Number(value)),
   },
@@ -91,7 +91,7 @@ const metricDefinitions: Array<{
   },
   {
     key: 'recoveredMonth',
-    title: 'Recuperados no mês',
+    title: 'Retidos no mês',
     description: 'Valor efetivamente recuperado com confirmação de pagamento.',
     variant: 'success',
     format: (value) => formatCurrencyFromDecimalString(String(value)),
@@ -116,7 +116,7 @@ export function mapDashboardSummaryToOperationalSummary(
 ): OperationalSummaryItem[] {
   return [
     {
-      label: 'Recuperados no mês',
+      label: 'Retidos no mês',
       value: formatCurrencyFromDecimalString(
         String(summary.metrics.recoveredMonth),
       ),
@@ -147,6 +147,7 @@ export function mapDashboardSummaryToStatusDistribution(
     label: item.label,
     count: item.count,
     variant: getCollectionStatusVariant(item.status),
+    group: item.group,
   }));
 }
 
@@ -168,7 +169,8 @@ export function mapDashboardSummaryToAlerts(
     title: alert.title,
     description: alert.description,
     count: alert.count,
-    variant: getAlertVariant(alert.key),
+    variant: alert.notice ? 'neutral' : getAlertVariant(alert.key),
+    notice: alert.notice,
     supervisionHref: getOperationalAlertSupervisionHref(alert.key),
   }));
 }
@@ -262,15 +264,19 @@ export function mapDashboardOperationsToGroups(
           key: 'casesWithoutInteraction',
           label: 'Sem interação',
           value: formatInteger(operations.collection.casesWithoutInteraction),
-          description: 'Casos sem tentativa de contato registrada.',
+          description: 'Casos ativos sem contato manual no ciclo atual.',
           variant: 'danger',
         },
         {
           key: 'overdueSlaCases',
           label: 'SLA vencido',
-          value: formatInteger(operations.collection.overdueSlaCases),
-          description: 'Itens fora do prazo operacional definido.',
-          variant: 'danger',
+          value: operations.collection.slaConfigured
+            ? formatInteger(operations.collection.overdueSlaCases)
+            : 'Não configurado',
+          description: operations.collection.slaConfigured
+            ? 'Itens fora do prazo operacional definido.'
+            : 'Nenhum caso ativo tem prazo de SLA definido.',
+          variant: operations.collection.slaConfigured ? 'danger' : 'neutral',
         },
       ]),
     },

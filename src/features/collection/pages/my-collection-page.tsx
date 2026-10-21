@@ -1,4 +1,4 @@
-import { ArrowRight, BookUser } from 'lucide-react';
+import { ArrowRight, BookUser, ArrowUpDown } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { MetricCard } from '@/components/data-display/metric-card';
@@ -24,6 +24,10 @@ import { useAuth } from '@/features/auth/auth-context';
 import { ContactCustomerWhatsAppAction } from '@/features/collection-cases/components/contact-customer-whatsapp-action';
 import { CollectionCaseSnapshotStrip } from '@/features/collection-cases/components/collection-case-snapshot-strip';
 import { useCollectionCases } from '@/features/collection-cases/hooks/use-collection-cases';
+import type {
+  CollectionCasesSortBy,
+  CollectionCasesSortDirection,
+} from '@/features/collection-cases/types/collection-cases-api.types';
 import {
   getCollectionStatusLabel,
   getCollectionStatusVariant,
@@ -37,6 +41,12 @@ import {
 } from '@/utils/formatters';
 
 const PAGE_SIZE = 10;
+
+const SORT_OPTIONS: { key: CollectionCasesSortBy; label: string }[] = [
+  { key: 'daysOverdue', label: 'Dias em atraso' },
+  { key: 'lastContactAt', label: 'Último contato' },
+  { key: 'totalOutstanding', label: 'Valor em aberto' },
+];
 
 const SEGMENTS = [
   { key: 'all', label: 'Todos' },
@@ -59,15 +69,28 @@ export default function MyCollectionPage() {
   const [segment, setSegment] = useState<SegmentKey>(
     isSegmentKey(initialSegment) ? initialSegment : 'all',
   );
+  const [sortBy, setSortBy] = useState<CollectionCasesSortBy>('daysOverdue');
+  const [sortDirection, setSortDirection] =
+    useState<CollectionCasesSortDirection>('desc');
 
   const casesQuery = useCollectionCases({
     page,
     limit: PAGE_SIZE,
     assignedToId: userId,
     interactionStatus: segment === 'all' ? undefined : segment,
-    sortBy: 'daysOverdue',
-    sortDirection: 'desc',
+    sortBy,
+    sortDirection,
   });
+
+  const handleSortChange = (next: CollectionCasesSortBy) => {
+    if (next === sortBy) {
+      setSortDirection((d) => (d === 'desc' ? 'asc' : 'desc'));
+    } else {
+      setSortBy(next);
+      setSortDirection('desc');
+    }
+    setPage(1);
+  };
 
   const handleSegmentChange = (next: SegmentKey) => {
     setSegment(next);
@@ -117,6 +140,34 @@ export default function MyCollectionPage() {
               )}
             >
               {option.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="flex items-center gap-1 text-xs text-neutral">
+          <ArrowUpDown className="h-3.5 w-3.5" />
+          Ordenar por
+        </span>
+        {SORT_OPTIONS.map((opt) => {
+          const active = sortBy === opt.key;
+          const arrow =
+            active ? (sortDirection === 'desc' ? ' ↓' : ' ↑') : '';
+          return (
+            <button
+              key={opt.key}
+              type="button"
+              onClick={() => handleSortChange(opt.key)}
+              className={cn(
+                'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
+                active
+                  ? 'border-primary bg-primary/10 text-foreground'
+                  : 'border-border bg-card text-neutral hover:border-primary/40 hover:text-foreground',
+              )}
+            >
+              {opt.label}
+              {arrow}
             </button>
           );
         })}

@@ -75,8 +75,8 @@ describe('Collection cases (e2e)', () => {
     expect(body.data.pagination).toEqual({
       page: 2,
       limit: 10,
-      total: 42,
-      totalPages: 5,
+      total: 35,
+      totalPages: 4,
     });
     expect(body.data.items[0]?.id).toMatch(/^case_/);
   });

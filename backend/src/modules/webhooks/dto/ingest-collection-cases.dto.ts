@@ -44,6 +44,11 @@ export class IngestCustomerDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(32)
+  phone2?: string;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(128)
   externalId?: string;
 }

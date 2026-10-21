@@ -8,7 +8,7 @@ const STATUS_LABELS: Record<string, string> = {
   ELIGIBLE_FOR_CANCELLATION: 'Elegível para cancelamento',
   CANCELLATION_IN_PROGRESS: 'Cancelamento em andamento',
   CLOSED: 'Encerrado',
-  RECOVERED: 'Recuperado',
+  RECOVERED: 'Retido',
   PAYMENT_MADE: 'Pagamento realizado',
   RENEGOTIATED: 'Renegociado',
 };

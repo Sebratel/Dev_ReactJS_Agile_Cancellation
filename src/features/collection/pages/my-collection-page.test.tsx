@@ -33,6 +33,7 @@ const page = {
       outstandingAmount: '12890.55',
       totalAttempts: 1,
       assignedTo: { id: 'usr_marina', name: 'Marina Lopes' },
+      assignedAt: null,
       slaDueAt: null,
       matrixAwaitingReply: false,
       matrixLastOutboundAt: null,

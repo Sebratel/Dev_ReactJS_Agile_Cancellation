@@ -192,6 +192,7 @@ model Customer {
   document   String   @unique
   email      String?
   phone      String?
+  phone2     String?
   externalId String?  @unique
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -269,6 +270,10 @@ model CollectionCase {
   externalId           String?          @unique
   slaDueAt             DateTime?
   recoveredAt          DateTime?
+  // Momento em que o caso foi atribuido ao responsavel atual (assignedUserId).
+  // Setado a cada atribuicao/redistribuicao e zerado ao remover o responsavel.
+  // Usado pelo filtro "por data de atribuicao" na supervisao.
+  assignedAt           DateTime?
   // Inicio do ciclo de cobranca atual. Setado na criacao e a cada reabertura
   // (contrato finalizado que volta a ficar elegivel). Usado para classificar
   // Recuperado x Pagamento realizado olhando so as tentativas do ciclo atual.
@@ -297,6 +302,7 @@ model CollectionCase {
   @@index([daysOverdue])
   @@index([slaDueAt])
   @@index([recoveredAt])
+  @@index([assignedAt])
   @@index([matrixAwaitingReply])
   @@index([matrixLastOutboundAt])
   @@index([matrixLastReplyAt])

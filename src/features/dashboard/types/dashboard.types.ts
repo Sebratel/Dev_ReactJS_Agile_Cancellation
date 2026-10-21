@@ -27,6 +27,7 @@ export type StatusDistributionItem = {
   label: string;
   count: number;
   variant: StatusVariant;
+  group?: 'portfolio' | 'history';
 };
 
 export type RecoveryTrendItem = {
@@ -41,6 +42,7 @@ export type OperationalAlert = {
   description: string;
   count: number;
   variant: StatusVariant;
+  notice?: string;
   supervisionHref?: string;
 };
 

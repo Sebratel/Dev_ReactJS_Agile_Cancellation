@@ -34,6 +34,7 @@ describe('DashboardService', () => {
       getSummary,
       getOperations,
       getRecoveryRanking,
+      getCancellationReasons: jest.fn(),
     };
 
     const service = new DashboardService(repository);
@@ -52,6 +53,7 @@ describe('DashboardService', () => {
       getSummary,
       getOperations,
       getRecoveryRanking,
+      getCancellationReasons: jest.fn(),
     };
 
     const service = new DashboardService(repository);
@@ -70,6 +72,7 @@ describe('DashboardService', () => {
       getSummary,
       getOperations,
       getRecoveryRanking,
+      getCancellationReasons: jest.fn(),
     };
 
     const service = new DashboardService(repository);
@@ -100,6 +103,7 @@ describe('DashboardService', () => {
       getSummary,
       getOperations,
       getRecoveryRanking,
+      getCancellationReasons: jest.fn(),
     };
 
     const service = new DashboardService(repository);

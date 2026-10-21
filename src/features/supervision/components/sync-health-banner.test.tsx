@@ -5,7 +5,7 @@ import { SyncHealthBanner } from '@/features/supervision/components/sync-health-
 const useSyncHealth = vi.fn();
 
 vi.mock('@/features/integrations/hooks/use-integration-events', () => ({
-  useSyncHealth: () => useSyncHealth(),
+  useSyncHealth: (): unknown => useSyncHealth(),
 }));
 
 function mockData(overrides: Record<string, unknown> = {}) {

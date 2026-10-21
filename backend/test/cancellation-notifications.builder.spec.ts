@@ -25,7 +25,7 @@ describe('buildCancellationNotifications', () => {
     expect(result.supervisorSummary).toBeNull();
   });
 
-  it('1 caso → título no singular', () => {
+  it('1 caso → resumo identifica o cliente e aponta o caso', () => {
     const result = buildCancellationNotifications([
       {
         caseId: 'c1',
@@ -33,6 +33,8 @@ describe('buildCancellationNotifications', () => {
         assignedUser: { id: 'u1', name: 'Ana', email: null },
       },
     ]);
-    expect(result.supervisorSummary?.title).toBe('1 cliente cancelou o contrato');
+    expect(result.supervisorSummary?.title).toBe('Cliente Único cancelou o contrato');
+    expect(result.supervisorSummary?.body).toContain('Cliente Único');
+    expect(result.supervisorSummary?.entityId).toBe('c1');
   });
 });

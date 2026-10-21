@@ -20,31 +20,37 @@ export const mockDashboardSummary: DashboardSummaryResponse = {
       status: 'WAITING_TRIAGE',
       label: 'Aguardando triagem',
       count: 18,
+      group: 'portfolio',
     },
     {
       status: 'IN_COLLECTION',
       label: 'Em cobranca',
       count: 76,
+      group: 'portfolio',
     },
     {
       status: 'AWAITING_PAYMENT',
       label: 'Aguardando pagamento',
       count: 34,
+      group: 'portfolio',
     },
     {
       status: 'NO_RESPONSE',
       label: 'Sem resposta',
       count: 22,
+      group: 'portfolio',
     },
     {
       status: 'ELIGIBLE_FOR_CANCELLATION',
       label: 'Elegivel para cancelamento',
       count: 21,
+      group: 'portfolio',
     },
     {
       status: 'CANCELLATION_IN_PROGRESS',
       label: 'Cancelamento em andamento',
       count: 15,
+      group: 'portfolio',
     },
   ],
   recoveryTrend: [
@@ -124,6 +130,7 @@ export const mockDashboardOperations: DashboardOperationsResponse = {
     newCasesToday: 4,
     casesWithoutInteraction: 12,
     overdueSlaCases: 7,
+    slaConfigured: true,
   },
   promises: {
     activePromises: 34,

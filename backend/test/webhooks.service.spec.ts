@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/unbound-method -- matchers do jest (expect.*) e mocks tipados como any */
 import { WebhooksService } from '@/modules/webhooks/webhooks.service';
 import { WebhooksMockRepository } from '@/modules/webhooks/repositories/webhooks-mock.repository';
 import type { IngestCollectionCasesDto } from '@/modules/webhooks/dto/ingest-collection-cases.dto';

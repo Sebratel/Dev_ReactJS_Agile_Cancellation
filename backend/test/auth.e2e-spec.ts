@@ -14,6 +14,7 @@ import {
   loginAsCancellationAgent,
   loginAsCollectionAgent,
   loginAsFinance,
+  loginAsSupervisor,
   loginAsViewer,
   mockGoogleIdToken,
 } from './helpers/auth-test.helper';
@@ -26,6 +27,19 @@ type ApiEnvelope<TData> = {
   data: TData;
   timestamp: string;
 };
+
+// Atendente so age em caso atribuido a ele: o supervisor atribui antes.
+async function assignCaseToCollectionAgent(
+  httpServer: Parameters<typeof request>[0],
+) {
+  const supervisor = await loginAsSupervisor(httpServer);
+
+  await request(httpServer)
+    .patch('/collection-cases/case_0001/assign')
+    .set(authHeader(supervisor.accessToken))
+    .send({ assignedUserId: 'user-collection' })
+    .expect(200);
+}
 
 describe('Auth (e2e)', () => {
   let app: INestApplication;
@@ -212,9 +226,21 @@ describe('Auth (e2e)', () => {
       .expect(403);
   });
 
+  it('POST attempts em caso de outro atendente retorna 403', async () => {
+    const httpServer = app.getHttpServer() as Parameters<typeof request>[0];
+    const agent = await loginAsCollectionAgent(httpServer);
+
+    await request(httpServer)
+      .post('/collection-cases/case_0001/attempts')
+      .set(authHeader(agent.accessToken))
+      .send({ channel: 'EMAIL', result: 'CONTACTED' })
+      .expect(403);
+  });
+
   it('POST attempts usa usuario autenticado no AuditLog', async () => {
     const httpServer = app.getHttpServer() as Parameters<typeof request>[0];
     const agent = await loginAsCollectionAgent(httpServer);
+    await assignCaseToCollectionAgent(httpServer);
 
     await request(httpServer)
       .post('/collection-cases/case_0001/attempts')
@@ -332,6 +358,7 @@ describe('Auth attempts response (e2e)', () => {
   it('POST attempts retorna payload da tentativa', async () => {
     const httpServer = app.getHttpServer() as Parameters<typeof request>[0];
     const agent = await loginAsCollectionAgent(httpServer);
+    await assignCaseToCollectionAgent(httpServer);
 
     const response = await request(httpServer)
       .post('/collection-cases/case_0001/attempts')

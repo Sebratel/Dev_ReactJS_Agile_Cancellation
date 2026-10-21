@@ -7,6 +7,7 @@ import {
   type Prisma,
 } from '@prisma/client';
 import type { CollectionCaseListItemResponse } from '@/modules/collection-cases/dto/collection-case-list-item.response';
+import { PORTFOLIO_ACTIVE_STATUSES } from '@/modules/collection-cases/utils/portfolio-cases.util';
 import type {
   CollectionCasesListParams,
   CollectionCasesSortBy,
@@ -28,6 +29,7 @@ export const OPEN_INVOICE_STATUSES: InvoiceStatus[] = [
 
 export type MockCollectionCaseListRecord = CollectionCaseListItemResponse & {
   assignedUserId: string | null;
+  assignedAt?: string | null;
   customerDocument: string;
   contractExternalId: string | null;
   createdAt: string;
@@ -150,14 +152,27 @@ export function normalizeListParams(
   };
 }
 
+export type CollectionCasesWhereOptions = {
+  // Ids com contato manual so de ciclo anterior (ver findStaleContactCaseIds);
+  // necessario quando interactionStatus esta presente.
+  staleContactCaseIds?: string[];
+};
+
 export function buildCollectionCasesWhere(
   params: CollectionCasesListParams,
   now = new Date(),
+  options: CollectionCasesWhereOptions = {},
 ): Prisma.CollectionCaseWhereInput {
   const where: Prisma.CollectionCaseWhereInput = {};
 
+  // Sem filtro de status explicito, a lista mostra so a carteira ativa (mesma
+  // base do card de carteira). Status finalizado escolhido no filtro continua
+  // funcionando (historico/auditoria). A busca por texto (nome/documento/
+  // contrato) tambem nao restringe: acha o cliente em qualquer status.
   if (params.status) {
     where.status = params.status as CollectionStatus;
+  } else if (!params.search) {
+    where.status = { in: PORTFOLIO_ACTIVE_STATUSES };
   }
 
   if (params.priority) {
@@ -234,7 +249,7 @@ export function buildCollectionCasesWhere(
   }
 
   if (params.slaStatus) {
-    applySlaStatusFilter(where, params.slaStatus, now, params.status);
+    applySlaStatusFilter(where, params.slaStatus, now);
   }
 
   if (params.createdToday) {
@@ -244,16 +259,41 @@ export function buildCollectionCasesWhere(
     };
   }
 
-  // "Contatado" = teve ao menos uma tentativa MANUAL do atendente (isAutomatic
-  // false). "Nao contatado" (ou o legado 'none') = so a tentativa automatica
-  // inicial existe.
+  // Filtro por data de atribuicao (assignedAt). Intervalo inclusivo por dia
+  // (UTC, como os demais filtros por data). So casa casos com responsavel
+  // (assignedAt preenchido).
+  const assignedFrom = parseDateInput(params.assignedFrom);
+  const assignedTo = parseDateInput(params.assignedTo);
+  if (assignedFrom || assignedTo) {
+    where.assignedAt = {
+      ...(assignedFrom ? { gte: getStartOfDayUTC(assignedFrom) } : {}),
+      ...(assignedTo ? { lte: getEndOfDayUTC(assignedTo) } : {}),
+    };
+  }
+
+  // "Contatado" = contato manual (isAutomatic false) DENTRO do ciclo atual
+  // (attemptedAt >= cycleStartedAt; sem cycleStartedAt, qualquer manual) — mesma
+  // definicao do anel de carteira. "Nao contatado" (ou o legado 'none') = o
+  // resto, incluindo reabertos so com contato de ciclo anterior.
+  const staleIds = options.staleContactCaseIds ?? [];
   if (params.interactionStatus === 'contacted') {
     where.collectionAttempts = { some: { isAutomatic: false } };
+    if (staleIds.length > 0) {
+      where.AND = [...toArray(where.AND), { id: { notIn: staleIds } }];
+    }
   } else if (
     params.interactionStatus === 'not_contacted' ||
     params.interactionStatus === 'none'
   ) {
-    where.collectionAttempts = { none: { isAutomatic: false } };
+    where.AND = [
+      ...toArray(where.AND),
+      {
+        OR: [
+          { collectionAttempts: { none: { isAutomatic: false } } },
+          ...(staleIds.length > 0 ? [{ id: { in: staleIds } }] : []),
+        ],
+      },
+    ];
   }
 
   if (params.promiseStatus) {
@@ -265,11 +305,15 @@ export function buildCollectionCasesWhere(
   return where;
 }
 
+function toArray<T>(value: T | T[] | undefined): T[] {
+  if (value === undefined) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
 function applySlaStatusFilter(
   where: Prisma.CollectionCaseWhereInput,
   slaStatus: NonNullable<CollectionCasesListParams['slaStatus']>,
   now: Date,
-  status?: string,
 ) {
   switch (slaStatus) {
     case 'no_sla':
@@ -277,9 +321,6 @@ function applySlaStatusFilter(
       break;
     case 'overdue':
       where.slaDueAt = { lt: now };
-      if (!status) {
-        where.status = { notIn: FINALIZED_STATUSES };
-      }
       break;
     case 'due_today':
       where.slaDueAt = {
@@ -331,6 +372,10 @@ function mapSortField(
     case 'createdAt':
       return { createdAt: direction };
     case 'updatedAt':
+      return { updatedAt: direction };
+    case 'lastContactAt':
+      // Prisma nao suporta _max em orderBy de findMany; updatedAt e atualizado
+      // a cada tentativa de contato registrada, servindo como proxy fiel.
       return { updatedAt: direction };
     case 'daysOverdue':
     default:
@@ -400,7 +445,14 @@ export function filterMockCollectionCases(
   const search = params.search?.toLowerCase();
 
   return records.filter((record) => {
-    if (params.status && record.status !== params.status) {
+    if (params.status) {
+      if (record.status !== params.status) {
+        return false;
+      }
+    } else if (
+      !search &&
+      !PORTFOLIO_ACTIVE_STATUSES.includes(record.status as CollectionStatus)
+    ) {
       return false;
     }
 
@@ -504,6 +556,21 @@ export function filterMockCollectionCases(
       }
     }
 
+    const assignedFrom = parseDateInput(params.assignedFrom);
+    const assignedTo = parseDateInput(params.assignedTo);
+    if (assignedFrom || assignedTo) {
+      if (!record.assignedAt) {
+        return false;
+      }
+      const assignedTime = new Date(record.assignedAt).getTime();
+      if (assignedFrom && assignedTime < getStartOfDayUTC(assignedFrom).getTime()) {
+        return false;
+      }
+      if (assignedTo && assignedTime > getEndOfDayUTC(assignedTo).getTime()) {
+        return false;
+      }
+    }
+
     // Mock: totalAttempts > 1 = teve tentativa manual (alem da automatica).
     if (params.interactionStatus === 'contacted' && record.totalAttempts <= 1) {
       return false;
@@ -584,6 +651,15 @@ export function sortMockCollectionCases(
       );
     }
 
+    if (sortBy === 'lastContactAt') {
+      // Mock nao tem data de tentativa individual; usa updatedAt como proxy.
+      return (
+        (new Date(left.updatedAt).getTime() -
+          new Date(right.updatedAt).getTime()) *
+        multiplier
+      );
+    }
+
     return 0;
   });
 
@@ -607,6 +683,7 @@ export function toListItemResponse(
     id: record.id,
     customerName: record.customerName,
     customerPhone: record.customerPhone,
+    customerPhone2: record.customerPhone2,
     contractCode: record.contractCode,
     contractStatus: record.contractStatus,
     contractErpStatus: record.contractErpStatus ?? null,
@@ -623,6 +700,7 @@ export function toListItemResponse(
     outstandingAmount: record.outstandingAmount,
     totalAttempts: record.totalAttempts,
     assignedTo: record.assignedTo,
+    assignedAt: record.assignedAt ?? null,
     slaDueAt: record.slaDueAt,
     matrixAwaitingReply: record.matrixAwaitingReply,
     matrixLastOutboundAt: record.matrixLastOutboundAt,

@@ -247,7 +247,7 @@ export function DashboardAgentPanel({ user, summary }: DashboardAgentPanelProps)
               </p>
             </div>
             <div className="border-l border-border">
-              <p className="text-xs text-neutral">Recuperados</p>
+              <p className="text-xs text-neutral">Retidos</p>
               <p className="text-xl font-bold tabular-nums text-success">
                 {formatInteger(recoveredCases)}
               </p>

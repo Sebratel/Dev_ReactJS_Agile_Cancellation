@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/unbound-method -- matchers do jest (expect.*) e mocks tipados como any */
 import { WhatsappBulkContactWorkerService } from '@/modules/whatsapp-bulk-contact/whatsapp-bulk-contact-worker.service';
 import type { BulkContactJobRepository } from '@/modules/whatsapp-bulk-contact/repositories/bulk-contact-job.repository';
 import type { CollectionCasesService } from '@/modules/collection-cases/collection-cases.service';

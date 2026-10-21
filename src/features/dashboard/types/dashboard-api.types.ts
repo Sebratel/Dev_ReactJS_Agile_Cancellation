@@ -19,6 +19,8 @@ export type DashboardStatusDistributionItem = {
   status: string;
   label: string;
   count: number;
+  // 'portfolio' = carteira ativa; 'history' = finalizados (historico).
+  group: 'portfolio' | 'history';
 };
 
 export type DashboardRecoveryTrendItem = {
@@ -32,6 +34,8 @@ export type DashboardOperationalAlert = {
   title: string;
   description: string;
   count: number;
+  // Indicador inoperante (ex.: 'SLA não configurado') — mostrar o aviso, nao 0.
+  notice?: string;
 };
 
 export type DashboardSummaryResponse = {
@@ -51,6 +55,7 @@ export type DashboardOperationsCollectionMetrics = {
   newCasesToday: number;
   casesWithoutInteraction: number;
   overdueSlaCases: number;
+  slaConfigured: boolean;
 };
 
 export type DashboardOperationsPromiseMetrics = {
@@ -99,4 +104,12 @@ export type CancellationReasonsResponse = {
   withReason: number;
   byCategory: CancellationReasonCategoryBreakdown[];
   topReasons: CancellationReasonBreakdown[];
+  // CLOSED cujo contrato nao esta Cancelado no ERP (fora do total).
+  excludedNotCancelled: number;
+};
+
+export type RenegotiationSummaryResponse = {
+  available: boolean;
+  count: number;
+  openAmount: string;
 };

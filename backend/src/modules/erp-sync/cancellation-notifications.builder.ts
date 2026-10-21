@@ -20,6 +20,9 @@ export type SupervisorCancellationSummary = {
   count: number;
   title: string;
   body: string;
+  // Com 1 cliente, aponta o caso para a notificação da supervisão abrir o
+  // cliente ao clicar. Null quando há mais de um (resumo consolidado).
+  entityId: string | null;
 };
 
 export type CancellationNotifications = {
@@ -51,16 +54,16 @@ export function buildCancellationNotifications(
     return { agentNotifications, supervisorSummary: null };
   }
 
+  const single = count === 1 ? cancelledCases[0] : null;
   const supervisorSummary: SupervisorCancellationSummary = {
     count,
-    title:
-      count === 1
-        ? '1 cliente cancelou o contrato'
-        : `${count} clientes cancelaram o contrato`,
-    body:
-      count === 1
-        ? '1 cliente teve o contrato cancelado nesta sincronização (não foi pagamento).'
-        : `${count} clientes tiveram o contrato cancelado nesta sincronização (não foi pagamento).`,
+    entityId: single?.caseId ?? null,
+    title: single
+      ? `${single.customerName} cancelou o contrato`
+      : `${count} clientes cancelaram o contrato`,
+    body: single
+      ? `${single.customerName} teve o contrato cancelado nesta sincronização (não foi pagamento).`
+      : `${count} clientes tiveram o contrato cancelado nesta sincronização (não foi pagamento).`,
   };
 
   return { agentNotifications, supervisorSummary };

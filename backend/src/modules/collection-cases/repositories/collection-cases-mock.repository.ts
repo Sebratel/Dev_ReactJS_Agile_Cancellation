@@ -11,7 +11,6 @@ import {
 import type {
   AssignCaseParams,
   AssignCaseResult,
-  AutoDistributeCasesParams,
   AutoDistributeCasesResult,
   BulkAssignCasesParams,
   BulkAssignCasesResult,
@@ -36,12 +35,15 @@ import {
 import { buildDefaultCancellationStepsForMock } from '@/modules/cancellations/utils/create-default-cancellation-steps.util';
 import type { PaymentPromiseResponse } from '@/modules/collection-cases/dto/payment-promise.response';
 import type {
+  CollectionCaseIntakeSummary,
   CollectionCasesListParams,
   CollectionCasesRepository,
   CreateCollectionAttemptParams,
   CreatePaymentPromiseParams,
   RecordWhatsAppContactIntegrationParams,
   RecordWhatsAppContactIntegrationResult,
+  RecoverCancelledParams,
+  RecoverCancelledResult,
   RevertCancellationParams,
   RevertCancellationResult,
   SendToCancellationParams,
@@ -156,14 +158,12 @@ export class CollectionCasesMockRepository implements CollectionCasesRepository 
     };
     const buckets = new Map<string | null, Bucket>();
 
-    // Total atribuido (qualquer status) e interagidos (contato manual =
-    // totalAttempts > 1, alem da automatica inicial) por atendente.
-    const assignedByKey = new Map<string | null, number>();
+    // Interagidos (contato manual = totalAttempts > 1, alem da automatica
+    // inicial) entre os casos ATIVOS, por atendente.
     const interactedByKey = new Map<string | null, number>();
     for (const record of mockCollectionCaseListRecords) {
       const key = record.assignedUserId;
-      assignedByKey.set(key, (assignedByKey.get(key) ?? 0) + 1);
-      if (record.totalAttempts > 1) {
+      if (ACTIVE_STATUSES.has(record.status) && record.totalAttempts > 1) {
         interactedByKey.set(key, (interactedByKey.get(key) ?? 0) + 1);
       }
     }
@@ -215,7 +215,7 @@ export class CollectionCasesMockRepository implements CollectionCasesRepository 
     ).map(([key, bucket]) => ({
       agent: bucket.agent,
       totalActive: bucket.totalActive,
-      totalAssigned: assignedByKey.get(key) ?? bucket.totalActive,
+      totalAssigned: bucket.totalActive,
       interacted: interactedByKey.get(key) ?? 0,
       slaOverdue: bucket.slaOverdue,
       awaitingReply: bucket.awaitingReply,
@@ -232,6 +232,31 @@ export class CollectionCasesMockRepository implements CollectionCasesRepository 
       byStatus[record.status] = (byStatus[record.status] ?? 0) + 1;
     }
     return Promise.resolve(byStatus);
+  }
+
+  getIntakeSummary(now: Date = new Date()): Promise<CollectionCaseIntakeSummary> {
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+    const tomorrowStart = new Date(todayStart);
+    tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+    const yesterdayStart = new Date(todayStart);
+    yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+
+    let today = 0;
+    let yesterday = 0;
+    for (const record of mockCollectionCaseListRecords) {
+      const createdAt = new Date(record.createdAt).getTime();
+      if (createdAt >= todayStart.getTime() && createdAt < tomorrowStart.getTime()) {
+        today += 1;
+      } else if (
+        createdAt >= yesterdayStart.getTime() &&
+        createdAt < todayStart.getTime()
+      ) {
+        yesterday += 1;
+      }
+    }
+
+    return Promise.resolve({ today, yesterday });
   }
 
   getCaseById(id: string) {
@@ -728,6 +753,18 @@ export class CollectionCasesMockRepository implements CollectionCasesRepository 
       completedAt: null,
       steps: buildDefaultCancellationStepsForMock(processId),
     };
+    // Como no repositorio Prisma: o caso passa a ser do agente de cancelamento.
+    details.assignedTo = {
+      id: input.assignedUserId,
+      name: resolveMockActorName(input.assignedUserId) ?? input.assignedUserId,
+    };
+    const listRecord = mockCollectionCaseListRecords.find(
+      (item) => item.id === caseId,
+    );
+    if (listRecord) {
+      listRecord.assignedUserId = input.assignedUserId;
+      listRecord.assignedTo = details.assignedTo;
+    }
     details.updatedAt = now;
 
     pushMockAuditLog({
@@ -848,6 +885,57 @@ export class CollectionCasesMockRepository implements CollectionCasesRepository 
     return Promise.resolve({ outcome: 'success', case: details });
   }
 
+  recoverCancelled({
+    caseId,
+    performedByUserId,
+  }: RecoverCancelledParams): Promise<RecoverCancelledResult> {
+    const details = mockCollectionCaseDetails[caseId];
+
+    if (!details) {
+      return Promise.resolve({ outcome: 'case_not_found' });
+    }
+
+    if (details.status !== 'CLOSED') {
+      return Promise.resolve({
+        outcome: 'status_not_allowed',
+        currentStatus: details.status,
+      });
+    }
+
+    const hasManualAttempt = details.attempts.some((a) => !a.isAutomatic);
+
+    if (!hasManualAttempt) {
+      return Promise.resolve({ outcome: 'no_manual_attempt' });
+    }
+
+    const now = new Date().toISOString();
+    const previousStatus = details.status;
+    details.status = 'RECOVERED';
+    details.updatedAt = now;
+
+    const record = mockCollectionCaseListRecords.find((item) => item.id === caseId);
+    if (record) {
+      record.status = 'RECOVERED';
+      record.updatedAt = now;
+    }
+
+    pushMockAuditLog({
+      entityType: 'COLLECTION_CASE',
+      entityId: caseId,
+      action: 'STATUS_CHANGE',
+      performedByUserId,
+      beforeSnapshot: { status: previousStatus },
+      afterSnapshot: { status: 'RECOVERED', recoveredAt: now },
+      metadata: {
+        resourceType: 'COLLECTION_CASE',
+        action: 'RECOVER_CANCELLED',
+        description: 'Cliente cancelado recuperado',
+      },
+    });
+
+    return Promise.resolve({ outcome: 'success', case: details });
+  }
+
   assignCase({
     caseId,
     assignedUserId,
@@ -926,9 +1014,7 @@ export class CollectionCasesMockRepository implements CollectionCasesRepository 
     return Promise.resolve({ assigned, skipped: caseIds.length - assigned });
   }
 
-  autoDistributeCases(
-    _params: AutoDistributeCasesParams,
-  ): Promise<AutoDistributeCasesResult> {
+  autoDistributeCases(): Promise<AutoDistributeCasesResult> {
     return Promise.resolve({ distributed: 0, agents: 0 });
   }
 }

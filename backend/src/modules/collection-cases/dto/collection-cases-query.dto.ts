@@ -25,6 +25,7 @@ export const COLLECTION_CASES_SORT_BY = [
   'slaDueAt',
   'createdAt',
   'updatedAt',
+  'lastContactAt',
 ] as const;
 
 export const COLLECTION_CASES_SORT_DIRECTION = ['asc', 'desc'] as const;
@@ -165,6 +166,17 @@ export class CollectionCasesQueryDto {
   @IsOptional()
   @IsDateString()
   secondDueDate?: string;
+
+  // Intervalo de data de atribuicao (YYYY-MM-DD). Filtra casos cujo
+  // assignedAt cai no periodo — usado na supervisao para ver o que foi
+  // atribuido num dia/intervalo.
+  @IsOptional()
+  @IsDateString()
+  assignedFrom?: string;
+
+  @IsOptional()
+  @IsDateString()
+  assignedTo?: string;
 
   @IsOptional()
   @IsIn(COLLECTION_CASES_SLA_STATUS)

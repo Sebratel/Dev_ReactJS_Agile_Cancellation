@@ -5,13 +5,14 @@ import type { SettingsRepository } from '@/modules/settings/repositories/setting
 export class SettingsMockRepository implements SettingsRepository {
   private readonly store = new Map<string, string>();
 
-  async getAll(): Promise<Record<string, string>> {
-    return Object.fromEntries(this.store.entries());
+  getAll(): Promise<Record<string, string>> {
+    return Promise.resolve(Object.fromEntries(this.store.entries()));
   }
 
-  async setMany(entries: Record<string, string>): Promise<void> {
+  setMany(entries: Record<string, string>): Promise<void> {
     for (const [key, value] of Object.entries(entries)) {
       this.store.set(key, value);
     }
+    return Promise.resolve();
   }
 }

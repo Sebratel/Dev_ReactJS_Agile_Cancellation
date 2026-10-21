@@ -1,4 +1,5 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { PORTFOLIO_ACTIVE_STATUSES } from '@/modules/collection-cases/utils/portfolio-cases.util';
 import { UserStatus } from '@prisma/client';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import { USERS_REPOSITORY } from '@/common/data-source/data-source.constants';
@@ -49,19 +50,11 @@ export class UsersService {
    * distribuicao manual/automatica para evitar sobrecarregar um agente.
    */
   async getWorkload() {
-    const ACTIVE_CASE_STATUSES = [
-      'WAITING_TRIAGE',
-      'IN_COLLECTION',
-      'NO_RESPONSE',
-      'ELIGIBLE_FOR_CANCELLATION',
-      'CANCELLATION_IN_PROGRESS',
-    ] as const;
-
     const grouped = await this.prisma.collectionCase.groupBy({
       by: ['assignedUserId'],
       where: {
         assignedUserId: { not: null },
-        status: { in: [...ACTIVE_CASE_STATUSES] },
+        status: { in: PORTFOLIO_ACTIVE_STATUSES },
       },
       _count: { _all: true },
     });

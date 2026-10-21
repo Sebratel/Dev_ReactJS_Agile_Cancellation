@@ -171,6 +171,22 @@ export type RevertCancellationResult =
   | { outcome: 'case_not_found' }
   | { outcome: 'status_not_allowed'; currentStatus: string };
 
+export type RecoverCancelledParams = {
+  caseId: string;
+  performedByUserId: string | null;
+};
+
+export type RecoverCancelledResult =
+  | { outcome: 'success'; case: CollectionCaseDetailsResponse }
+  | { outcome: 'case_not_found' }
+  | { outcome: 'status_not_allowed'; currentStatus: string }
+  | { outcome: 'no_manual_attempt' };
+
+export type CollectionCaseIntakeSummary = {
+  today: number;
+  yesterday: number;
+};
+
 export type CollectionCasesListParams = {
   page: number;
   limit: number;
@@ -185,6 +201,8 @@ export type CollectionCasesListParams = {
   totalOutstandingMax?: number;
   firstDueDate?: string;
   secondDueDate?: string;
+  assignedFrom?: string;
+  assignedTo?: string;
   slaStatus?: CollectionCasesSlaStatus;
   createdToday?: boolean;
   interactionStatus?: CollectionCasesInteractionStatus;
@@ -213,6 +231,10 @@ export interface CollectionCasesRepository {
 
   // Contagem de casos por status (chave = CollectionStatus).
   getStatusSummary(): Promise<Record<string, number>>;
+
+  // Quantos casos entraram (createdAt) hoje e ontem — para conferir o inflow
+  // com o fluxo de automacao (N8N) no dia a dia.
+  getIntakeSummary(now?: Date): Promise<CollectionCaseIntakeSummary>;
 
   getCaseById(id: string): Promise<CollectionCaseDetailsResponse | null>;
 
@@ -244,6 +266,10 @@ export interface CollectionCasesRepository {
     params: RevertCancellationParams,
   ): Promise<RevertCancellationResult>;
 
+  recoverCancelled(
+    params: RecoverCancelledParams,
+  ): Promise<RecoverCancelledResult>;
+
   assignCase(params: AssignCaseParams): Promise<AssignCaseResult>;
 
   bulkAssignCases(params: BulkAssignCasesParams): Promise<BulkAssignCasesResult>;
@@ -267,6 +293,8 @@ export function mapQueryDtoToListParams(
     totalOutstandingMax: query.totalOutstandingMax,
     firstDueDate: query.firstDueDate,
     secondDueDate: query.secondDueDate,
+    assignedFrom: query.assignedFrom,
+    assignedTo: query.assignedTo,
     slaStatus: query.slaStatus,
     createdToday: query.createdToday,
     interactionStatus: query.interactionStatus,

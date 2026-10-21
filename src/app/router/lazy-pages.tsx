@@ -56,3 +56,7 @@ export const LazyWhatsappBulkContactPage = lazyWithReload(
   async () =>
     import('@/features/whatsapp-bulk-contact/pages/whatsapp-bulk-contact-page'),
 );
+export const LazyCancelledClientsPage = lazyWithReload(
+  async () =>
+    import('@/features/cancelled-clients/pages/cancelled-clients-page'),
+);

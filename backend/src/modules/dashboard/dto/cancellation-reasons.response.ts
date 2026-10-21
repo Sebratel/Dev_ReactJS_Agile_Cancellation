@@ -22,4 +22,6 @@ export type CancellationReasonsResponse = {
   withReason: number;
   byCategory: CancellationReasonCategoryBreakdown[];
   topReasons: CancellationReasonBreakdown[];
+  // CLOSED cujo contrato nao esta Cancelado no ERP (ficam fora do total).
+  excludedNotCancelled: number;
 };

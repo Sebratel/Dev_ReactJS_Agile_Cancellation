@@ -23,6 +23,7 @@ import { useAutoDistribute } from '@/features/collection-cases/hooks/use-auto-di
 import { useExportCasesCsv } from '@/features/collection-cases/hooks/use-export-cases-csv';
 import { SupervisionCasesTable } from '@/features/supervision/components/supervision-cases-table';
 import { SyncHealthBanner } from '@/features/supervision/components/sync-health-banner';
+import { SupervisionIntakeSummary } from '@/features/supervision/components/supervision-intake-summary';
 import { RecoveryNotificationsInfo } from '@/features/supervision/components/recovery-notifications-info';
 import { SupervisionPortfolios } from '@/features/supervision/components/supervision-portfolios';
 import { SupervisionRenegotiated } from '@/features/supervision/components/supervision-renegotiated';
@@ -97,7 +98,7 @@ export default function SupervisionPage() {
       : base;
   }, [filters, debouncedSearch, selectedAgentId]);
 
-  const casesQuery = useCollectionCases(listParams);
+  const casesQuery = useCollectionCases(listParams, { autoRefresh: true });
 
   const portfoliosQuery = useCollectionCasePortfolios(canDistribute);
   const renegotiatedQuery = useRenegotiatedHistory(
@@ -165,6 +166,16 @@ export default function SupervisionPage() {
 
   const items = useMemo(() => casesQuery.data?.items ?? [], [casesQuery.data]);
   const totalPages = Math.max(casesQuery.data?.pagination.totalPages ?? 1, 1);
+
+  // Com auto-refresh a lista pode encolher (casos saem da carteira): se a pagina
+  // atual deixou de existir, volta para a ultima valida.
+  const { isPlaceholderData } = casesQuery;
+  useEffect(() => {
+    if (isPlaceholderData || !casesQuery.data) return;
+    if (filters.page > totalPages) {
+      updateFilters({ page: totalPages });
+    }
+  }, [isPlaceholderData, casesQuery.data, filters.page, totalPages, updateFilters]);
   const hasActiveFilters = hasActiveSupervisionFilters({
     ...filters,
     search: debouncedSearch,
@@ -260,6 +271,8 @@ export default function SupervisionPage() {
       />
 
       {canDistribute ? <SyncHealthBanner /> : null}
+
+      {canDistribute ? <SupervisionIntakeSummary /> : null}
 
       {canDistribute ? (
         <div className="flex self-start rounded-lg border border-border bg-card p-1">
@@ -452,6 +465,13 @@ export default function SupervisionPage() {
             <BulkActionBar
               selectedCount={selectedIds.size}
               selectedCaseIds={Array.from(selectedIds)}
+              selectedCasesInfo={items
+                .filter((i) => selectedIds.has(i.id))
+                .map((i) => ({
+                  id: i.id,
+                  name: i.customerName,
+                  phone: i.customerPhone,
+                }))}
               agents={agents}
               workload={workloadQuery.data}
               onBulkAssign={(id) => { void handleBulkAssign(id); }}

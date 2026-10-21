@@ -1,6 +1,8 @@
 import { Link, useLocation, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
+  Check,
+  Copy,
   FileText,
   HandCoins,
   History,
@@ -8,7 +10,7 @@ import {
   MessageCircle,
   MessageSquareText,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { PageHeader } from '@/components/data-display/page-header';
 import { SectionCard } from '@/components/data-display/section-card';
@@ -210,7 +212,15 @@ export default function CollectionCaseDetailPage() {
   const { caseId = '' } = useParams<{ caseId: string }>();
   const [activeWorkspaceModule, setActiveWorkspaceModule] =
     useState<CaseWorkspaceModule>('attempts');
+  const [copiedPhone, setCopiedPhone] = useState<string | null>(null);
   const caseQuery = useCollectionCase(caseId);
+
+  const handleCopyPhone = useCallback((phone: string) => {
+    void navigator.clipboard.writeText(phone).then(() => {
+      setCopiedPhone(phone);
+      setTimeout(() => setCopiedPhone(null), 2000);
+    });
+  }, []);
   const location = useLocation();
   const { session } = useAuth();
 
@@ -412,6 +422,46 @@ export default function CollectionCaseDetailPage() {
                     <dt className="font-medium text-neutral">Documento</dt>
                     <dd className="mt-1">{caseQuery.data.customer.document}</dd>
                   </div>
+                  {caseQuery.data.customer.phone ? (
+                    <div>
+                      <dt className="font-medium text-neutral">Telefone 1</dt>
+                      <dd className="mt-1 flex items-center gap-2">
+                        <span className="tabular-nums">{caseQuery.data.customer.phone}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyPhone(caseQuery.data!.customer.phone!)}
+                          className="text-neutral hover:text-foreground transition-colors"
+                          title="Copiar telefone"
+                        >
+                          {copiedPhone === caseQuery.data.customer.phone ? (
+                            <Check className="h-3.5 w-3.5 text-success" />
+                          ) : (
+                            <Copy className="h-3.5 w-3.5" />
+                          )}
+                        </button>
+                      </dd>
+                    </div>
+                  ) : null}
+                  {caseQuery.data.customer.phone2 ? (
+                    <div>
+                      <dt className="font-medium text-neutral">Telefone 2</dt>
+                      <dd className="mt-1 flex items-center gap-2">
+                        <span className="tabular-nums">{caseQuery.data.customer.phone2}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyPhone(caseQuery.data!.customer.phone2!)}
+                          className="text-neutral hover:text-foreground transition-colors"
+                          title="Copiar telefone"
+                        >
+                          {copiedPhone === caseQuery.data.customer.phone2 ? (
+                            <Check className="h-3.5 w-3.5 text-success" />
+                          ) : (
+                            <Copy className="h-3.5 w-3.5" />
+                          )}
+                        </button>
+                      </dd>
+                    </div>
+                  ) : null}
                   <div>
                     <dt className="font-medium text-neutral">
                       Código do contrato

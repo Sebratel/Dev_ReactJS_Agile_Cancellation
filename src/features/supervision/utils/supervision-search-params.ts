@@ -19,6 +19,8 @@ export type SupervisionFiltersState = {
   totalOutstandingMax: string;
   firstDueDate: string;
   secondDueDate: string;
+  assignedFrom: string;
+  assignedTo: string;
   slaStatus: string;
   createdToday: string;
   interactionStatus: string;
@@ -39,6 +41,8 @@ export const EMPTY_SUPERVISION_FILTERS: SupervisionFiltersState = {
   totalOutstandingMax: '',
   firstDueDate: '',
   secondDueDate: '',
+  assignedFrom: '',
+  assignedTo: '',
   slaStatus: '',
   createdToday: '',
   interactionStatus: '',
@@ -141,6 +145,8 @@ export function parseSupervisionSearchParams(
     totalOutstandingMax: searchParams.get('totalOutstandingMax') ?? '',
     firstDueDate: searchParams.get('firstDueDate') ?? '',
     secondDueDate: searchParams.get('secondDueDate') ?? '',
+    assignedFrom: searchParams.get('assignedFrom') ?? '',
+    assignedTo: searchParams.get('assignedTo') ?? '',
     slaStatus: searchParams.get('slaStatus') ?? '',
     createdToday: searchParams.get('createdToday') ?? '',
     interactionStatus: searchParams.get('interactionStatus') ?? '',
@@ -198,6 +204,14 @@ export function supervisionFiltersToSearchParams(
     params.set('secondDueDate', filters.secondDueDate);
   }
 
+  if (filters.assignedFrom) {
+    params.set('assignedFrom', filters.assignedFrom);
+  }
+
+  if (filters.assignedTo) {
+    params.set('assignedTo', filters.assignedTo);
+  }
+
   if (filters.slaStatus) {
     params.set('slaStatus', filters.slaStatus);
   }
@@ -245,6 +259,8 @@ export function supervisionFiltersToListParams(
     totalOutstandingMax: parseOptionalNumber(filters.totalOutstandingMax),
     firstDueDate: filters.firstDueDate.trim() || undefined,
     secondDueDate: filters.secondDueDate.trim() || undefined,
+    assignedFrom: filters.assignedFrom.trim() || undefined,
+    assignedTo: filters.assignedTo.trim() || undefined,
     slaStatus: isSlaStatus(filters.slaStatus) ? filters.slaStatus : undefined,
     createdToday: filters.createdToday === 'true' ? true : undefined,
     interactionStatus: isInteractionStatus(filters.interactionStatus)
@@ -270,6 +286,8 @@ export function hasActiveSupervisionFilters(filters: SupervisionFiltersState) {
     filters.totalOutstandingMax.length > 0 ||
     filters.firstDueDate.length > 0 ||
     filters.secondDueDate.length > 0 ||
+    filters.assignedFrom.length > 0 ||
+    filters.assignedTo.length > 0 ||
     filters.slaStatus.length > 0 ||
     filters.createdToday.length > 0 ||
     filters.interactionStatus.length > 0 ||

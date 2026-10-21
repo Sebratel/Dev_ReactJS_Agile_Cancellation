@@ -50,6 +50,7 @@ export class WebhooksPrismaRepository implements WebhooksRepository {
             name: event.customer.name,
             email: event.customer.email ?? null,
             phone: event.customer.phone ?? null,
+            phone2: event.customer.phone2 ?? null,
             externalId: event.customer.externalId ?? null,
           },
           create: {
@@ -57,6 +58,7 @@ export class WebhooksPrismaRepository implements WebhooksRepository {
             name: event.customer.name,
             email: event.customer.email ?? null,
             phone: event.customer.phone ?? null,
+            phone2: event.customer.phone2 ?? null,
             externalId: event.customer.externalId ?? null,
           },
         });

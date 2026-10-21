@@ -71,7 +71,9 @@ export function BulkContactWhatsAppJobsHistory({
         title="Não foi possível carregar o histórico"
         description="Não foi possível conectar ao servidor. Tente novamente."
         retryLabel="Tentar novamente"
-        onRetry={() => jobsQuery.refetch()}
+        onRetry={() => {
+          void jobsQuery.refetch();
+        }}
       />
     );
   }

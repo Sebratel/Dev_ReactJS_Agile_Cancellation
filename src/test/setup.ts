@@ -24,7 +24,7 @@ if (typeof globalThis !== 'undefined' && !globalThis.ResizeObserver) {
     observe() {}
     unobserve() {}
     disconnect() {}
-  } as unknown as typeof ResizeObserver;
+  };
 }
 import { authStorageKey } from '@/features/auth/auth.constants';
 import { type AuthSession } from '@/types/auth';

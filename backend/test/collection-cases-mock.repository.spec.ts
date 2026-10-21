@@ -54,8 +54,8 @@ describe('CollectionCasesMockRepository', () => {
     expect(result.pagination).toEqual({
       page: 2,
       limit: 10,
-      total: 42,
-      totalPages: 5,
+      total: 35,
+      totalPages: 4,
     });
     expect(result.items[0]?.id).toMatch(/^case_/);
   });

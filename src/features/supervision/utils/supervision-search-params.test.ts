@@ -24,6 +24,8 @@ describe('supervision search params', () => {
       totalOutstandingMax: '',
       firstDueDate: '',
       secondDueDate: '',
+      assignedFrom: '',
+      assignedTo: '',
       slaStatus: '',
       createdToday: '',
       interactionStatus: '',

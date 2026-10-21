@@ -82,7 +82,9 @@ function hasAdvancedFilters(filters: SupervisionFiltersState): boolean {
     filters.daysOverdueMin ||
     filters.daysOverdueMax ||
     filters.totalOutstandingMin ||
-    filters.totalOutstandingMax,
+    filters.totalOutstandingMax ||
+    filters.assignedFrom ||
+    filters.assignedTo,
   );
 }
 
@@ -115,6 +117,8 @@ export function SupervisionFilters({
     filters.daysOverdueMax,
     filters.totalOutstandingMin,
     filters.totalOutstandingMax,
+    filters.assignedFrom,
+    filters.assignedTo,
   ].filter(Boolean).length;
 
   const [advancedOpen, setAdvancedOpen] = useState(() =>
@@ -159,6 +163,22 @@ export function SupervisionFilters({
       key: 'secondDueDate',
       label: `2o vencimento: ${formatDateInputLabel(filters.secondDueDate)}`,
       onRemove: () => clearFilter({ secondDueDate: '' }),
+    });
+  }
+
+  if (filters.assignedFrom) {
+    chips.push({
+      key: 'assignedFrom',
+      label: `Atribuído de: ${formatDateInputLabel(filters.assignedFrom)}`,
+      onRemove: () => clearFilter({ assignedFrom: '' }),
+    });
+  }
+
+  if (filters.assignedTo) {
+    chips.push({
+      key: 'assignedTo',
+      label: `Atribuído até: ${formatDateInputLabel(filters.assignedTo)}`,
+      onRemove: () => clearFilter({ assignedTo: '' }),
     });
   }
 
@@ -485,6 +505,28 @@ export function SupervisionFilters({
                   totalOutstandingMax: event.target.value,
                   page: 1,
                 })
+              }
+            />
+          </label>
+
+          <label className="space-y-1 text-sm">
+            <span className={labelClassName}>Atribuído de</span>
+            <Input
+              type="date"
+              value={filters.assignedFrom}
+              onChange={(event) =>
+                onFilterChange({ assignedFrom: event.target.value, page: 1 })
+              }
+            />
+          </label>
+
+          <label className="space-y-1 text-sm">
+            <span className={labelClassName}>Atribuído até</span>
+            <Input
+              type="date"
+              value={filters.assignedTo}
+              onChange={(event) =>
+                onFilterChange({ assignedTo: event.target.value, page: 1 })
               }
             />
           </label>

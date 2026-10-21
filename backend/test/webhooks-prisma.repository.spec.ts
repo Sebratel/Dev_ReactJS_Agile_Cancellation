@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access -- matchers do jest (expect.*) e mocks tipados como any */
 import { WebhooksPrismaRepository } from '@/modules/webhooks/repositories/webhooks-prisma.repository';
 import type { PrismaService } from '@/database/prisma/prisma.service';
 import type { IngestCollectionEventDto } from '@/modules/webhooks/dto/ingest-collection-cases.dto';
@@ -31,7 +32,7 @@ function buildEvent(
       daysOverdue: 70,
     },
     ...overrides,
-  } as IngestCollectionEventDto;
+  };
 }
 
 /**

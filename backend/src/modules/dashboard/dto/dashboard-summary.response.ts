@@ -21,6 +21,8 @@ export type DashboardStatusDistributionItem = {
   status: string;
   label: string;
   count: number;
+  // 'portfolio' = carteira ativa; 'history' = finalizados (historico).
+  group: 'portfolio' | 'history';
 };
 
 export type DashboardRecoveryTrendItem = {
@@ -34,6 +36,9 @@ export type DashboardOperationalAlert = {
   title: string;
   description: string;
   count: number;
+  // Quando preenchido, o indicador nao esta operante (ex.: 'SLA não
+  // configurado') e a tela mostra o aviso em vez de um 0 enganoso.
+  notice?: string;
 };
 
 export type DashboardSummaryResponse = {
