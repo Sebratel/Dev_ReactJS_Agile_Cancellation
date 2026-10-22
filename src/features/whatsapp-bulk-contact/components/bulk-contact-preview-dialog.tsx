@@ -3,7 +3,10 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCollectionCases } from '@/features/collection-cases/hooks/use-collection-cases';
-import type { CollectionCasesListParams } from '@/features/collection-cases/types/collection-cases-api.types';
+import type {
+  CollectionCaseListItemResponse,
+  CollectionCasesListParams,
+} from '@/features/collection-cases/types/collection-cases-api.types';
 import { formatCurrencyBRL, formatDateOnlyPtBR } from '@/utils/formatters';
 import { cn } from '@/lib/utils';
 
@@ -23,7 +26,7 @@ export function BulkContactPreviewDialog({ filters, totalCount }: Props) {
     { enabled: open },
   );
 
-  const cases = query.data?.data ?? [];
+  const cases = query.data?.items ?? [];
   const total = query.data?.pagination.total ?? totalCount;
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
@@ -82,7 +85,7 @@ export function BulkContactPreviewDialog({ filters, totalCount }: Props) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {cases.map((c) => (
+                  {cases.map((c: CollectionCaseListItemResponse) => (
                     <tr key={c.id} className="hover:bg-muted/30">
                       <td className="px-4 py-3">
                         <span className="font-medium text-foreground">{c.customerName}</span>
