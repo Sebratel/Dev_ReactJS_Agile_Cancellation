@@ -35,7 +35,7 @@ export function BulkContactPreviewDialog({ filters, totalCount }: Props) {
   return (
     <Dialog.Root open={open} onOpenChange={handleOpenChange}>
       <Dialog.Trigger asChild>
-        <Button variant="outline" size="sm" disabled={totalCount === 0}>
+        <Button variant="secondary" size="sm" disabled={totalCount === 0}>
           Ver clientes ({totalCount})
         </Button>
       </Dialog.Trigger>
@@ -54,7 +54,7 @@ export function BulkContactPreviewDialog({ filters, totalCount }: Props) {
               </Dialog.Description>
             </div>
             <Dialog.Close asChild>
-              <Button variant="ghost" size="icon" aria-label="Fechar">
+              <Button variant="ghost" size="sm" className="p-1.5" aria-label="Fechar">
                 <X className="h-4 w-4" />
               </Button>
             </Dialog.Close>
@@ -112,8 +112,9 @@ export function BulkContactPreviewDialog({ filters, totalCount }: Props) {
               </p>
               <div className="flex items-center gap-2">
                 <Button
-                  variant="outline"
-                  size="icon"
+                  variant="secondary"
+                  size="sm"
+                  className="p-1.5"
                   disabled={page <= 1}
                   onClick={() => setPage((p) => p - 1)}
                   aria-label="Página anterior"
@@ -121,8 +122,9 @@ export function BulkContactPreviewDialog({ filters, totalCount }: Props) {
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
                 <Button
-                  variant="outline"
-                  size="icon"
+                  variant="secondary"
+                  size="sm"
+                  className="p-1.5"
                   disabled={page >= totalPages}
                   onClick={() => setPage((p) => p + 1)}
                   aria-label="Próxima página"
