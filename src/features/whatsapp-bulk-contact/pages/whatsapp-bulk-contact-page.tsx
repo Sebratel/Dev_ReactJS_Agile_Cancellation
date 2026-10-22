@@ -6,6 +6,7 @@ import { PageContainer } from '@/components/navigation/page-container';
 import { useCollectionCases } from '@/features/collection-cases/hooks/use-collection-cases';
 import { BulkContactWhatsAppByFilterAction } from '@/features/collection-cases/components/bulk-contact-whatsapp-by-filter-action';
 import { BulkContactWhatsAppJobsHistory } from '@/features/collection-cases/components/bulk-contact-whatsapp-jobs-history';
+import { BulkContactPreviewDialog } from '@/features/whatsapp-bulk-contact/components/bulk-contact-preview-dialog';
 import { SupervisionFilters } from '@/features/supervision/components/supervision-filters';
 import {
   EMPTY_SUPERVISION_FILTERS,
@@ -81,22 +82,29 @@ export default function WhatsappBulkContactPage() {
         description="O envio considera exatamente os filtros aplicados acima."
       >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4 rounded-lg border border-primary/25 bg-primary/10 px-5 py-4">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-card text-primary">
-              <Users className="h-5 w-5" aria-hidden="true" />
-            </div>
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-neutral">
-                Clientes selecionados
-              </p>
-              {matchQuery.isLoading ? (
-                <p className="mt-0.5 text-sm text-neutral">Calculando...</p>
-              ) : (
-                <p className="mt-0.5 text-2xl font-bold tabular-nums text-foreground">
-                  {matchCount}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 rounded-lg border border-primary/25 bg-primary/10 px-5 py-4">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-card text-primary">
+                <Users className="h-5 w-5" aria-hidden="true" />
+              </div>
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-neutral">
+                  Clientes selecionados
                 </p>
-              )}
+                {matchQuery.isLoading ? (
+                  <p className="mt-0.5 text-sm text-neutral">Calculando...</p>
+                ) : (
+                  <p className="mt-0.5 text-2xl font-bold tabular-nums text-foreground">
+                    {matchCount}
+                  </p>
+                )}
+              </div>
             </div>
+
+            <BulkContactPreviewDialog
+              filters={filterParamsForJob}
+              totalCount={matchCount}
+            />
           </div>
 
           <BulkContactWhatsAppByFilterAction
