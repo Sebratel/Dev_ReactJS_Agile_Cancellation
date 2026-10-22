@@ -87,7 +87,8 @@ function isSortBy(value: string | null): value is CollectionCasesSortBy {
     value === 'daysOverdue' ||
     value === 'totalOutstanding' ||
     value === 'slaDueAt' ||
-    value === 'createdAt'
+    value === 'createdAt' ||
+    value === 'lastContactAt'
   );
 }
 
