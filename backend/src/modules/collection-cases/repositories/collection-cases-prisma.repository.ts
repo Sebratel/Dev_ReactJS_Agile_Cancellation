@@ -276,7 +276,6 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
           select: {
             invoices: {
               where: {
-                dueDate: { lt: now },
                 status: { in: OPEN_INVOICE_STATUSES },
               },
               orderBy: { dueDate: 'asc' },
@@ -351,7 +350,6 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
           select: {
             invoices: {
               where: {
-                dueDate: { lt: now },
                 status: { in: OPEN_INVOICE_STATUSES },
               },
               orderBy: { dueDate: 'asc' },
