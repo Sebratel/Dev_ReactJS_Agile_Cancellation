@@ -36,6 +36,7 @@ WITH abertos AS (
   SELECT c.id AS contract_id,
          c.public_id::text        AS contract_external_id,
          c.contract_number::text  AS contract_number,
+         c.v_status::text         AS contract_status,
          p.name                    AS customer_name,
          p.tx_id                   AS document,
          p.phone                   AS phone,
@@ -61,6 +62,7 @@ agg AS (
   SELECT contract_id,
          MAX(contract_external_id) AS contract_external_id,
          MAX(contract_number)      AS contract_number,
+         MAX(contract_status)      AS contract_status,
          MAX(customer_name)        AS customer_name,
          MAX(document)             AS document,
          MAX(phone)                AS phone,
@@ -75,6 +77,7 @@ agg AS (
 )
 SELECT contract_external_id,
        contract_number,
+       contract_status,
        customer_name,
        document,
        phone,
@@ -90,6 +93,7 @@ ORDER BY second_due_date ASC, customer_name ASC;
 type PreCollectionRow = {
   contract_external_id: string | null;
   contract_number: string | null;
+  contract_status: string | null;
   customer_name: string | null;
   document: string | null;
   phone: string | null;
@@ -149,6 +153,7 @@ function mapRow(row: PreCollectionRow): PreCollectionItemResponse {
   return {
     contractExternalId: row.contract_external_id,
     contractCode: row.contract_number ?? '',
+    contractErpStatus: row.contract_status ?? null,
     customerName: row.customer_name?.trim() || 'Cliente',
     customerDocument: row.document?.trim() || null,
     customerPhone: row.phone?.trim() || null,
@@ -315,15 +320,23 @@ export class PreCollectionService implements OnModuleInit {
         },
       });
 
+      const contractStatus =
+        item.contractErpStatus === 'Bloqueio Financeiro' ? 'SUSPENDED' : 'ACTIVE';
+
       const contract = await this.prisma.contract.upsert({
         where: { code: item.contractCode },
-        update: { externalId: item.contractExternalId ?? undefined },
+        update: {
+          externalId: item.contractExternalId ?? undefined,
+          status: contractStatus,
+          erpStatus: item.contractErpStatus ?? undefined,
+        },
         create: {
           customerId: customer.id,
           code: item.contractCode,
           externalId: item.contractExternalId ?? undefined,
           startDate: new Date(item.firstOverdueDate),
-          status: 'ACTIVE',
+          status: contractStatus,
+          erpStatus: item.contractErpStatus ?? undefined,
         },
       });
 

@@ -4,6 +4,7 @@
 export type PreCollectionItemResponse = {
   contractExternalId: string | null;
   contractCode: string;
+  contractErpStatus: string | null; // v_status do ERP: 'Normal' | 'Bloqueio Financeiro'
   customerName: string;
   customerDocument: string | null;
   customerPhone: string | null;
