@@ -375,6 +375,7 @@ export class PreCollectionService implements OnModuleInit {
         data: {
           contractId: contract.id,
           customerId: customer.id,
+          externalId: item.contractExternalId ?? undefined,
           status: 'WAITING_TRIAGE',
           priority: 'LOW',
           outstandingAmount: Number(item.totalOpenAmount),

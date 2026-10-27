@@ -1,5 +1,5 @@
 -- AlterTable
-ALTER TABLE `CollectionCase` ADD COLUMN `lastContactAt` DATETIME(3) NULL;
+ALTER TABLE `collection_cases` ADD COLUMN `lastContactAt` DATETIME(3) NULL;
 
 -- CreateIndex
-CREATE INDEX `CollectionCase_lastContactAt_idx` ON `CollectionCase`(`lastContactAt`);
+CREATE INDEX `collection_cases_lastContactAt_idx` ON `collection_cases`(`lastContactAt`);
