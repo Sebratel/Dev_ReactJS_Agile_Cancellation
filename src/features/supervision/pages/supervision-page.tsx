@@ -377,6 +377,16 @@ export default function SupervisionPage() {
             hasActiveFilters={hasActiveFilters}
           />
 
+          {!casesQuery.isLoading && !casesQuery.isError && casesQuery.data ? (
+            <p className="text-sm text-neutral">
+              {casesQuery.data.pagination.total === 0
+                ? 'Nenhum caso encontrado'
+                : casesQuery.data.pagination.total === 1
+                  ? '1 caso encontrado'
+                  : `${casesQuery.data.pagination.total.toLocaleString('pt-BR')} casos encontrados`}
+            </p>
+          ) : null}
+
           <div
             role="tablist"
             aria-label="Segmento por contato do atendente"

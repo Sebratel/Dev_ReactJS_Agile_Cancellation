@@ -193,25 +193,8 @@ export class PreCollectionService implements OnModuleInit {
     void this.refreshCache();
   }
 
-  // Distribui automaticamente casos de pre-cobrança todo dia às 7h.
-  // O método distribute é idempotente: contratos com caso ativo já existente
-  // são pulados, então rodar diariamente não gera duplicatas.
-  @Cron('0 7 * * *')
-  async handleScheduledDistribute(): Promise<void> {
-    if (getDataSourceMode() !== 'database') {
-      return;
-    }
-
-    this.logger.log('Distribuição automática de pré-cobrança iniciada');
-    try {
-      const result = await this.distribute('system');
-      this.logger.log(
-        `Distribuição automática concluída: ${result.created} criados, ${result.distributed} distribuídos, ${result.existing} já existentes`,
-      );
-    } catch (error) {
-      this.logger.error('Erro na distribuição automática de pré-cobrança', error);
-    }
-  }
+  // Distribuição desabilitada: deve ser acionada manualmente pela supervisão.
+  // O método distribute() continua disponível via endpoint POST /pre-collection/distribute.
 
   private getPool(db: ErpSyncDbConfig): Pool {
     this.pool ??= new Pool({
@@ -381,7 +364,13 @@ export class PreCollectionService implements OnModuleInit {
         continue;
       }
 
-      const overdueMs = Date.now() - new Date(item.firstOverdueDate).getTime();
+      // daysOverdue = dias desde o 1o vencimento + dias até o 2o vencimento,
+      // refletindo a janela financeira total do cliente em situação de pre-cobrança.
+      const firstOverdueDays = Math.max(
+        0,
+        Math.round((Date.now() - new Date(item.firstOverdueDate).getTime()) / 86_400_000),
+      );
+      const totalDaysOverdue = firstOverdueDays + item.daysUntilSecond;
       await this.prisma.collectionCase.create({
         data: {
           contractId: contract.id,
@@ -389,7 +378,7 @@ export class PreCollectionService implements OnModuleInit {
           status: 'WAITING_TRIAGE',
           priority: 'LOW',
           outstandingAmount: Number(item.totalOpenAmount),
-          daysOverdue: Math.max(0, Math.round(overdueMs / 86_400_000)),
+          daysOverdue: totalDaysOverdue,
           cycleStartedAt: new Date(),
           origin: 'PRE_COLLECTION',
         },

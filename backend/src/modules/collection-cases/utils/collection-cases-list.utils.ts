@@ -378,9 +378,7 @@ function mapSortField(
     case 'updatedAt':
       return { updatedAt: direction };
     case 'lastContactAt':
-      // Prisma nao suporta _max em orderBy de findMany; updatedAt e atualizado
-      // a cada tentativa de contato registrada, servindo como proxy fiel.
-      return { updatedAt: direction };
+      return { lastContactAt: direction };
     case 'daysOverdue':
     default:
       return { daysOverdue: direction };

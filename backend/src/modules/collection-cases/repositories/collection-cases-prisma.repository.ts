@@ -874,7 +874,10 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
 
       await tx.collectionCase.update({
         where: { id: caseId },
-        data: { updatedAt: now },
+        data: {
+          updatedAt: now,
+          lastContactAt: input.isAutomatic ? undefined : now,
+        },
       });
 
       const afterSnapshot: Prisma.InputJsonValue = {
@@ -980,6 +983,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
                 matrixMessageCode: matrixMessageCode ?? undefined,
                 matrixAwaitingReply: Boolean(matrixAttendanceCode),
                 matrixLastOutboundAt: now,
+                lastContactAt: now,
               }
             : {}),
           updatedAt: now,

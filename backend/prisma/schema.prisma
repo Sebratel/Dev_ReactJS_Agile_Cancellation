@@ -286,6 +286,10 @@ model CollectionCase {
   matrixAwaitingReply  Boolean          @default(false)
   matrixLastOutboundAt DateTime?
   matrixLastReplyAt    DateTime?
+  // Data da tentativa de contato mais recente registrada manualmente (isAutomatic=false).
+  // Atualizado atomicamente junto com cada CollectionAttempt — permite ordenar
+  // a lista por "último contato" sem proxy via updatedAt.
+  lastContactAt        DateTime?
   createdAt            DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
 
@@ -308,6 +312,7 @@ model CollectionCase {
   @@index([assignedAt])
   @@index([matrixAwaitingReply])
   @@index([matrixLastOutboundAt])
+  @@index([lastContactAt])
   @@index([matrixLastReplyAt])
   @@map("collection_cases")
 }
