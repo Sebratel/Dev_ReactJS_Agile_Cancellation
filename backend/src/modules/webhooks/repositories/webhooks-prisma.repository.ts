@@ -110,6 +110,23 @@ export class WebhooksPrismaRepository implements WebhooksRepository {
             },
           });
           summary.invoicesUpserted += 1;
+
+          // Fatura sintetica da pre-cobranca (pre-*) vira duplicata quando a
+          // real do ERP chega; sem cancelar, o ranking de 1o/2o vencimento erra.
+          const dueStart = new Date(invoice.dueDate);
+          dueStart.setUTCHours(0, 0, 0, 0);
+          await tx.invoice.updateMany({
+            where: {
+              contractId: contract.id,
+              externalId: { startsWith: 'pre-' },
+              status: { in: ['OPEN', 'OVERDUE', 'PARTIALLY_PAID'] },
+              dueDate: {
+                gte: dueStart,
+                lt: new Date(dueStart.getTime() + 86_400_000),
+              },
+            },
+            data: { status: 'CANCELLED' },
+          });
         }
 
         const existingCase = await tx.collectionCase.findUnique({
@@ -215,7 +232,8 @@ export class WebhooksPrismaRepository implements WebhooksRepository {
               performedByUserId: null,
               channel: 'WHATSAPP',
               result: 'NO_ANSWER',
-              notes: 'Mensagem automática enviada ao cliente antes da entrada na plataforma.',
+              notes:
+                'Mensagem automática enviada ao cliente antes da entrada na plataforma.',
               attemptedAt: now,
               isAutomatic: true,
             },

@@ -333,31 +333,49 @@ export class PreCollectionService implements OnModuleInit {
 
       // Garante que as duas faturas existam no banco — necessário para que os
       // filtros de 1o/2o vencimento na supervisão encontrem esses contratos.
-      await this.prisma.invoice.upsert({
-        where: { externalId: `pre-${item.contractCode}-${item.firstOverdueDate}` },
-        update: { status: 'OVERDUE', amount: Number(item.firstOverdueAmount) },
-        create: {
-          contractId: contract.id,
-          externalId: `pre-${item.contractCode}-${item.firstOverdueDate}`,
-          status: 'OVERDUE',
-          dueDate: new Date(`${item.firstOverdueDate}T12:00:00.000Z`),
-          amount: Number(item.firstOverdueAmount),
-          paidAmount: 0,
-        },
-      });
+      // Se a fatura real do ERP ja existe no dia, nao cria a sintetica (pre-*):
+      // duplicata distorce o ranking de 1o/2o vencimento.
+      const hasRealInvoiceOn = async (isoDate: string) =>
+        (await this.prisma.invoice.count({
+          where: {
+            contractId: contract.id,
+            NOT: { externalId: { startsWith: 'pre-' } },
+            dueDate: {
+              gte: new Date(`${isoDate}T00:00:00.000Z`),
+              lt: new Date(`${isoDate}T23:59:59.999Z`),
+            },
+          },
+        })) > 0;
 
-      await this.prisma.invoice.upsert({
-        where: { externalId: `pre-${item.contractCode}-${item.secondDueDate}` },
-        update: { status: 'OPEN', amount: Number(item.secondDueAmount) },
-        create: {
-          contractId: contract.id,
-          externalId: `pre-${item.contractCode}-${item.secondDueDate}`,
-          status: 'OPEN',
-          dueDate: new Date(`${item.secondDueDate}T12:00:00.000Z`),
-          amount: Number(item.secondDueAmount),
-          paidAmount: 0,
-        },
-      });
+      if (!(await hasRealInvoiceOn(item.firstOverdueDate))) {
+        await this.prisma.invoice.upsert({
+          where: { externalId: `pre-${item.contractCode}-${item.firstOverdueDate}` },
+          update: { status: 'OVERDUE', amount: Number(item.firstOverdueAmount) },
+          create: {
+            contractId: contract.id,
+            externalId: `pre-${item.contractCode}-${item.firstOverdueDate}`,
+            status: 'OVERDUE',
+            dueDate: new Date(`${item.firstOverdueDate}T12:00:00.000Z`),
+            amount: Number(item.firstOverdueAmount),
+            paidAmount: 0,
+          },
+        });
+      }
+
+      if (!(await hasRealInvoiceOn(item.secondDueDate))) {
+        await this.prisma.invoice.upsert({
+          where: { externalId: `pre-${item.contractCode}-${item.secondDueDate}` },
+          update: { status: 'OPEN', amount: Number(item.secondDueAmount) },
+          create: {
+            contractId: contract.id,
+            externalId: `pre-${item.contractCode}-${item.secondDueDate}`,
+            status: 'OPEN',
+            dueDate: new Date(`${item.secondDueDate}T12:00:00.000Z`),
+            amount: Number(item.secondDueAmount),
+            paidAmount: 0,
+          },
+        });
+      }
 
       if (existingCase) {
         existing++;
