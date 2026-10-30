@@ -23,6 +23,7 @@ import {
 import { useAuth } from '@/features/auth/auth-context';
 import { ContactCustomerWhatsAppAction } from '@/features/collection-cases/components/contact-customer-whatsapp-action';
 import { CollectionCaseSnapshotStrip } from '@/features/collection-cases/components/collection-case-snapshot-strip';
+import { HsmDeliveryBadge } from '@/features/collection-cases/components/hsm-delivery-badge';
 import { useCollectionCases } from '@/features/collection-cases/hooks/use-collection-cases';
 import type {
   CollectionCasesSortBy,
@@ -283,10 +284,16 @@ export default function MyCollectionPage() {
                         {item.contractCode}
                       </TableCell>
                       <TableCell>
-                        <StatusBadge
-                          label={getCollectionStatusLabel(item.status)}
-                          variant={getCollectionStatusVariant(item.status)}
-                        />
+                        <div className="flex flex-col items-start gap-1">
+                          <StatusBadge
+                            label={getCollectionStatusLabel(item.status)}
+                            variant={getCollectionStatusVariant(item.status)}
+                          />
+                          <HsmDeliveryBadge
+                            state={item.hsmDeliveryState}
+                            detail={item.hsmDeliveryDetail}
+                          />
+                        </div>
                       </TableCell>
                       <TableCell>
                         <StatusBadge

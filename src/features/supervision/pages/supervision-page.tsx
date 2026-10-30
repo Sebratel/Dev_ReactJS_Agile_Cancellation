@@ -377,13 +377,14 @@ export default function SupervisionPage() {
             hasActiveFilters={hasActiveFilters}
           />
 
-          {!casesQuery.isLoading && !casesQuery.isError && casesQuery.data ? (
+          {!casesQuery.isLoading &&
+          !casesQuery.isError &&
+          casesQuery.data &&
+          casesQuery.data.pagination.total > 0 ? (
             <p className="text-sm text-neutral">
-              {casesQuery.data.pagination.total === 0
-                ? 'Nenhum caso encontrado'
-                : casesQuery.data.pagination.total === 1
-                  ? '1 caso encontrado'
-                  : `${casesQuery.data.pagination.total.toLocaleString('pt-BR')} casos encontrados`}
+              {casesQuery.data.pagination.total === 1
+                ? '1 caso encontrado'
+                : `${casesQuery.data.pagination.total.toLocaleString('pt-BR')} casos encontrados`}
             </p>
           ) : null}
 

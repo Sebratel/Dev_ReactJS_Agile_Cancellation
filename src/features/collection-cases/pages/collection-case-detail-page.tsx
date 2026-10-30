@@ -16,6 +16,7 @@ import { PageHeader } from '@/components/data-display/page-header';
 import { SectionCard } from '@/components/data-display/section-card';
 import { StatusBadge } from '@/components/data-display/status-badge';
 import { PageContainer } from '@/components/navigation/page-container';
+import { HsmDeliveryBadge } from '@/features/collection-cases/components/hsm-delivery-badge';
 import { ErrorState } from '@/components/feedback/error-state';
 import { TableSkeleton } from '@/components/feedback/table-skeleton';
 import { buttonVariants } from '@/components/ui/button';
@@ -363,6 +364,10 @@ export default function CollectionCaseDetailPage() {
                 {caseQuery.data.matrixContact.awaitingReply ? (
                   <StatusBadge label="Aguardando Matrix" variant="warning" />
                 ) : null}
+                <HsmDeliveryBadge
+                  state={caseQuery.data.matrixContact.deliveryState}
+                  detail={caseQuery.data.matrixContact.deliveryDetail}
+                />
                 {caseQuery.data.origin !== 'ERP_SYNC' ? (
                   <StatusBadge
                     label={getCaseOriginLabel(caseQuery.data.origin)}

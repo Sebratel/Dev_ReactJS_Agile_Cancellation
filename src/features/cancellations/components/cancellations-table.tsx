@@ -31,6 +31,7 @@ import {
   getContractStatusLabel,
   getContractStatusVariant,
 } from '@/features/customers/utils/customer-labels';
+import { HsmDeliveryBadge } from '@/features/collection-cases/components/hsm-delivery-badge';
 import { InlineAssigneeSelect } from '@/features/supervision/components/inline-assignee-select';
 import { type UserResponse } from '@/features/users/types/users-api.types';
 import {
@@ -267,10 +268,16 @@ export function CancellationsTable({
                     )}
                   </TableCell>
                   <TableCell>
-                    <StatusBadge
-                      label={getCollectionStatusLabel(item.status)}
-                      variant={getCollectionStatusVariant(item.status)}
-                    />
+                    <div className="flex flex-col items-start gap-1">
+                      <StatusBadge
+                        label={getCollectionStatusLabel(item.status)}
+                        variant={getCollectionStatusVariant(item.status)}
+                      />
+                      <HsmDeliveryBadge
+                        state={item.hsmDeliveryState}
+                        detail={item.hsmDeliveryDetail}
+                      />
+                    </div>
                   </TableCell>
                   <TableCell align="center">
                     <div className="flex justify-center">
