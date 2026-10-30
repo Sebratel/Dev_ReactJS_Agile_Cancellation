@@ -43,6 +43,8 @@ export type CollectionCaseListItemResponse = {
   matrixAwaitingReply: boolean;
   matrixLastOutboundAt: string | null;
   matrixLastReplyAt: string | null;
+  hsmDeliveryState?: string | null;
+  hsmDeliveryDetail?: string | null;
   lastContactAt: string | null;
   origin: string | null;
 };
@@ -144,6 +146,9 @@ export type CollectionCaseMatrixContactSummary = {
   awaitingReply: boolean;
   lastOutboundAt: string | null;
   lastReplyAt: string | null;
+  deliveryState?: string | null;
+  deliveryDetail?: string | null;
+  deliveryAt?: string | null;
 };
 
 export type CreatePaymentPromisePayload = {
@@ -397,6 +402,7 @@ export type CollectionCasesListParams = {
   priority?: string;
   assignedToId?: string;
   contractStatus?: string;
+  hsmDeliveryState?: string;
   search?: string;
   daysOverdueMin?: number;
   daysOverdueMax?: number;

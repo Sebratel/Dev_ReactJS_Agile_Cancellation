@@ -186,6 +186,10 @@ export function buildCollectionCasesWhere(
     where.assignedUserId = params.assignedToId;
   }
 
+  if (params.hsmDeliveryState) {
+    where.hsmDeliveryState = params.hsmDeliveryState;
+  }
+
   const contractConditions: Prisma.ContractWhereInput[] = [];
 
   if (params.contractStatus) {
@@ -473,6 +477,10 @@ export function filterMockCollectionCases(
       return false;
     }
 
+    if (params.hsmDeliveryState && record.hsmDeliveryState !== params.hsmDeliveryState) {
+      return false;
+    }
+
     if (params.contractStatus && record.contractStatus !== params.contractStatus) {
       return false;
     }
@@ -714,6 +722,8 @@ export function toListItemResponse(
     matrixAwaitingReply: record.matrixAwaitingReply,
     matrixLastOutboundAt: record.matrixLastOutboundAt,
     matrixLastReplyAt: record.matrixLastReplyAt,
+    hsmDeliveryState: record.hsmDeliveryState ?? null,
+    hsmDeliveryDetail: record.hsmDeliveryDetail ?? null,
     lastContactAt: record.lastContactAt ?? null,
     origin: record.origin ?? null,
   };

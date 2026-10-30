@@ -81,6 +81,9 @@ export type CollectionCaseMatrixContactSummary = {
   awaitingReply: boolean;
   lastOutboundAt: string | null;
   lastReplyAt: string | null;
+  deliveryState?: string | null;
+  deliveryDetail?: string | null;
+  deliveryAt?: string | null;
 };
 
 export type CollectionCaseDetailsResponse = {

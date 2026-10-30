@@ -124,6 +124,10 @@ export class CollectionCasesQueryDto {
   contractStatus?: ContractStatus;
 
   @IsOptional()
+  @IsIn(['SENT', 'DELIVERED', 'READ', 'FAILED'])
+  hsmDeliveryState?: 'SENT' | 'DELIVERED' | 'READ' | 'FAILED';
+
+  @IsOptional()
   @IsString()
   @Transform(({ value }: { value: unknown }) => {
     if (typeof value !== 'string') {

@@ -30,6 +30,8 @@ describe('supervision search params', () => {
       createdToday: '',
       interactionStatus: '',
       promiseStatus: '',
+      origin: '',
+      hsmDeliveryState: '',
       sortBy: 'daysOverdue',
       sortDirection: 'asc',
       page: 2,

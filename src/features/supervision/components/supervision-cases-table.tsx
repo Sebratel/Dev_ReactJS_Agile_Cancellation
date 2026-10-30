@@ -25,6 +25,7 @@ import {
   canSendCaseToCancellation,
   getCollectionStatusLabel,
   getCollectionStatusVariant,
+  getHsmDeliveryPresentation,
   getPriorityLabel,
   getPriorityVariant,
   getSlaPresentation,
@@ -128,6 +129,10 @@ function AndamentoBadges({
   className?: string;
 }) {
   const matrixReply = getMatrixReplyPresentation(item);
+  const hsmDelivery = getHsmDeliveryPresentation(
+    item.hsmDeliveryState,
+    item.hsmDeliveryDetail,
+  );
   return (
     <div className={className}>
       <StatusBadge
@@ -135,6 +140,11 @@ function AndamentoBadges({
         variant={getCollectionStatusVariant(item.status)}
       />
       <StatusBadge label={matrixReply.label} variant={matrixReply.variant} />
+      {hsmDelivery ? (
+        <span title={hsmDelivery.title}>
+          <StatusBadge label={hsmDelivery.label} variant={hsmDelivery.variant} />
+        </span>
+      ) : null}
       <StatusBadge
         label={getPriorityLabel(item.priority)}
         variant={getPriorityVariant(item.priority)}
@@ -553,6 +563,10 @@ export function SupervisionCasesTable({
             {items.map((item) => {
               const sla = getSlaPresentation(item.slaDueAt);
               const matrixReply = getMatrixReplyPresentation(item);
+              const hsmDelivery = getHsmDeliveryPresentation(
+                item.hsmDeliveryState,
+                item.hsmDeliveryDetail,
+              );
               const isSelected = selectedIds.has(item.id);
               const isCritical =
                 CRITICAL_STATUSES.has(item.status) ||
@@ -623,6 +637,14 @@ export function SupervisionCasesTable({
                         {item.contractErpStatus ??
                           getContractStatusLabel(item.contractStatus)}
                       </div>
+                      {hsmDelivery ? (
+                        <div className="pt-0.5" title={hsmDelivery.title}>
+                          <StatusBadge
+                            label={hsmDelivery.label}
+                            variant={hsmDelivery.variant}
+                          />
+                        </div>
+                      ) : null}
                     </div>
                   </TableCell>
                   <TableCell className="text-xs text-neutral">

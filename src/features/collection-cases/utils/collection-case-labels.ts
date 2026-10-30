@@ -336,3 +336,35 @@ export function getCaseOriginVariant(origin: string | null): StatusVariant {
   if (origin === 'PRE_COLLECTION') return 'warning';
   return 'neutral';
 }
+
+export const HSM_DELIVERY_STATES = ['FAILED', 'SENT', 'DELIVERED', 'READ'] as const;
+
+export function getHsmDeliveryPresentation(
+  state: string | null | undefined,
+  detail?: string | null,
+): { label: string; variant: 'success' | 'warning' | 'danger' | 'neutral'; title: string } | null {
+  switch (state) {
+    case 'READ':
+      return { label: 'HSM lido', variant: 'success', title: detail ?? 'Lida' };
+    case 'DELIVERED':
+      return { label: 'HSM entregue', variant: 'success', title: detail ?? 'Entregue' };
+    case 'SENT':
+      return { label: 'HSM enviado', variant: 'neutral', title: detail ?? 'Enviada' };
+    case 'FAILED':
+      return { label: 'HSM não entregue', variant: 'danger', title: detail ?? 'Falha na entrega' };
+    default:
+      return null;
+  }
+}
+
+export function getHsmDeliveryFilterLabel(state: string): string {
+  return state === 'FAILED'
+    ? 'Não entregue'
+    : state === 'SENT'
+      ? 'Enviado'
+      : state === 'DELIVERED'
+        ? 'Entregue'
+        : state === 'READ'
+          ? 'Lido'
+          : state;
+}

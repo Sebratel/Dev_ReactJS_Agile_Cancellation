@@ -51,6 +51,7 @@ function buildCollectionCasesSearchParams(params: CollectionCasesListParams) {
   appendParam(searchParams, 'priority', params.priority);
   appendParam(searchParams, 'assignedToId', params.assignedToId);
   appendParam(searchParams, 'contractStatus', params.contractStatus);
+  appendParam(searchParams, 'hsmDeliveryState', params.hsmDeliveryState);
   appendParam(searchParams, 'search', params.search);
   appendParam(searchParams, 'daysOverdueMin', params.daysOverdueMin);
   appendParam(searchParams, 'daysOverdueMax', params.daysOverdueMax);

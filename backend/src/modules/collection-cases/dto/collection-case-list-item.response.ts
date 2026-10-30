@@ -27,6 +27,9 @@ export type CollectionCaseListItemResponse = {
   matrixAwaitingReply: boolean;
   matrixLastOutboundAt: string | null;
   matrixLastReplyAt: string | null;
+  // Entrega do ultimo HSM: SENT | DELIVERED | READ | FAILED + texto da Matrix.
+  hsmDeliveryState?: string | null;
+  hsmDeliveryDetail?: string | null;
   lastContactAt: string | null;
   // PRE_COLLECTION | ERP_SYNC | null (legados)
   origin: string | null;

@@ -237,6 +237,8 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
         matrixLastOutboundAt:
           matrix.matrixLastOutboundAt?.toISOString() ?? null,
         matrixLastReplyAt: matrix.matrixLastReplyAt?.toISOString() ?? null,
+        hsmDeliveryState: record.hsmDeliveryState ?? null,
+        hsmDeliveryDetail: record.hsmDeliveryDetail ?? null,
         lastContactAt: record.collectionAttempts[0]?.attemptedAt?.toISOString() ?? null,
         origin: record.origin ?? null,
       };
@@ -1592,6 +1594,9 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
         awaitingReply: matrix.matrixAwaitingReply ?? false,
         lastOutboundAt: matrix.matrixLastOutboundAt?.toISOString() ?? null,
         lastReplyAt: matrix.matrixLastReplyAt?.toISOString() ?? null,
+        deliveryState: record.hsmDeliveryState ?? null,
+        deliveryDetail: record.hsmDeliveryDetail ?? null,
+        deliveryAt: record.hsmDeliveryAt?.toISOString() ?? null,
       },
       cancellationProcess: cancellation
         ? {

@@ -26,6 +26,7 @@ export type SupervisionFiltersState = {
   interactionStatus: string;
   promiseStatus: string;
   origin: string;
+  hsmDeliveryState: string;
   sortBy: CollectionCasesSortBy | '';
   sortDirection: CollectionCasesSortDirection;
   page: number;
@@ -49,6 +50,7 @@ export const EMPTY_SUPERVISION_FILTERS: SupervisionFiltersState = {
   interactionStatus: '',
   promiseStatus: '',
   origin: '',
+  hsmDeliveryState: '',
   sortBy: '',
   sortDirection: 'desc',
   page: 1,
@@ -155,6 +157,7 @@ export function parseSupervisionSearchParams(
     interactionStatus: searchParams.get('interactionStatus') ?? '',
     promiseStatus: searchParams.get('promiseStatus') ?? '',
     origin: searchParams.get('origin') ?? '',
+    hsmDeliveryState: searchParams.get('hsmDeliveryState') ?? '',
     sortBy: isSortBy(sortByParam) ? sortByParam : '',
     sortDirection: isSortDirection(sortDirectionParam)
       ? sortDirectionParam
@@ -236,6 +239,10 @@ export function supervisionFiltersToSearchParams(
     params.set('origin', filters.origin);
   }
 
+  if (filters.hsmDeliveryState) {
+    params.set('hsmDeliveryState', filters.hsmDeliveryState);
+  }
+
   if (filters.sortBy) {
     params.set('sortBy', filters.sortBy);
     params.set('sortDirection', filters.sortDirection);
@@ -278,6 +285,7 @@ export function supervisionFiltersToListParams(
       ? filters.promiseStatus
       : undefined,
     origin: filters.origin || undefined,
+    hsmDeliveryState: filters.hsmDeliveryState || undefined,
     sortBy: filters.sortBy || undefined,
     sortDirection: filters.sortBy ? filters.sortDirection : undefined,
   };
@@ -302,6 +310,7 @@ export function hasActiveSupervisionFilters(filters: SupervisionFiltersState) {
     filters.interactionStatus.length > 0 ||
     filters.promiseStatus.length > 0 ||
     filters.origin.length > 0 ||
+    filters.hsmDeliveryState.length > 0 ||
     filters.sortBy.length > 0 ||
     filters.page > 1
   );

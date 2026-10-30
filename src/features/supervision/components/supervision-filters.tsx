@@ -8,7 +8,9 @@ import { cn } from '@/lib/utils';
 import {
   getCaseOriginLabel,
   getCollectionStatusLabel,
+  getHsmDeliveryFilterLabel,
   getPriorityLabel,
+  HSM_DELIVERY_STATES,
 } from '@/features/collection-cases/utils/collection-case-labels';
 import { OverdueDateCountPicker } from '@/features/collection-cases/components/overdue-date-count-picker';
 import { getContractStatusLabel } from '@/features/customers/utils/customer-labels';
@@ -81,6 +83,7 @@ function hasAdvancedFilters(filters: SupervisionFiltersState): boolean {
     filters.interactionStatus ||
     filters.promiseStatus ||
     filters.origin ||
+    filters.hsmDeliveryState ||
     filters.daysOverdueMin ||
     filters.daysOverdueMax ||
     filters.totalOutstandingMin ||
@@ -116,6 +119,7 @@ export function SupervisionFilters({
     filters.interactionStatus,
     filters.promiseStatus,
     filters.origin,
+    filters.hsmDeliveryState,
     filters.daysOverdueMin,
     filters.daysOverdueMax,
     filters.totalOutstandingMin,
@@ -241,6 +245,14 @@ export function SupervisionFilters({
       key: 'promiseStatus',
       label: PROMISE_LABELS[filters.promiseStatus] ?? filters.promiseStatus,
       onRemove: () => clearFilter({ promiseStatus: '' }),
+    });
+  }
+
+  if (filters.hsmDeliveryState) {
+    chips.push({
+      key: 'hsmDeliveryState',
+      label: `HSM: ${getHsmDeliveryFilterLabel(filters.hsmDeliveryState)}`,
+      onRemove: () => clearFilter({ hsmDeliveryState: '' }),
     });
   }
 
@@ -461,6 +473,23 @@ export function SupervisionFilters({
               {PROMISE_STATUS_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
+                </option>
+              ))}
+            </Select>
+          </label>
+
+          <label className="space-y-1 text-sm">
+            <span className={labelClassName}>Entrega do HSM</span>
+            <Select
+              value={filters.hsmDeliveryState}
+              onChange={(event) =>
+                onFilterChange({ hsmDeliveryState: event.target.value, page: 1 })
+              }
+            >
+              <option value="">Todos</option>
+              {HSM_DELIVERY_STATES.map((state) => (
+                <option key={state} value={state}>
+                  {getHsmDeliveryFilterLabel(state)}
                 </option>
               ))}
             </Select>

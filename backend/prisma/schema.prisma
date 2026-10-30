@@ -290,6 +290,12 @@ model CollectionCase {
   // Atualizado atomicamente junto com cada CollectionAttempt — permite ordenar
   // a lista por "último contato" sem proxy via updatedAt.
   lastContactAt        DateTime?
+  // Entrega do ultimo HSM enviado pela Matrix (lida do banco de relatorio de
+  // HSMs enviados): SENT | DELIVERED | READ | FAILED, texto original da Matrix
+  // e a data do ultimo status sincronizado.
+  hsmDeliveryState     String?          @db.VarChar(16)
+  hsmDeliveryDetail    String?          @db.VarChar(255)
+  hsmDeliveryAt        DateTime?
   createdAt            DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
 
@@ -314,6 +320,7 @@ model CollectionCase {
   @@index([matrixLastOutboundAt])
   @@index([lastContactAt])
   @@index([matrixLastReplyAt])
+  @@index([hsmDeliveryState])
   @@map("collection_cases")
 }
 

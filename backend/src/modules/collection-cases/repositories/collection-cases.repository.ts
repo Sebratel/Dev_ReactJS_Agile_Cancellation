@@ -194,6 +194,7 @@ export type CollectionCasesListParams = {
   priority?: string;
   assignedToId?: string;
   contractStatus?: string;
+  hsmDeliveryState?: string;
   search?: string;
   daysOverdueMin?: number;
   daysOverdueMax?: number;
@@ -287,6 +288,7 @@ export function mapQueryDtoToListParams(
     priority: query.priority,
     assignedToId: query.assignedToId,
     contractStatus: query.contractStatus,
+    hsmDeliveryState: query.hsmDeliveryState,
     search: query.search,
     daysOverdueMin: query.daysOverdueMin,
     daysOverdueMax: query.daysOverdueMax,

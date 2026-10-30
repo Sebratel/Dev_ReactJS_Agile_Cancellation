@@ -25,6 +25,7 @@ import { InvoicesModule } from '@/modules/invoices/invoices.module';
 import { NotificationsModule } from '@/modules/notifications/notifications.module';
 import { PaymentPromisesModule } from '@/modules/payment-promises/payment-promises.module';
 import { PreCollectionModule } from '@/modules/pre-collection/pre-collection.module';
+import { HsmDeliveryModule } from '@/modules/hsm-delivery/hsm-delivery.module';
 import { RolesModule } from '@/modules/roles/roles.module';
 import { SettingsModule } from '@/modules/settings/settings.module';
 import { UsersModule } from '@/modules/users/users.module';
@@ -72,6 +73,7 @@ const legacyBackendEnvPath =
     NotificationsModule,
     PaymentPromisesModule,
     PreCollectionModule,
+    HsmDeliveryModule,
     CancellationsModule,
     DashboardModule,
     AuditModule,
