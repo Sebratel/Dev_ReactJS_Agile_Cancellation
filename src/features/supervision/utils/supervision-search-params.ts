@@ -112,9 +112,7 @@ function isSlaStatus(value: string | null): value is CollectionCasesSlaStatus {
 function isInteractionStatus(
   value: string | null,
 ): value is 'none' | 'contacted' | 'not_contacted' {
-  return (
-    value === 'none' || value === 'contacted' || value === 'not_contacted'
-  );
+  return value === 'none' || value === 'contacted' || value === 'not_contacted';
 }
 
 function isContractStatus(value: string | null) {

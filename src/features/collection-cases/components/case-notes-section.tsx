@@ -20,7 +20,9 @@ export function CaseNotesSection({ caseId }: CaseNotesSectionProps) {
   const createNote = useCreateCaseNote(caseId);
   const [content, setContent] = useState('');
 
-  const handleRetry = () => { void notesQuery.refetch(); };
+  const handleRetry = () => {
+    void notesQuery.refetch();
+  };
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -33,7 +35,9 @@ export function CaseNotesSection({ caseId }: CaseNotesSectionProps) {
       toast.success('Comentário adicionado.');
     } catch (error) {
       toast.error(
-        error instanceof ApiError ? error.message : 'Não foi possível salvar o comentário.',
+        error instanceof ApiError
+          ? error.message
+          : 'Não foi possível salvar o comentário.',
       );
     }
   }
@@ -46,7 +50,12 @@ export function CaseNotesSection({ caseId }: CaseNotesSectionProps) {
       description="Observações livres da equipe, não visíveis para o cliente."
       contentClassName="space-y-4"
     >
-      <form onSubmit={(e) => { void handleSubmit(e); }} className="space-y-2">
+      <form
+        onSubmit={(e) => {
+          void handleSubmit(e);
+        }}
+        className="space-y-2"
+      >
         <Textarea
           rows={2}
           placeholder="Adicione uma observação interna sobre este caso..."
@@ -95,7 +104,8 @@ export function CaseNotesSection({ caseId }: CaseNotesSectionProps) {
                     {note.content}
                   </p>
                   <p className="mt-1 text-xs text-neutral">
-                    {note.author?.name ?? 'Sistema'} · {formatDateTimePtBR(note.createdAt)}
+                    {note.author?.name ?? 'Sistema'} ·{' '}
+                    {formatDateTimePtBR(note.createdAt)}
                   </p>
                 </div>
               </div>

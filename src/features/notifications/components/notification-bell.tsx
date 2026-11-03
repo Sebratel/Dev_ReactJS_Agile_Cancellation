@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { BadgeCheck, Ban, Bell, BellRing, CheckCheck, TriangleAlert } from 'lucide-react';
+import {
+  BadgeCheck,
+  Ban,
+  Bell,
+  BellRing,
+  CheckCheck,
+  TriangleAlert,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNotifications } from '@/features/notifications/hooks/use-notifications';
 import { useUnreadNotificationsCount } from '@/features/notifications/hooks/use-unread-notifications-count';
@@ -104,12 +111,14 @@ export function NotificationBell() {
     [listQuery.data],
   );
   const hasUnreadPromise = notifications.some(
-    (notification) => !notification.readAt && isPromiseNotification(notification),
+    (notification) =>
+      !notification.readAt && isPromiseNotification(notification),
   );
 
   useEffect(() => {
     const latestPromiseNotification = notifications.find(
-      (notification) => !notification.readAt && isPromiseNotification(notification),
+      (notification) =>
+        !notification.readAt && isPromiseNotification(notification),
     );
 
     if (!latestPromiseNotification) return;
@@ -143,7 +152,10 @@ export function NotificationBell() {
     if (!open) return;
 
     function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
         setOpen(false);
       }
     }

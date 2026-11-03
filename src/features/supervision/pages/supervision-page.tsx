@@ -51,7 +51,8 @@ const INTERACTION_SEGMENTS = [
 export default function SupervisionPage() {
   const { session } = useAuth();
   const canDistribute =
-    session?.user.roles.some((r) => r === 'ADMIN' || r === 'SUPERVISOR') ?? false;
+    session?.user.roles.some((r) => r === 'ADMIN' || r === 'SUPERVISOR') ??
+    false;
 
   const { filters, updateFilters, clearFilters } = useSupervisionSearchParams();
   const [searchInput, setSearchInput] = useState(filters.search);
@@ -93,9 +94,7 @@ export default function SupervisionPage() {
 
   const listParams = useMemo(() => {
     const base = supervisionFiltersToListParams(filters, debouncedSearch);
-    return selectedAgentId
-      ? { ...base, assignedToId: selectedAgentId }
-      : base;
+    return selectedAgentId ? { ...base, assignedToId: selectedAgentId } : base;
   }, [filters, debouncedSearch, selectedAgentId]);
 
   const casesQuery = useCollectionCases(listParams, { autoRefresh: true });
@@ -175,7 +174,13 @@ export default function SupervisionPage() {
     if (filters.page > totalPages) {
       updateFilters({ page: totalPages });
     }
-  }, [isPlaceholderData, casesQuery.data, filters.page, totalPages, updateFilters]);
+  }, [
+    isPlaceholderData,
+    casesQuery.data,
+    filters.page,
+    totalPages,
+    updateFilters,
+  ]);
   const hasActiveFilters = hasActiveSupervisionFilters({
     ...filters,
     search: debouncedSearch,
@@ -221,7 +226,12 @@ export default function SupervisionPage() {
   async function handleAutoDistribute() {
     try {
       const result = await autoDistributeMutation.mutateAsync({
-        statuses: ['WAITING_TRIAGE', 'IN_COLLECTION', 'NO_RESPONSE', 'ELIGIBLE_FOR_CANCELLATION'],
+        statuses: [
+          'WAITING_TRIAGE',
+          'IN_COLLECTION',
+          'NO_RESPONSE',
+          'ELIGIBLE_FOR_CANCELLATION',
+        ],
         targetRole: 'COLLECTION_AGENT',
       });
       toast.success(
@@ -229,7 +239,9 @@ export default function SupervisionPage() {
       );
     } catch (error) {
       toast.error(
-        error instanceof ApiError ? error.message : 'Não foi possível distribuir os casos.',
+        error instanceof ApiError
+          ? error.message
+          : 'Não foi possível distribuir os casos.',
       );
     }
   }
@@ -245,16 +257,22 @@ export default function SupervisionPage() {
             {canDistribute ? (
               <Button
                 variant="secondary"
-                onClick={() => { void handleAutoDistribute(); }}
+                onClick={() => {
+                  void handleAutoDistribute();
+                }}
                 disabled={autoDistributeMutation.isPending}
               >
                 <Shuffle className="h-4 w-4" />
-                {autoDistributeMutation.isPending ? 'Distribuindo...' : 'Distribuir automaticamente'}
+                {autoDistributeMutation.isPending
+                  ? 'Distribuindo...'
+                  : 'Distribuir automaticamente'}
               </Button>
             ) : null}
             <Button
               variant="secondary"
-              onClick={() => { void exportCsv({ ...listParams }); }}
+              onClick={() => {
+                void exportCsv({ ...listParams });
+              }}
               disabled={isExporting || casesQuery.isLoading}
             >
               <Download className="h-4 w-4" />
@@ -429,48 +447,50 @@ export default function SupervisionPage() {
 
           {casesQuery.isLoading ? <TableSkeleton rows={6} columns={5} /> : null}
 
-      {casesQuery.isError ? (
-        <ErrorState
-          title="Não foi possível carregar os casos"
-          description="Não foi possível conectar ao servidor. Tente novamente ou entre em contato com o suporte."
-          retryLabel="Tentar novamente"
-          onRetry={handleRetry}
-        />
-      ) : null}
+          {casesQuery.isError ? (
+            <ErrorState
+              title="Não foi possível carregar os casos"
+              description="Não foi possível conectar ao servidor. Tente novamente ou entre em contato com o suporte."
+              retryLabel="Tentar novamente"
+              onRetry={handleRetry}
+            />
+          ) : null}
 
-      {!casesQuery.isLoading && !casesQuery.isError && items.length === 0 ? (
-        <EmptyState
-          title="Nenhum caso encontrado"
-          description={
-            hasActiveFilters
-              ? 'Nenhum caso corresponde aos filtros aplicados. Ajuste os critérios ou limpe os filtros.'
-              : 'A API não retornou casos de cobrança para exibição neste momento.'
-          }
-          actionLabel={hasActiveFilters ? 'Limpar filtros' : 'Atualizar'}
-          onAction={hasActiveFilters ? handleClearFilters : handleRetry}
-        />
-      ) : null}
+          {!casesQuery.isLoading &&
+          !casesQuery.isError &&
+          items.length === 0 ? (
+            <EmptyState
+              title="Nenhum caso encontrado"
+              description={
+                hasActiveFilters
+                  ? 'Nenhum caso corresponde aos filtros aplicados. Ajuste os critérios ou limpe os filtros.'
+                  : 'A API não retornou casos de cobrança para exibição neste momento.'
+              }
+              actionLabel={hasActiveFilters ? 'Limpar filtros' : 'Atualizar'}
+              onAction={hasActiveFilters ? handleClearFilters : handleRetry}
+            />
+          ) : null}
 
-      {!casesQuery.isLoading && !casesQuery.isError && items.length > 0 ? (
-        <SupervisionCasesTable
-          items={items}
-          agents={agents}
-          agentsLoading={agentsQuery.isLoading}
-          workload={workloadQuery.data}
-          canDistribute={canDistribute}
-          page={filters.page}
-          totalPages={totalPages}
-          sortBy={filters.sortBy}
-          sortDirection={filters.sortDirection}
-          onPageChange={(page) => updateFilters({ page })}
-          onSortChange={(sortBy, sortDirection) =>
-            updateFilters({ sortBy, sortDirection, page: 1 })
-          }
-          selectedIds={selectedIds}
-          onToggleSelect={toggleSelect}
-          onToggleSelectAll={toggleSelectAll}
-        />
-      ) : null}
+          {!casesQuery.isLoading && !casesQuery.isError && items.length > 0 ? (
+            <SupervisionCasesTable
+              items={items}
+              agents={agents}
+              agentsLoading={agentsQuery.isLoading}
+              workload={workloadQuery.data}
+              canDistribute={canDistribute}
+              page={filters.page}
+              totalPages={totalPages}
+              sortBy={filters.sortBy}
+              sortDirection={filters.sortDirection}
+              onPageChange={(page) => updateFilters({ page })}
+              onSortChange={(sortBy, sortDirection) =>
+                updateFilters({ sortBy, sortDirection, page: 1 })
+              }
+              selectedIds={selectedIds}
+              onToggleSelect={toggleSelect}
+              onToggleSelectAll={toggleSelectAll}
+            />
+          ) : null}
 
           {canDistribute ? (
             <BulkActionBar
@@ -485,7 +505,9 @@ export default function SupervisionPage() {
                 }))}
               agents={agents}
               workload={workloadQuery.data}
-              onBulkAssign={(id) => { void handleBulkAssign(id); }}
+              onBulkAssign={(id) => {
+                void handleBulkAssign(id);
+              }}
               onClearSelection={clearSelection}
               isAssigning={bulkAssign.isPending}
             />

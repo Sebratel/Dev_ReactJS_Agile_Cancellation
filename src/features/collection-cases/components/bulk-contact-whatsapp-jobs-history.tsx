@@ -134,7 +134,11 @@ export function BulkContactWhatsAppJobsHistory({
         </Table>
       </TableContainer>
 
-      <Pagination page={page} totalPages={totalPages} onPageChange={onPageChange} />
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        onPageChange={onPageChange}
+      />
     </div>
   );
 }

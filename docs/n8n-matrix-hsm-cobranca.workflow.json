@@ -10,10 +10,7 @@
       },
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [
-        -720,
-        120
-      ],
+      "position": [-720, 120],
       "id": "webhook_matrix_hsm_cobranca",
       "name": "Webhook Plataforma"
     },
@@ -23,10 +20,7 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        -480,
-        120
-      ],
+      "position": [-480, 120],
       "id": "normalize_payload",
       "name": "Normalizar telefone"
     },
@@ -57,10 +51,7 @@
       },
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
-      "position": [
-        -240,
-        120
-      ],
+      "position": [-240, 120],
       "id": "check_number",
       "name": "Validar numero"
     },
@@ -99,10 +90,7 @@
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        0,
-        0
-      ],
+      "position": [0, 0],
       "id": "generate_token",
       "name": "Gerar token Matrix"
     },
@@ -138,10 +126,7 @@
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        240,
-        0
-      ],
+      "position": [240, 0],
       "id": "send_hsm_matrix",
       "name": "Enviar HSM Matrix",
       "onError": "continueErrorOutput"
@@ -156,10 +141,7 @@
       },
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
-      "position": [
-        520,
-        -80
-      ],
+      "position": [520, -80],
       "id": "respond_success",
       "name": "Responder sucesso"
     },
@@ -173,10 +155,7 @@
       },
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
-      "position": [
-        0,
-        240
-      ],
+      "position": [0, 240],
       "id": "respond_invalid_phone",
       "name": "Responder telefone invalido"
     },
@@ -186,10 +165,7 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        380,
-        220
-      ],
+      "position": [380, 220],
       "id": "extract_matrix_error",
       "name": "Extrair erro Matrix"
     },
@@ -203,10 +179,7 @@
       },
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
-      "position": [
-        520,
-        100
-      ],
+      "position": [520, 100],
       "id": "respond_matrix_error",
       "name": "Responder falha Matrix"
     }

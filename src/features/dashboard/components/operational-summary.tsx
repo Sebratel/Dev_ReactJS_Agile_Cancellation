@@ -6,7 +6,10 @@ type OperationalSummaryProps = {
   compact?: boolean;
 };
 
-export function OperationalSummary({ items, compact = false }: OperationalSummaryProps) {
+export function OperationalSummary({
+  items,
+  compact = false,
+}: OperationalSummaryProps) {
   return (
     <SectionCard
       title="Resumo operacional"
@@ -16,7 +19,11 @@ export function OperationalSummary({ items, compact = false }: OperationalSummar
         {items.map((item) => (
           <div
             key={item.label}
-            className={compact ? 'rounded-lg bg-muted/50 p-3' : 'rounded-xl bg-muted/50 p-4'}
+            className={
+              compact
+                ? 'rounded-lg bg-muted/50 p-3'
+                : 'rounded-xl bg-muted/50 p-4'
+            }
           >
             <p className="text-sm font-medium text-neutral">{item.label}</p>
             <p

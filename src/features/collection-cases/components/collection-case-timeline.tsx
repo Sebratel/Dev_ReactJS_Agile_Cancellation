@@ -200,101 +200,103 @@ export function CollectionCaseTimeline({
       timelineQuery.data &&
       timelineQuery.data.events.length > 0 ? (
         <div className="space-y-8">
-          {groupEventsByDate(timelineQuery.data.events).map((group, groupIdx) => (
-            <section key={group.dateLabel} aria-label={group.dateLabel}>
-              {/* Date separator */}
-              <div className="mb-4 flex items-center gap-3">
-                <div className="h-px flex-1 bg-border" />
-                <span className="rounded-full border border-border bg-muted px-3 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-neutral">
-                  {group.dateLabel}
-                </span>
-                <div className="h-px flex-1 bg-border" />
-              </div>
+          {groupEventsByDate(timelineQuery.data.events).map(
+            (group, groupIdx) => (
+              <section key={group.dateLabel} aria-label={group.dateLabel}>
+                {/* Date separator */}
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="h-px flex-1 bg-border" />
+                  <span className="rounded-full border border-border bg-muted px-3 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-neutral">
+                    {group.dateLabel}
+                  </span>
+                  <div className="h-px flex-1 bg-border" />
+                </div>
 
-              {/* Events list */}
-              <ol className="relative space-y-3 pl-10">
-                {/* Vertical line */}
-                <span
-                  className={cn(
-                    'absolute left-[15px] top-5 w-px bg-border',
-                    groupIdx === 0 ? 'top-5' : '-top-4',
-                  )}
-                  style={{
-                    bottom: group.events.length > 1 ? '1.5rem' : '50%',
-                  }}
-                  aria-hidden
-                />
+                {/* Events list */}
+                <ol className="relative space-y-3 pl-10">
+                  {/* Vertical line */}
+                  <span
+                    className={cn(
+                      'absolute left-[15px] top-5 w-px bg-border',
+                      groupIdx === 0 ? 'top-5' : '-top-4',
+                    )}
+                    style={{
+                      bottom: group.events.length > 1 ? '1.5rem' : '50%',
+                    }}
+                    aria-hidden
+                  />
 
-                {group.events.map((event) => {
-                  const style = getEventStyle(event.type);
-                  const Icon = style.icon;
+                  {group.events.map((event) => {
+                    const style = getEventStyle(event.type);
+                    const Icon = style.icon;
 
-                  return (
-                    <li key={event.id} className="relative">
-                      {/* Dot with icon */}
-                      <span
-                        className={cn(
-                          'absolute -left-10 flex h-8 w-8 items-center justify-center rounded-full ring-4 ring-card',
-                          style.dotClass,
-                        )}
-                        aria-hidden
-                      >
-                        <Icon className={cn('h-4 w-4', style.iconClass)} />
-                      </span>
+                    return (
+                      <li key={event.id} className="relative">
+                        {/* Dot with icon */}
+                        <span
+                          className={cn(
+                            'absolute -left-10 flex h-8 w-8 items-center justify-center rounded-full ring-4 ring-card',
+                            style.dotClass,
+                          )}
+                          aria-hidden
+                        >
+                          <Icon className={cn('h-4 w-4', style.iconClass)} />
+                        </span>
 
-                      {/* Card */}
-                      <div
-                        className={cn(
-                          'rounded-xl border border-l-[3px] bg-card px-4 py-3 transition-colors duration-150 hover:bg-muted/30',
-                          style.borderClass,
-                        )}
-                      >
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                          <div className="min-w-0 space-y-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span
-                                className={cn(
-                                  'text-[11px] font-semibold uppercase tracking-[0.1em]',
-                                  style.labelClass,
-                                )}
-                              >
-                                {style.label}
-                              </span>
-                              {event.type === 'ATTEMPT_CREATED' &&
-                                event.metadata?.isAutomatic === true ? (
-                                <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-neutral">
-                                  Automático
+                        {/* Card */}
+                        <div
+                          className={cn(
+                            'rounded-xl border border-l-[3px] bg-card px-4 py-3 transition-colors duration-150 hover:bg-muted/30',
+                            style.borderClass,
+                          )}
+                        >
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="min-w-0 space-y-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span
+                                  className={cn(
+                                    'text-[11px] font-semibold uppercase tracking-[0.1em]',
+                                    style.labelClass,
+                                  )}
+                                >
+                                  {style.label}
                                 </span>
+                                {event.type === 'ATTEMPT_CREATED' &&
+                                event.metadata?.isAutomatic === true ? (
+                                  <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-neutral">
+                                    Automático
+                                  </span>
+                                ) : null}
+                              </div>
+                              <p className="text-sm font-medium text-foreground">
+                                {event.title}
+                              </p>
+                              {event.description ? (
+                                <p className="text-sm leading-relaxed text-neutral">
+                                  {event.description}
+                                </p>
+                              ) : null}
+                              {event.actorName ? (
+                                <p className="text-xs text-neutral/70">
+                                  Por: {event.actorName}
+                                </p>
                               ) : null}
                             </div>
-                            <p className="text-sm font-medium text-foreground">
-                              {event.title}
-                            </p>
-                            {event.description ? (
-                              <p className="text-sm leading-relaxed text-neutral">
-                                {event.description}
-                              </p>
-                            ) : null}
-                            {event.actorName ? (
-                              <p className="text-xs text-neutral/70">
-                                Por: {event.actorName}
-                              </p>
-                            ) : null}
+                            <time
+                              className="shrink-0 text-xs font-medium tabular-nums text-neutral"
+                              dateTime={event.occurredAt}
+                            >
+                              {formatDateTimePtBR(event.occurredAt)}
+                            </time>
                           </div>
-                          <time
-                            className="shrink-0 text-xs font-medium tabular-nums text-neutral"
-                            dateTime={event.occurredAt}
-                          >
-                            {formatDateTimePtBR(event.occurredAt)}
-                          </time>
                         </div>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ol>
-            </section>
-          ))}
+                      </li>
+                    );
+                  })}
+                </ol>
+              </section>
+            ),
+          )}
         </div>
       ) : null}
     </SectionCard>

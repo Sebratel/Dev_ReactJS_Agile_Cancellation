@@ -160,10 +160,10 @@ feature/* --PR--> staging --> GitHub Actions (ci-ok) --> stack de staging no Por
 ```
 
 - **CI** (`.github/workflows/ci.yml`): `validacoes` (nomes do compose), `frontend` e `backend` (typecheck, lint, format, security scan, testes com **cobertura minima de 70%**, build), `imagem` (build das imagens e `up --wait` da stack com smoke de `/health` e do proxy `/api`) e o agregador **`ci-ok`**, unico check obrigatorio na protecao de branch (1 aprovacao, sem push direto, sem force push).
-- **Stack no Portainer**: nome `dev_reactjs_agile_cancellation` (repositorio em minusculas), arquivo `docker-compose.portainer.yml`, referencia `refs/heads/staging` (staging) ou `refs/heads/main` (producao). Webhook com *Re-pull image* e *Force redeployment*.
+- **Stack no Portainer**: nome `dev_reactjs_agile_cancellation` (repositorio em minusculas), arquivo `docker-compose.portainer.yml`, referencia `refs/heads/staging` (staging) ou `refs/heads/main` (producao). Webhook com _Re-pull image_ e _Force redeployment_.
 - **Servicos**: `frontend` (nginx), `backend` (NestJS, health em `/health`), `mariadb`. Sem `container_name`.
-- **Segredos**: so no painel *Environment* da stack (veja `.env.example`). Staging usa banco, N8N e Google proprios de staging; nunca os de producao.
+- **Segredos**: so no painel _Environment_ da stack (veja `.env.example`). Staging usa banco, N8N e Google proprios de staging; nunca os de producao.
 - **Recursos**: perfis low/medium/high em `deploy/profiles/*.env` (veja `docs/dimensionamento.md`). Padrao: medium.
 - **Migrations**: rodam no start do container do backend (`prisma migrate deploy`). Escreva migrations compativeis com a versao anterior do codigo para permitir rollback sem rollback de banco.
-- **Rollback**: `git revert` do commit via PR e *Pull and redeploy*; em emergencia, aponte a stack para o commit/tag anterior.
+- **Rollback**: `git revert` do commit via PR e _Pull and redeploy_; em emergencia, aponte a stack para o commit/tag anterior.
 - **Observabilidade**: o backend ainda nao tem agente Elastic APM nem log JSON estruturado; pendencia registrada (skill `observabilidade-backend`).

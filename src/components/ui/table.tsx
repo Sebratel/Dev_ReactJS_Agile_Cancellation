@@ -36,7 +36,13 @@ export function Table({
   ...props
 }: HTMLAttributes<HTMLTableElement>) {
   return (
-    <table className={cn('w-full border-separate border-spacing-0 text-sm', className)} {...props}>
+    <table
+      className={cn(
+        'w-full border-separate border-spacing-0 text-sm',
+        className,
+      )}
+      {...props}
+    >
       {children}
     </table>
   );
@@ -55,7 +61,11 @@ export function TableHead({
 }: TableHeadProps) {
   return (
     <thead
-      className={cn('bg-muted/80', sticky && 'sticky top-0 z-10 shadow-[0_1px_0_hsl(var(--border))]', className)}
+      className={cn(
+        'bg-muted/80',
+        sticky && 'sticky top-0 z-10 shadow-[0_1px_0_hsl(var(--border))]',
+        className,
+      )}
       {...props}
     >
       {children}
@@ -96,7 +106,10 @@ export function TableBody({
 }: HTMLAttributes<HTMLTableSectionElement>) {
   return (
     <tbody
-      className={cn('divide-y divide-border/80 bg-card table-stagger', className)}
+      className={cn(
+        'divide-y divide-border/80 bg-card table-stagger',
+        className,
+      )}
       {...props}
     >
       {children}

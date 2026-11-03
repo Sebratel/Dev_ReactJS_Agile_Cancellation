@@ -153,8 +153,7 @@ export default function MyCollectionPage() {
         </span>
         {SORT_OPTIONS.map((opt) => {
           const active = sortBy === opt.key;
-          const arrow =
-            active ? (sortDirection === 'desc' ? ' ↓' : ' ↑') : '';
+          const arrow = active ? (sortDirection === 'desc' ? ' ↓' : ' ↑') : '';
           return (
             <button
               key={opt.key}

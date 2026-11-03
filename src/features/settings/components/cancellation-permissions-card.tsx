@@ -43,8 +43,8 @@ export function CancellationPermissionsCard() {
           </p>
           <p className="mt-1 text-xs text-neutral">
             Quando desligado, apenas supervisão e administração podem
-            encaminhar. Supervisores e administradores sempre podem, independente
-            desta chave.
+            encaminhar. Supervisores e administradores sempre podem,
+            independente desta chave.
           </p>
         </div>
 

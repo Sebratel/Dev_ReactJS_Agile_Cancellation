@@ -4,7 +4,9 @@ import type {
   CreateCaseNotePayload,
 } from '@/features/collection-cases/types/case-notes-api.types';
 
-export async function getCaseNotes(caseId: string): Promise<CaseNoteResponse[]> {
+export async function getCaseNotes(
+  caseId: string,
+): Promise<CaseNoteResponse[]> {
   const { data } = await httpClient.request<CaseNoteResponse[]>({
     path: `/collection-cases/${caseId}/notes`,
     method: 'GET',

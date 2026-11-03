@@ -202,7 +202,10 @@ export function SupervisionRenegotiated({
                         <TableCell className="text-right text-sm tabular-nums">
                           {item.isCurrentlyRenegotiated ? (
                             <span className="inline-flex items-center gap-1.5">
-                              <span className="h-1.5 w-1.5 rounded-full bg-warning" aria-hidden="true" />
+                              <span
+                                className="h-1.5 w-1.5 rounded-full bg-warning"
+                                aria-hidden="true"
+                              />
                               <span className="font-semibold text-warning">
                                 {formatCurrencyFromDecimalString(
                                   item.openRenegotiationAmount,
@@ -285,11 +288,7 @@ function TitleList({
   );
 }
 
-function RenegotiationDetailPanel({
-  item,
-}: {
-  item: RenegotiatedHistoryItem;
-}) {
+function RenegotiationDetailPanel({ item }: { item: RenegotiatedHistoryItem }) {
   const query = useRenegotiationDetail(item.contractExternalId);
 
   if (!item.contractExternalId) {

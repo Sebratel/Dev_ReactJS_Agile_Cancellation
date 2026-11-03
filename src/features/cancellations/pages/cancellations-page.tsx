@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckCircle, Download, RefreshCw, Shuffle, Timer, TrendingUp } from 'lucide-react';
+import {
+  CheckCircle,
+  Download,
+  RefreshCw,
+  Shuffle,
+  Timer,
+  TrendingUp,
+} from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { BulkActionBar } from '@/components/data-display/bulk-action-bar';
 import { MetricCard } from '@/components/data-display/metric-card';
@@ -50,7 +57,9 @@ function parseFilters(params: URLSearchParams): CancellationsFilters {
 
   return {
     status:
-      status === 'CLOSED' || status === 'RECOVERED' || status === 'CANCELLATION_IN_PROGRESS'
+      status === 'CLOSED' ||
+      status === 'RECOVERED' ||
+      status === 'CANCELLATION_IN_PROGRESS'
         ? status
         : 'CANCELLATION_IN_PROGRESS',
     priority: params.get('priority') ?? '',
@@ -130,14 +139,17 @@ export default function CancellationsPage() {
       status: filters.status || undefined,
       priority: filters.priority || undefined,
       search: debouncedSearch.trim() || undefined,
-      sortBy: (filters.sortBy || undefined),
+      sortBy: filters.sortBy || undefined,
       sortDirection: filters.sortBy ? filters.sortDirection : undefined,
     }),
     [filters, debouncedSearch],
   );
 
   const casesQuery = useCollectionCases(listParams);
-  const inProgressQuery = useCollectionCases({ status: 'CANCELLATION_IN_PROGRESS', limit: 1 });
+  const inProgressQuery = useCollectionCases({
+    status: 'CANCELLATION_IN_PROGRESS',
+    limit: 1,
+  });
   const closedQuery = useCollectionCases({ status: 'CLOSED', limit: 1 });
   const recoveredQuery = useCollectionCases({ status: 'RECOVERED', limit: 1 });
 
@@ -154,7 +166,9 @@ export default function CancellationsPage() {
   const autoDistributeMutation = useAutoDistribute();
   const { exportCsv, isExporting } = useExportCasesCsv();
 
-  const handleRetry = () => { void casesQuery.refetch(); };
+  const handleRetry = () => {
+    void casesQuery.refetch();
+  };
 
   const items = useMemo(() => casesQuery.data?.items ?? [], [casesQuery.data]);
   const totalPages = Math.max(casesQuery.data?.pagination.totalPages ?? 1, 1);
@@ -207,7 +221,9 @@ export default function CancellationsPage() {
       clearSelection();
     } catch (error) {
       toast.error(
-        error instanceof ApiError ? error.message : 'Erro ao atribuir processos.',
+        error instanceof ApiError
+          ? error.message
+          : 'Erro ao atribuir processos.',
       );
     }
   }
@@ -223,7 +239,9 @@ export default function CancellationsPage() {
       );
     } catch (error) {
       toast.error(
-        error instanceof ApiError ? error.message : 'Não foi possível distribuir os processos.',
+        error instanceof ApiError
+          ? error.message
+          : 'Não foi possível distribuir os processos.',
       );
     }
   }
@@ -238,16 +256,22 @@ export default function CancellationsPage() {
             {canDistribute ? (
               <Button
                 variant="secondary"
-                onClick={() => { void handleAutoDistribute(); }}
+                onClick={() => {
+                  void handleAutoDistribute();
+                }}
                 disabled={autoDistributeMutation.isPending}
               >
                 <Shuffle className="h-4 w-4" />
-                {autoDistributeMutation.isPending ? 'Distribuindo...' : 'Distribuir automaticamente'}
+                {autoDistributeMutation.isPending
+                  ? 'Distribuindo...'
+                  : 'Distribuir automaticamente'}
               </Button>
             ) : null}
             <Button
               variant="secondary"
-              onClick={() => { void exportCsv({ ...listParams }); }}
+              onClick={() => {
+                void exportCsv({ ...listParams });
+              }}
               disabled={isExporting || casesQuery.isLoading}
             >
               <Download className="h-4 w-4" />
@@ -318,7 +342,9 @@ export default function CancellationsPage() {
             <span className="text-xs font-medium text-neutral">Status</span>
             <Select
               value={filters.status}
-              onChange={(e) => updateFilters({ status: e.target.value, page: 1 })}
+              onChange={(e) =>
+                updateFilters({ status: e.target.value, page: 1 })
+              }
             >
               <option value="CANCELLATION_IN_PROGRESS">Em andamento</option>
               <option value="RECOVERED">Retidos</option>
@@ -330,7 +356,9 @@ export default function CancellationsPage() {
             <span className="text-xs font-medium text-neutral">Prioridade</span>
             <Select
               value={filters.priority}
-              onChange={(e) => updateFilters({ priority: e.target.value, page: 1 })}
+              onChange={(e) =>
+                updateFilters({ priority: e.target.value, page: 1 })
+              }
             >
               <option value="">Todas as prioridades</option>
               {PRIORITY_OPTIONS.map((p) => (
@@ -402,7 +430,9 @@ export default function CancellationsPage() {
           selectedCaseIds={Array.from(selectedIds)}
           agents={agents}
           workload={workloadQuery.data}
-          onBulkAssign={(id) => { void handleBulkAssign(id); }}
+          onBulkAssign={(id) => {
+            void handleBulkAssign(id);
+          }}
           onClearSelection={clearSelection}
           isAssigning={bulkAssign.isPending}
         />

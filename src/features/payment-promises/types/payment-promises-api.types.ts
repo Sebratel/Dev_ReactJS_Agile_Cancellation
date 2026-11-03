@@ -1,4 +1,8 @@
-export type PaymentPromiseStatus = 'ACTIVE' | 'FULFILLED' | 'BROKEN' | 'CANCELLED';
+export type PaymentPromiseStatus =
+  | 'ACTIVE'
+  | 'FULFILLED'
+  | 'BROKEN'
+  | 'CANCELLED';
 
 export type PaymentPromiseListItemResponse = {
   id: string;

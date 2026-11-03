@@ -1,6 +1,4 @@
-export const TEST_MOCK_GOOGLE_ID_TOKEN = ['mock', 'admin@ger.local'].join(
-  ':',
-);
+export const TEST_MOCK_GOOGLE_ID_TOKEN = ['mock', 'admin@ger.local'].join(':');
 export const TEST_INVALID_GOOGLE_ID_TOKEN = ['mock', 'invalid@ger.local'].join(
   ':',
 );

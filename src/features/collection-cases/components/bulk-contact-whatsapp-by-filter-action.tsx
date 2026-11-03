@@ -91,9 +91,9 @@ export function BulkContactWhatsAppByFilterAction({
                       : 'clientes que correspondem'}
                   </strong>{' '}
                   aos filtros atuais. Casos com status não elegível ou sem
-                  telefone válido são pulados automaticamente. O envio
-                  acontece aos poucos em segundo plano — acompanhe o
-                  progresso no histórico da tela.
+                  telefone válido são pulados automaticamente. O envio acontece
+                  aos poucos em segundo plano — acompanhe o progresso no
+                  histórico da tela.
                 </AlertDialog.Description>
 
                 <div className="mt-6 flex justify-end gap-3">
@@ -131,8 +131,7 @@ export function BulkContactWhatsAppByFilterAction({
                     />
                   </div>
                   <p className="text-sm tabular-nums text-neutral">
-                    {processedCount}/{job?.totalCount ?? matchCount}{' '}
-                    processados
+                    {processedCount}/{job?.totalCount ?? matchCount} processados
                   </p>
                   {job ? (
                     <p className="text-xs text-neutral">

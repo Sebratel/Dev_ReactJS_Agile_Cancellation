@@ -58,8 +58,8 @@ export function RecoveryNotificationsInfo() {
                 <span>
                   <strong className="text-foreground">A supervisão</strong>{' '}
                   (você e os demais supervisores) recebe um{' '}
-                  <strong className="text-foreground">resumo</strong> de todos os
-                  clientes que se regularizaram na rodada — sino e e-mail.
+                  <strong className="text-foreground">resumo</strong> de todos
+                  os clientes que se regularizaram na rodada — sino e e-mail.
                 </span>
               </li>
               <li className="flex gap-2">

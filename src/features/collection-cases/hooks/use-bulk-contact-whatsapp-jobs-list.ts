@@ -14,9 +14,7 @@ export function useBulkContactWhatsAppJobsList(page: number, limit = 10) {
       const data = query.state.data as
         | { items: BulkContactWhatsAppJobResponse[] }
         | undefined;
-      const hasInFlight = data?.items.some(
-        (job) => job.status !== 'COMPLETED',
-      );
+      const hasInFlight = data?.items.some((job) => job.status !== 'COMPLETED');
       return hasInFlight ? 3_000 : false;
     },
   });

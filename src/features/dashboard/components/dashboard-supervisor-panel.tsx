@@ -45,7 +45,9 @@ export function DashboardSupervisorPanel({
 }: DashboardSupervisorPanelProps) {
   const unassigned = portfolios.find((portfolio) => portfolio.agent === null);
   const agentLoads = portfolios
-    .filter((portfolio) => portfolio.agent !== null && portfolio.totalActive > 0)
+    .filter(
+      (portfolio) => portfolio.agent !== null && portfolio.totalActive > 0,
+    )
     .map((portfolio) => ({
       label: portfolio.agent?.name ?? 'Sem responsável',
       count: portfolio.totalActive,
@@ -61,7 +63,10 @@ export function DashboardSupervisorPanel({
   }
 
   agentLoads.sort((a, b) => b.count - a.count);
-  const maxLoad = agentLoads.reduce((max, item) => Math.max(max, item.count), 0);
+  const maxLoad = agentLoads.reduce(
+    (max, item) => Math.max(max, item.count),
+    0,
+  );
 
   const inactiveAgents =
     summary.operationalAlerts.find((alert) => alert.key === 'inactiveAgents')
@@ -146,7 +151,10 @@ export function DashboardSupervisorPanel({
         </div>
         <Link
           to="/supervisao"
-          className={cn(buttonVariants({ variant: 'primary' }), 'px-4 py-2 text-sm')}
+          className={cn(
+            buttonVariants({ variant: 'primary' }),
+            'px-4 py-2 text-sm',
+          )}
         >
           Ir para supervisão
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -156,7 +164,9 @@ export function DashboardSupervisorPanel({
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <MetricCard
           title="Em aberto"
-          value={formatCurrencyFromDecimalString(String(summary.metrics.openAmount))}
+          value={formatCurrencyFromDecimalString(
+            String(summary.metrics.openAmount),
+          )}
           description="aguardando regularização"
           icon={Wallet}
           variant="warning"
@@ -207,7 +217,9 @@ export function DashboardSupervisorPanel({
                   <Icon className="h-5 w-5" aria-hidden="true" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-medium">{action.label}</span>
+                  <span className="block text-sm font-medium">
+                    {action.label}
+                  </span>
                   <span className="block truncate text-xs text-neutral">
                     {action.helper}
                   </span>
@@ -217,7 +229,10 @@ export function DashboardSupervisorPanel({
                     ? formatInteger(action.value)
                     : action.value}
                 </span>
-                <ChevronRight className="h-4 w-4 shrink-0 text-neutral" aria-hidden="true" />
+                <ChevronRight
+                  className="h-4 w-4 shrink-0 text-neutral"
+                  aria-hidden="true"
+                />
               </Link>
             );
           })}
@@ -231,7 +246,10 @@ export function DashboardSupervisorPanel({
           {portfoliosLoading ? (
             <div className="space-y-2.5">
               {Array.from({ length: 4 }).map((_, index) => (
-                <div key={index} className="h-6 animate-pulse rounded bg-muted/50" />
+                <div
+                  key={index}
+                  className="h-6 animate-pulse rounded bg-muted/50"
+                />
               ))}
             </div>
           ) : agentLoads.length === 0 ? (

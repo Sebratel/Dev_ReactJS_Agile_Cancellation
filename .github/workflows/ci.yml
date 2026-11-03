@@ -134,9 +134,11 @@ jobs:
       MARIADB_ROOT_PASSWORD: ci-root-not-a-secret
       MARIADB_USER: ger
       MARIADB_PASSWORD: ci-db-not-a-secret
-      JWT_SECRET: ci-test-secret-placeholder-not-production-0123456789
+      # A API roda com NODE_ENV=production: exige segredos fortes e CORS_ORIGIN fora de localhost.
+      JWT_SECRET: ci-smoke-9f8e7d6c5b4a39281706f5e4d3c2b1a0
+      N8N_WEBHOOK_SECRET: ci-smoke-webhook-0123456789abcdef
       GOOGLE_AUTH_MODE: mock
-      CORS_ORIGIN: http://localhost
+      CORS_ORIGIN: https://ger-ci.example.com
       API_PORT: '4000'
       WEB_PORT: '8080'
     steps:

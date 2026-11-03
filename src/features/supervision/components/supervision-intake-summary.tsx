@@ -61,8 +61,8 @@ export function SupervisionIntakeSummary() {
       </div>
 
       <p className="mt-2 text-[11px] text-neutral/70">
-        Casos que entraram na esteira em cada dia — use para conferir com o fluxo
-        de automação (N8N).
+        Casos que entraram na esteira em cada dia — use para conferir com o
+        fluxo de automação (N8N).
       </p>
     </section>
   );

@@ -10,10 +10,7 @@
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [
-        -260,
-        -360
-      ],
+      "position": [-260, -360],
       "id": "note_overview",
       "name": "Sobre este fluxo"
     },
@@ -25,10 +22,7 @@
       },
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [
-        -192,
-        16
-      ],
+      "position": [-192, 16],
       "id": "webhook_cases_recovered",
       "name": "Webhook Plataforma",
       "webhookId": "61ecc0c7-0847-4188-9d6c-351c23357ab3"
@@ -42,10 +36,7 @@
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [
-        -244,
-        -140
-      ],
+      "position": [-244, -140],
       "id": "note_webhook",
       "name": "Nota Webhook"
     },
@@ -55,10 +46,7 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        48,
-        16
-      ],
+      "position": [48, 16],
       "id": "prepare_emails",
       "name": "Preparar e-mails"
     },
@@ -71,10 +59,7 @@
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [
-        0,
-        -140
-      ],
+      "position": [0, -140],
       "id": "note_code",
       "name": "Nota Preparar"
     },
@@ -90,10 +75,7 @@
       },
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
-      "position": [
-        340,
-        16
-      ],
+      "position": [340, 16],
       "id": "send_email",
       "name": "Enviar e-mail",
       "webhookId": "740142a4-afcb-4c21-bc5c-6c8686db89e8",
@@ -113,10 +95,7 @@
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [
-        300,
-        -140
-      ],
+      "position": [300, -140],
       "id": "note_gmail",
       "name": "Nota Gmail"
     }
