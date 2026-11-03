@@ -140,7 +140,8 @@ export function createMockCollectionCaseListItems(
     contractStatus: record.contractStatus,
     contractErpStatus: record.contractErpStatus,
     contractCancellationReason: record.contractCancellationReason,
-    contractCancellationReasonCategory: record.contractCancellationReasonCategory,
+    contractCancellationReasonCategory:
+      record.contractCancellationReasonCategory,
     firstOverdueDate: record.firstOverdueDate,
     secondOverdueDate: record.secondOverdueDate,
     status: record.status,
@@ -418,15 +419,19 @@ export function createMockCollectionCaseDetails(): Record<
       ],
       activePromise: null,
       matrixContact: emptyMatrixContact(),
-      ...buildMockDetailExtensions('0.00', [
-        {
-          id: 'att_recovered_auto',
-          channel: 'WHATSAPP',
-          result: 'NO_ANSWER',
-          attemptedAt: new Date(Date.now() - 3_888_000_000).toISOString(),
-          isAutomatic: true,
-        },
-      ], null),
+      ...buildMockDetailExtensions(
+        '0.00',
+        [
+          {
+            id: 'att_recovered_auto',
+            channel: 'WHATSAPP',
+            result: 'NO_ANSWER',
+            attemptedAt: new Date(Date.now() - 3_888_000_000).toISOString(),
+            isAutomatic: true,
+          },
+        ],
+        null,
+      ),
       createdAt: new Date(Date.now() - 3_888_000_000).toISOString(),
       updatedAt: new Date(Date.now() - 172_800_000).toISOString(),
     },

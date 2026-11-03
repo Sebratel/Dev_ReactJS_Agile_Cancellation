@@ -1,12 +1,21 @@
+# Stack do Portainer = nome do repositorio no GitHub, em minusculas.
+name: dev_reactjs_agile_cancellation
+
 services:
-  db:
+  mariadb:
     image: mariadb:11
     restart: unless-stopped
+    cpus: ${MARIADB_CPUS:-1.0}
+    mem_limit: ${MARIADB_MEM_LIMIT:-1g}
+    memswap_limit: ${MARIADB_MEM_LIMIT:-1g}
     environment:
       MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
       MARIADB_DATABASE: DB_Cancellation_Plataform
       MARIADB_USER: ${MARIADB_USER}
       MARIADB_PASSWORD: ${MARIADB_PASSWORD}
+    command:
+      - --innodb-buffer-pool-size=${MARIADB_BUFFER_POOL:-512M}
+      - --max-connections=${MARIADB_MAX_CONNECTIONS:-100}
     volumes:
       - db_data:/var/lib/mysql
     healthcheck:
@@ -16,7 +25,7 @@ services:
       timeout: 5s
       retries: 12
 
-  api:
+  backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -24,7 +33,7 @@ services:
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: 4000
-      DATABASE_URL: ${DATABASE_URL:-mysql://${MARIADB_USER}:${MARIADB_PASSWORD}@db:3306/DB_Cancellation_Plataform?connection_limit=5}
+      DATABASE_URL: ${DATABASE_URL:-mysql://${MARIADB_USER}:${MARIADB_PASSWORD}@mariadb:3306/DB_Cancellation_Plataform?connection_limit=5}
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
       APP_TIMEZONE: ${APP_TIMEZONE:-UTC}
       JWT_SECRET: ${JWT_SECRET}
@@ -33,6 +42,9 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_AUTH_MODE: ${GOOGLE_AUTH_MODE:-real}
       GOOGLE_WORKSPACE_DOMAIN: ${GOOGLE_WORKSPACE_DOMAIN:-}
+      TZ: America/Sao_Paulo
+      # heap do V8 = ~75% do mem_limit (ver deploy/profiles)
+      NODE_OPTIONS: --max-old-space-size=${BACKEND_HEAP_MB:-768}
       DATA_SOURCE_MODE: database
       PRISMA_AUTO_CONNECT: 'true'
       ALLOW_DATABASE_UNAVAILABLE: ${ALLOW_DATABASE_UNAVAILABLE:-true}
@@ -51,13 +63,22 @@ services:
       ERP_DB_USER: ${ERP_DB_USER:-}
       ERP_DB_PASSWORD: ${ERP_DB_PASSWORD:-}
       ERP_DB_SSL: ${ERP_DB_SSL:-false}
+    cpus: ${BACKEND_CPUS:-1.0}
+    mem_limit: ${BACKEND_MEM_LIMIT:-1g}
+    memswap_limit: ${BACKEND_MEM_LIMIT:-1g}
+    healthcheck:
+      test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://localhost:4000/health']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
     depends_on:
-      db:
+      mariadb:
         condition: service_healthy
     ports:
       - '${API_PORT:-4000}:4000'
 
-  web:
+  frontend:
     build:
       context: .
       dockerfile: Dockerfile
@@ -66,10 +87,20 @@ services:
         VITE_APP_NAME: ${VITE_APP_NAME:-GER - Gestao de Cobranca e Cancelamento}
         VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
     restart: unless-stopped
+    cpus: ${FRONTEND_CPUS:-0.5}
+    mem_limit: ${FRONTEND_MEM_LIMIT:-128m}
+    memswap_limit: ${FRONTEND_MEM_LIMIT:-128m}
+    healthcheck:
+      test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://localhost:80/']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     ports:
       - '${WEB_PORT:-80}:80'
     depends_on:
-      - api
+      backend:
+        condition: service_healthy
 
 volumes:
   db_data:

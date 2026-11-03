@@ -1,7 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { createApiResponse } from '@/common/responses/api-response';
 import type { ListIntegrationEventsDto } from '@/modules/integration-events/dto/list-integration-events.dto';
-import { INTEGRATION_EVENTS_REPOSITORY, type IntegrationEventsRepository } from '@/modules/integration-events/repositories/integration-events.repository';
+import {
+  INTEGRATION_EVENTS_REPOSITORY,
+  type IntegrationEventsRepository,
+} from '@/modules/integration-events/repositories/integration-events.repository';
 
 @Injectable()
 export class IntegrationEventsService {

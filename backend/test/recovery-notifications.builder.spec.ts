@@ -11,7 +11,11 @@ function caseData(
     caseId: 'case_1',
     customerName: 'Construtora Horizonte',
     recoveredAmount: 1500,
-    assignedUser: { id: 'usr_marina', name: 'Marina', email: 'marina@ger.local' },
+    assignedUser: {
+      id: 'usr_marina',
+      name: 'Marina',
+      email: 'marina@ger.local',
+    },
     hadActivePromise: false,
     ...overrides,
   };
@@ -35,9 +39,8 @@ describe('buildRecoveryNotifications', () => {
   });
 
   it('ignora casos sem responsavel na notificacao individual', () => {
-    const { agentNotifications, supervisorSummary } = buildRecoveryNotifications([
-      caseData({ assignedUser: null }),
-    ]);
+    const { agentNotifications, supervisorSummary } =
+      buildRecoveryNotifications([caseData({ assignedUser: null })]);
 
     expect(agentNotifications).toHaveLength(0);
     // Mas ainda entra no resumo da supervisao.

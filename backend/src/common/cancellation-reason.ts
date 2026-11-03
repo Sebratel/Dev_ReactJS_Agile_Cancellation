@@ -8,10 +8,7 @@
 //    insatisfação...) — não é falha da cobrança.
 //  - OUTRO: motivo não informado ou não classificável.
 
-export type CancellationReasonCategory =
-  | 'INADIMPLENCIA'
-  | 'EXTERNO'
-  | 'OUTRO';
+export type CancellationReasonCategory = 'INADIMPLENCIA' | 'EXTERNO' | 'OUTRO';
 
 const INADIMPLENCIA_HINTS = ['inadimpl', 'dificuldade financeira'];
 
@@ -36,11 +33,7 @@ const EXTERNO_HINTS = [
 ];
 
 function normalize(text: string): string {
-  return text
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .trim();
+  return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 }
 
 /**
@@ -56,7 +49,9 @@ export function categorizeCancellationReason(
 
   const normalized = normalize(reason);
 
-  if (INADIMPLENCIA_HINTS.some((hint) => normalized.includes(normalize(hint)))) {
+  if (
+    INADIMPLENCIA_HINTS.some((hint) => normalized.includes(normalize(hint)))
+  ) {
     return 'INADIMPLENCIA';
   }
 

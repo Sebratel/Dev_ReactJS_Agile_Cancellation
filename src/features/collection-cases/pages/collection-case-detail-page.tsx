@@ -439,10 +439,14 @@ export default function CollectionCaseDetailPage() {
                     <div>
                       <dt className="font-medium text-neutral">Telefone 1</dt>
                       <dd className="mt-1 flex items-center gap-2">
-                        <span className="tabular-nums">{caseQuery.data.customer.phone}</span>
+                        <span className="tabular-nums">
+                          {caseQuery.data.customer.phone}
+                        </span>
                         <button
                           type="button"
-                          onClick={() => handleCopyPhone(caseQuery.data!.customer.phone!)}
+                          onClick={() =>
+                            handleCopyPhone(caseQuery.data.customer.phone!)
+                          }
                           className="text-neutral hover:text-foreground transition-colors"
                           title="Copiar telefone"
                         >
@@ -459,10 +463,14 @@ export default function CollectionCaseDetailPage() {
                     <div>
                       <dt className="font-medium text-neutral">Telefone 2</dt>
                       <dd className="mt-1 flex items-center gap-2">
-                        <span className="tabular-nums">{caseQuery.data.customer.phone2}</span>
+                        <span className="tabular-nums">
+                          {caseQuery.data.customer.phone2}
+                        </span>
                         <button
                           type="button"
-                          onClick={() => handleCopyPhone(caseQuery.data!.customer.phone2!)}
+                          onClick={() =>
+                            handleCopyPhone(caseQuery.data.customer.phone2!)
+                          }
                           className="text-neutral hover:text-foreground transition-colors"
                           title="Copiar telefone"
                         >
@@ -499,8 +507,8 @@ export default function CollectionCaseDetailPage() {
                         <span className="font-medium">
                           {caseQuery.data.contract.cancellationReason}
                         </span>
-                        {caseQuery.data.contract
-                          .cancellationReasonCategory === 'INADIMPLENCIA' ? (
+                        {caseQuery.data.contract.cancellationReasonCategory ===
+                        'INADIMPLENCIA' ? (
                           <span className="inline-flex rounded-full bg-danger/10 px-2 py-0.5 text-xs font-medium text-danger">
                             Inadimplência
                           </span>

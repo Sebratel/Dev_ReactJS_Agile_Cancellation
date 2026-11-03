@@ -105,7 +105,9 @@ describe('BulkContactJobPrismaRepository', () => {
   });
 
   it('recordItemResult mantem o job PROCESSING quando ainda ha itens pendentes', async () => {
-    const jobFindUniqueOrThrow = jest.fn().mockResolvedValue({ startedAt: null });
+    const jobFindUniqueOrThrow = jest
+      .fn()
+      .mockResolvedValue({ startedAt: null });
     const itemCount = jest.fn().mockResolvedValue(3);
     const jobUpdate = jest.fn().mockResolvedValue(undefined);
 

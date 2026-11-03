@@ -82,12 +82,7 @@ export class CollectionCasesController {
     @Body() body: CreateCollectionAttemptDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.collectionCasesService.createAttempt(
-      id,
-      body,
-      user.id,
-      user,
-    );
+    return this.collectionCasesService.createAttempt(id, body, user.id, user);
   }
 
   @Roles('COLLECTION_AGENT', 'SUPERVISOR', 'ADMIN')
@@ -110,12 +105,7 @@ export class CollectionCasesController {
     @Body() body: CreatePaymentPromiseDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.collectionCasesService.createPromise(
-      id,
-      body,
-      user.id,
-      user,
-    );
+    return this.collectionCasesService.createPromise(id, body, user.id, user);
   }
 
   @Roles('COLLECTION_AGENT', 'SUPERVISOR', 'ADMIN')
@@ -264,10 +254,7 @@ export class CollectionCasesController {
 
   @Roles('ADMIN', 'SUPERVISOR', 'COLLECTION_AGENT', 'CANCELLATION_AGENT')
   @Get(':id')
-  getCaseById(
-    @Param('id') id: string,
-    @CurrentUser() user: AuthenticatedUser,
-  ) {
+  getCaseById(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.collectionCasesService.getCaseById(id, user);
   }
 }

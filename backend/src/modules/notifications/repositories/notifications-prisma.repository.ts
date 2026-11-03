@@ -34,7 +34,9 @@ function mapNotification(n: {
 export class NotificationsPrismaRepository implements NotificationsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(params: CreateNotificationParams): Promise<NotificationResponse> {
+  async create(
+    params: CreateNotificationParams,
+  ): Promise<NotificationResponse> {
     const notification = await this.prisma.notification.create({
       data: {
         userId: params.userId,
@@ -86,7 +88,12 @@ export class NotificationsPrismaRepository implements NotificationsRepository {
       this.prisma.notification.count({ where }),
     ]);
 
-    return createPaginatedResponse(items.map(mapNotification), page, limit, total);
+    return createPaginatedResponse(
+      items.map(mapNotification),
+      page,
+      limit,
+      total,
+    );
   }
 
   async countUnread(userId: string): Promise<number> {
@@ -95,7 +102,10 @@ export class NotificationsPrismaRepository implements NotificationsRepository {
     });
   }
 
-  async markAsRead(id: string, userId: string): Promise<NotificationResponse | null> {
+  async markAsRead(
+    id: string,
+    userId: string,
+  ): Promise<NotificationResponse | null> {
     const existing = await this.prisma.notification.findFirst({
       where: { id, userId },
     });

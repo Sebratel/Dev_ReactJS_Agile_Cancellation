@@ -210,10 +210,7 @@ export class AuthService {
   }
 
   async refresh(dto: RefreshTokenDto) {
-    if (
-      dto.refreshToken.startsWith('dev:') &&
-      isDevLoginEnabled()
-    ) {
+    if (dto.refreshToken.startsWith('dev:') && isDevLoginEnabled()) {
       const userId = dto.refreshToken.slice(4);
 
       const mockUser = MOCK_AUTH_USER_DEFINITIONS.find(
@@ -286,10 +283,7 @@ export class AuthService {
   async validateJwtPayload(
     payload: JwtPayload,
   ): Promise<AuthenticatedUser | null> {
-    if (
-      payload.devSession &&
-      isDevLoginEnabled()
-    ) {
+    if (payload.devSession && isDevLoginEnabled()) {
       const dbUser = await this.authRepository
         .findByEmail(payload.email)
         .catch(() => null);

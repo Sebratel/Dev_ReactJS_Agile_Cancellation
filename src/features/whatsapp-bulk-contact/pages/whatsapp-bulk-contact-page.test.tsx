@@ -45,7 +45,9 @@ describe('WhatsappBulkContactPage', () => {
     });
 
     expect(
-      screen.getByRole('button', { name: 'Enviar HSM para os casos filtrados' }),
+      screen.getByRole('button', {
+        name: 'Enviar HSM para os casos filtrados',
+      }),
     ).toBeInTheDocument();
   });
 });

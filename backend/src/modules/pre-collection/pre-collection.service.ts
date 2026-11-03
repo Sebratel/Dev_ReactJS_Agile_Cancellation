@@ -1,9 +1,13 @@
 import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { Pool } from 'pg';
+import type { CollectionStatus } from '@prisma/client';
 import { createApiResponse } from '@/common/responses/api-response';
 import { getDataSourceMode } from '@/common/data-source/data-source.config';
-import { getErpSyncConfig, type ErpSyncDbConfig } from '@/config/erp-sync.config';
+import {
+  getErpSyncConfig,
+  type ErpSyncDbConfig,
+} from '@/config/erp-sync.config';
 import type {
   PreCollectionItemResponse,
   PreCollectionListResponse,
@@ -171,14 +175,21 @@ function mapRow(row: PreCollectionRow): PreCollectionItemResponse {
  * snapshot em cache atualizado em background — o endpoint responde na hora.
  */
 const DISTRIBUTION_WINDOW_DAYS = 5;
-const FINALIZED_STATUSES = ['CLOSED', 'RECOVERED', 'PAYMENT_MADE', 'RENEGOTIATED'];
+const FINALIZED_STATUSES: CollectionStatus[] = [
+  'CLOSED',
+  'RECOVERED',
+  'PAYMENT_MADE',
+  'RENEGOTIATED',
+];
 
 @Injectable()
 export class PreCollectionService implements OnModuleInit {
   private readonly logger = new Logger(PreCollectionService.name);
   private pool: Pool | null = null;
-  private cache: { items: PreCollectionItemResponse[]; refreshedAt: string } | null =
-    null;
+  private cache: {
+    items: PreCollectionItemResponse[];
+    refreshedAt: string;
+  } | null = null;
   private refreshing = false;
 
   constructor(private readonly prisma: PrismaService) {}
@@ -274,9 +285,16 @@ export class PreCollectionService implements OnModuleInit {
     return createApiResponse(response);
   }
 
-  async distribute(performedByUserId: string): Promise<PreCollectionDistributeResult> {
+  async distribute(): Promise<PreCollectionDistributeResult> {
     if (!this.cache || getDataSourceMode() !== 'database') {
-      return { eligible: 0, skipped: 0, created: 0, existing: 0, distributed: 0, agents: 0 };
+      return {
+        eligible: 0,
+        skipped: 0,
+        created: 0,
+        existing: 0,
+        distributed: 0,
+        agents: 0,
+      };
     }
 
     const eligible = this.cache.items.filter(
@@ -295,7 +313,10 @@ export class PreCollectionService implements OnModuleInit {
 
       const customer = await this.prisma.customer.upsert({
         where: { document: item.customerDocument },
-        update: { name: item.customerName, phone: item.customerPhone ?? undefined },
+        update: {
+          name: item.customerName,
+          phone: item.customerPhone ?? undefined,
+        },
         create: {
           name: item.customerName,
           document: item.customerDocument,
@@ -304,7 +325,9 @@ export class PreCollectionService implements OnModuleInit {
       });
 
       const contractStatus =
-        item.contractErpStatus === 'Bloqueio Financeiro' ? 'SUSPENDED' : 'ACTIVE';
+        item.contractErpStatus === 'Bloqueio Financeiro'
+          ? 'SUSPENDED'
+          : 'ACTIVE';
 
       const contract = await this.prisma.contract.upsert({
         where: { code: item.contractCode },
@@ -326,7 +349,7 @@ export class PreCollectionService implements OnModuleInit {
       const existingCase = await this.prisma.collectionCase.findFirst({
         where: {
           contractId: contract.id,
-          status: { notIn: FINALIZED_STATUSES as any },
+          status: { notIn: FINALIZED_STATUSES },
         },
         select: { id: true },
       });
@@ -349,8 +372,13 @@ export class PreCollectionService implements OnModuleInit {
 
       if (!(await hasRealInvoiceOn(item.firstOverdueDate))) {
         await this.prisma.invoice.upsert({
-          where: { externalId: `pre-${item.contractCode}-${item.firstOverdueDate}` },
-          update: { status: 'OVERDUE', amount: Number(item.firstOverdueAmount) },
+          where: {
+            externalId: `pre-${item.contractCode}-${item.firstOverdueDate}`,
+          },
+          update: {
+            status: 'OVERDUE',
+            amount: Number(item.firstOverdueAmount),
+          },
           create: {
             contractId: contract.id,
             externalId: `pre-${item.contractCode}-${item.firstOverdueDate}`,
@@ -364,7 +392,9 @@ export class PreCollectionService implements OnModuleInit {
 
       if (!(await hasRealInvoiceOn(item.secondDueDate))) {
         await this.prisma.invoice.upsert({
-          where: { externalId: `pre-${item.contractCode}-${item.secondDueDate}` },
+          where: {
+            externalId: `pre-${item.contractCode}-${item.secondDueDate}`,
+          },
           update: { status: 'OPEN', amount: Number(item.secondDueAmount) },
           create: {
             contractId: contract.id,
@@ -386,7 +416,9 @@ export class PreCollectionService implements OnModuleInit {
       // refletindo a janela financeira total do cliente em situação de pre-cobrança.
       const firstOverdueDays = Math.max(
         0,
-        Math.round((Date.now() - new Date(item.firstOverdueDate).getTime()) / 86_400_000),
+        Math.round(
+          (Date.now() - new Date(item.firstOverdueDate).getTime()) / 86_400_000,
+        ),
       );
       const totalDaysOverdue = firstOverdueDays + item.daysUntilSecond;
       await this.prisma.collectionCase.create({
@@ -423,7 +455,14 @@ export class PreCollectionService implements OnModuleInit {
     });
 
     if (unassigned.length === 0 || agents.length === 0) {
-      return { eligible: eligible.length, skipped, created, existing, distributed: 0, agents: agents.length };
+      return {
+        eligible: eligible.length,
+        skipped,
+        created,
+        existing,
+        distributed: 0,
+        agents: agents.length,
+      };
     }
 
     const now = new Date();

@@ -653,7 +653,8 @@ export class CollectionCasesService {
   }
 
   async bulkAssignCases(dto: BulkAssignCasesDto, performedByUserId: string) {
-    const resolvedPerformerId = this.performedByResolver.resolve(performedByUserId);
+    const resolvedPerformerId =
+      this.performedByResolver.resolve(performedByUserId);
     const result = await this.collectionCasesRepository.bulkAssignCases({
       caseIds: dto.caseIds,
       assignedUserId: dto.assignedUserId ?? null,
@@ -674,7 +675,8 @@ export class CollectionCasesService {
   }
 
   async autoDistribute(dto: AutoDistributeDto, performedByUserId: string) {
-    const resolvedPerformerId = this.performedByResolver.resolve(performedByUserId);
+    const resolvedPerformerId =
+      this.performedByResolver.resolve(performedByUserId);
     const result = await this.collectionCasesRepository.autoDistributeCases({
       statuses: dto.statuses,
       targetRole: dto.targetRole,

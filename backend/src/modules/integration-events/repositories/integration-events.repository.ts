@@ -1,5 +1,9 @@
 import type { PaginatedResponse } from '@/common/pagination/paginated-response';
-import type { IntegrationEventListItemResponse, IntegrationEventsSummaryResponse, SyncHealthResponse } from '@/modules/integration-events/dto/integration-event-list-item.response';
+import type {
+  IntegrationEventListItemResponse,
+  IntegrationEventsSummaryResponse,
+  SyncHealthResponse,
+} from '@/modules/integration-events/dto/integration-event-list-item.response';
 
 export type ListIntegrationEventsParams = {
   status?: string;
@@ -12,7 +16,9 @@ export type ListIntegrationEventsParams = {
 };
 
 export interface IntegrationEventsRepository {
-  list(params: ListIntegrationEventsParams): Promise<PaginatedResponse<IntegrationEventListItemResponse>>;
+  list(
+    params: ListIntegrationEventsParams,
+  ): Promise<PaginatedResponse<IntegrationEventListItemResponse>>;
   getSummary(): Promise<IntegrationEventsSummaryResponse>;
   getSyncHealth(): Promise<SyncHealthResponse>;
 }

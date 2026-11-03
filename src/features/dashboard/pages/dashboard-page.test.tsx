@@ -45,7 +45,9 @@ import {
 describe('DashboardPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(getCollectionCasePortfolios).mockResolvedValue({ portfolios: [] });
+    vi.mocked(getCollectionCasePortfolios).mockResolvedValue({
+      portfolios: [],
+    });
     vi.mocked(getRenegotiationSummary).mockResolvedValue({
       available: true,
       count: 38,

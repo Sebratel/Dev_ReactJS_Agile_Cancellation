@@ -32,8 +32,7 @@ export class ErpSyncController {
   @Roles('ADMIN', 'SUPERVISOR')
   @Get('renegotiation-detail/:externalId')
   async getRenegotiationDetail(@Param('externalId') externalId: string) {
-    const detail =
-      await this.erpSyncService.getRenegotiationDetail(externalId);
+    const detail = await this.erpSyncService.getRenegotiationDetail(externalId);
 
     return createApiResponse(detail);
   }

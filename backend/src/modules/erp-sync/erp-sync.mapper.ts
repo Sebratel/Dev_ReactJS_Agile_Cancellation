@@ -66,7 +66,9 @@ function groupByContract(
  * undefined (o Postgres guarda "" em vez de NULL em vários campos), evitando
  * falhas de validacao como @IsEmail() recebendo string vazia.
  */
-function toOptionalString(value: string | null | undefined): string | undefined {
+function toOptionalString(
+  value: string | null | undefined,
+): string | undefined {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
 }

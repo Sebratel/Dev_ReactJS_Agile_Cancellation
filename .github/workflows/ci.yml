@@ -1,27 +1,51 @@
 name: CI
 
 on:
-  push:
-    branches: [staging, massivas-integracao]
   pull_request:
-    branches: [staging, massivas-integracao]
+    branches: [main, staging]
+  push:
+    branches: [main, staging]
+  workflow_dispatch:
+
+# Menor privilegio: o CI so le o repositorio.
+permissions:
+  contents: read
+
+# Push novo cancela o run anterior da mesma branch/PR.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  frontend:
-    name: Frontend
+  validacoes:
+    name: Validacoes do compose
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: .
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Nomes do compose e gateway por ambiente
+        run: |
+          pip install pyyaml
+          env_alvo=staging
+          if [ "${{ github.base_ref || github.ref_name }}" = "main" ]; then env_alvo=production; fi
+          python3 .github/scripts/validate-compose.py \
+            --repo Dev_ReactJS_Agile_Cancellation --env "$env_alvo" \
+            --exceptions .github/compose-exceptions.txt \
+            docker-compose.portainer.yml
+
+  frontend:
+    name: Frontend - qualidade, testes (cobertura >= 70%), build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 22 # o mesmo da imagem Docker (node:22)
           cache: npm
 
-      - run: npm ci
+      - run: npm ci --no-audit --no-fund --legacy-peer-deps
 
       - name: Typecheck
         run: npm run typecheck
@@ -35,7 +59,7 @@ jobs:
       - name: Security scan
         run: npm run security:scan
 
-      - name: Tests
+      - name: Testes com cobertura (limite 70% em vite.config.ts)
         run: npm run test:run
         env:
           VITE_API_BASE_URL: http://localhost:4000
@@ -45,9 +69,14 @@ jobs:
         env:
           VITE_API_BASE_URL: http://localhost:4000
 
+      # [RECOMENDADO] comeca como aviso; promova a bloqueante quando zerar o backlog.
+      - name: Auditoria de dependencias (aviso)
+        run: npm audit --audit-level=high --omit=dev || echo "::warning::npm audit encontrou vulnerabilidades high+ (frontend)"
+
   backend:
-    name: Backend
+    name: Backend - qualidade, testes (cobertura >= 70%), build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: backend
@@ -56,14 +85,19 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 22 # o mesmo da imagem Docker (node:22)
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
-      - run: npm ci
+      - run: npm ci --no-audit --no-fund --legacy-peer-deps
 
       - name: Prisma generate
         run: npx prisma generate
+
+      - name: Prisma validate
+        run: npm run prisma:validate
+        env:
+          DATABASE_URL: mysql://USER:PASSWORD@HOST:3306/db
 
       - name: Typecheck
         run: npm run typecheck
@@ -77,7 +111,7 @@ jobs:
       - name: Security scan
         run: npm run security:scan
 
-      - name: Tests
+      - name: Testes com cobertura (limite 70% em jest.config.ts)
         run: npm run test:run
         env:
           DATA_SOURCE_MODE: mock
@@ -86,3 +120,75 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Auditoria de dependencias (aviso)
+        run: npm audit --audit-level=high --omit=dev || echo "::warning::npm audit encontrou vulnerabilidades high+ (backend)"
+
+  imagem:
+    name: Imagens Docker + smoke da stack
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      COMPOSE_PROJECT_NAME: ger-cancelamento-ci
+      # Segredos descartaveis, validos so dentro do runner.
+      MARIADB_ROOT_PASSWORD: ci-root-not-a-secret
+      MARIADB_USER: ger
+      MARIADB_PASSWORD: ci-db-not-a-secret
+      JWT_SECRET: ci-test-secret-placeholder-not-production-0123456789
+      GOOGLE_AUTH_MODE: mock
+      CORS_ORIGIN: http://localhost
+      API_PORT: '4000'
+      WEB_PORT: '8080'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Construir as imagens
+        run: docker compose -f docker-compose.portainer.yml build
+
+      # --wait espera o healthcheck, o mesmo criterio que o Portainer usa
+      - name: Subir a stack
+        run: docker compose -f docker-compose.portainer.yml up -d --wait --wait-timeout 240
+
+      - name: Health da API responde ok
+        run: |
+          curl -fsS --retry 15 --retry-delay 3 --retry-connrefused \
+            http://localhost:4000/health -o health.json
+          grep -q '"status":"ok"' health.json || {
+            echo "::error::/health devolveu resposta inesperada:"; cat health.json; exit 1; }
+
+      - name: Frontend serve a SPA e faz proxy da API
+        run: |
+          curl -fsS http://localhost:8080/ | grep -qi '<div id="root"' || {
+            echo "::error::frontend nao serviu o index.html"; exit 1; }
+          curl -fsS http://localhost:8080/api/health | grep -q '"status":"ok"' || {
+            echo "::error::proxy /api do nginx nao alcancou o backend"; exit 1; }
+
+      - name: Logs da stack
+        if: failure()
+        run: docker compose -f docker-compose.portainer.yml logs --no-color --timestamps > compose-logs.txt
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: compose-logs
+          path: compose-logs.txt
+
+      - name: Derrubar a stack
+        if: always()
+        run: docker compose -f docker-compose.portainer.yml down -v
+
+  # Check unico para a protecao de branch. `if: always()` no job, senao ele e pulado
+  # quando um `needs` falha e o check nunca reporta.
+  ci-ok:
+    name: ci-ok
+    runs-on: ubuntu-latest
+    needs: [validacoes, frontend, backend, imagem]
+    if: always()
+    timeout-minutes: 5
+    steps:
+      - name: Resultado agregado
+        run: |
+          if [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}" = "true" ]; then
+            echo "::error::Pelo menos um job nao passou."; exit 1
+          fi
+          echo "Tudo verde."

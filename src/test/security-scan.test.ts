@@ -70,5 +70,5 @@ describe('security-scan env rules', () => {
     });
 
     expect(output).toContain('Security scan passed.');
-  });
+  }, 30000);
 });

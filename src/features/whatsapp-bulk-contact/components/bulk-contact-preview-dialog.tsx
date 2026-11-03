@@ -8,7 +8,6 @@ import type {
   CollectionCasesListParams,
 } from '@/features/collection-cases/types/collection-cases-api.types';
 import { formatCurrencyBRL, formatDateOnlyPtBR } from '@/utils/formatters';
-import { cn } from '@/lib/utils';
 
 const PAGE_SIZE = 15;
 
@@ -53,11 +52,17 @@ export function BulkContactPreviewDialog({ filters, totalCount }: Props) {
                 Clientes selecionados
               </Dialog.Title>
               <Dialog.Description className="mt-0.5 text-sm text-neutral">
-                {total} cliente{total !== 1 ? 's' : ''} corresponde{total === 1 ? '' : 'm'} aos filtros aplicados.
+                {total} cliente{total !== 1 ? 's' : ''} corresponde
+                {total === 1 ? '' : 'm'} aos filtros aplicados.
               </Dialog.Description>
             </div>
             <Dialog.Close asChild>
-              <Button variant="ghost" size="sm" className="p-1.5" aria-label="Fechar">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="p-1.5"
+                aria-label="Fechar"
+              >
                 <X className="h-4 w-4" />
               </Button>
             </Dialog.Close>
@@ -88,9 +93,13 @@ export function BulkContactPreviewDialog({ filters, totalCount }: Props) {
                   {cases.map((c: CollectionCaseListItemResponse) => (
                     <tr key={c.id} className="hover:bg-muted/30">
                       <td className="px-4 py-3">
-                        <span className="font-medium text-foreground">{c.customerName}</span>
+                        <span className="font-medium text-foreground">
+                          {c.customerName}
+                        </span>
                       </td>
-                      <td className="px-4 py-3 text-neutral">{c.contractCode}</td>
+                      <td className="px-4 py-3 text-neutral">
+                        {c.contractCode}
+                      </td>
                       <td className="px-4 py-3 text-right tabular-nums text-neutral">
                         {c.daysOverdue}d
                       </td>
@@ -98,7 +107,9 @@ export function BulkContactPreviewDialog({ filters, totalCount }: Props) {
                         {formatCurrencyBRL(Number(c.outstandingAmount))}
                       </td>
                       <td className="px-4 py-3 text-neutral">
-                        {c.firstOverdueDate ? formatDateOnlyPtBR(c.firstOverdueDate) : '—'}
+                        {c.firstOverdueDate
+                          ? formatDateOnlyPtBR(c.firstOverdueDate)
+                          : '—'}
                       </td>
                     </tr>
                   ))}

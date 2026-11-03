@@ -1,4 +1,10 @@
-import { IsISO8601, IsObject, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsISO8601,
+  IsObject,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 
 export class MatrixReplyDto {
   @IsOptional()

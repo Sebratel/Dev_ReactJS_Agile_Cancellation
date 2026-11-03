@@ -41,10 +41,7 @@ describe('mapErpRowsToIngestPayload', () => {
       }),
     ];
 
-    const { payload, skippedContracts } = mapErpRowsToIngestPayload(
-      rows,
-      now,
-    );
+    const { payload, skippedContracts } = mapErpRowsToIngestPayload(rows, now);
 
     expect(skippedContracts).toBe(0);
     expect(payload.source).toBe('erp-sync');
@@ -125,10 +122,7 @@ describe('mapErpRowsToIngestPayload', () => {
       buildRow({ erp_contract_id: 'c2', contract_external_id: 'ext-c2' }),
     ];
 
-    const { payload, skippedContracts } = mapErpRowsToIngestPayload(
-      rows,
-      now,
-    );
+    const { payload, skippedContracts } = mapErpRowsToIngestPayload(rows, now);
 
     expect(skippedContracts).toBe(1);
     expect(payload.events).toHaveLength(1);
@@ -138,10 +132,7 @@ describe('mapErpRowsToIngestPayload', () => {
   it('descarta contratos com documento em branco', () => {
     const rows = [buildRow({ document: '   ' })];
 
-    const { payload, skippedContracts } = mapErpRowsToIngestPayload(
-      rows,
-      now,
-    );
+    const { payload, skippedContracts } = mapErpRowsToIngestPayload(rows, now);
 
     expect(skippedContracts).toBe(1);
     expect(payload.events).toHaveLength(0);
@@ -207,10 +198,7 @@ describe('mapErpRowsToIngestPayload', () => {
       }),
     ];
 
-    const { payload, skippedContracts } = mapErpRowsToIngestPayload(
-      rows,
-      now,
-    );
+    const { payload, skippedContracts } = mapErpRowsToIngestPayload(rows, now);
 
     expect(skippedContracts).toBe(1);
     expect(payload.events).toHaveLength(0);

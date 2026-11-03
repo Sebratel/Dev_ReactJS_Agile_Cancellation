@@ -66,7 +66,10 @@ export class NotificationsService {
     const updated = await this.repository.markAsRead(id, userId);
 
     if (!updated) {
-      throw new AppException('Notificação não encontrada.', HttpStatus.NOT_FOUND);
+      throw new AppException(
+        'Notificação não encontrada.',
+        HttpStatus.NOT_FOUND,
+      );
     }
 
     return createApiResponse(updated);

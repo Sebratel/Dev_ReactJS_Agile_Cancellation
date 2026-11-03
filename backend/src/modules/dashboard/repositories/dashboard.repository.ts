@@ -10,7 +10,9 @@ export type DashboardSummaryParams = {
 };
 
 export interface DashboardRepository {
-  getSummary(params?: DashboardSummaryParams): Promise<DashboardSummaryResponse>;
+  getSummary(
+    params?: DashboardSummaryParams,
+  ): Promise<DashboardSummaryResponse>;
   getOperations(): Promise<DashboardOperationsResponse>;
   getRecoveryRanking(
     params: RecoveryRankingParams,
