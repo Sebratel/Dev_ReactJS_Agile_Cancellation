@@ -47,9 +47,8 @@ export class WhatsappBulkContactWorkerService {
   }
 
   private async processBatch() {
-    const items = await this.bulkContactJobRepository.getPendingItems(
-      BATCH_SIZE,
-    );
+    const items =
+      await this.bulkContactJobRepository.getPendingItems(BATCH_SIZE);
 
     if (items.length === 0) return;
 

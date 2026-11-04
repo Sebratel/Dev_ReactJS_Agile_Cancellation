@@ -42,9 +42,13 @@ export class NotificationsMockRepository implements NotificationsRepository {
   }
 
   listSupervisorUserIds(): Promise<string[]> {
-    return Promise.resolve(MOCK_AUTH_USER_DEFINITIONS.filter((user) =>
-      user.roleCodes.some((role) => role === 'ADMIN' || role === 'SUPERVISOR'),
-    ).map((user) => user.id));
+    return Promise.resolve(
+      MOCK_AUTH_USER_DEFINITIONS.filter((user) =>
+        user.roleCodes.some(
+          (role) => role === 'ADMIN' || role === 'SUPERVISOR',
+        ),
+      ).map((user) => user.id),
+    );
   }
 
   list(params: ListNotificationsParams) {
@@ -63,10 +67,12 @@ export class NotificationsMockRepository implements NotificationsRepository {
   }
 
   countUnread(userId: string): Promise<number> {
-    return Promise.resolve(this.byUser(userId)
-      .map((id) => this.notifications.get(id))
-      .filter((n): n is NotificationResponse => Boolean(n))
-      .filter((n) => !n.readAt).length);
+    return Promise.resolve(
+      this.byUser(userId)
+        .map((id) => this.notifications.get(id))
+        .filter((n): n is NotificationResponse => Boolean(n))
+        .filter((n) => !n.readAt).length,
+    );
   }
 
   markAsRead(id: string, userId: string): Promise<NotificationResponse | null> {
@@ -77,7 +83,10 @@ export class NotificationsMockRepository implements NotificationsRepository {
     const existing = this.notifications.get(id);
     if (!existing) return Promise.resolve(null);
 
-    const updated = { ...existing, readAt: existing.readAt ?? new Date().toISOString() };
+    const updated = {
+      ...existing,
+      readAt: existing.readAt ?? new Date().toISOString(),
+    };
     this.notifications.set(id, updated);
     return Promise.resolve(updated);
   }
@@ -87,7 +96,10 @@ export class NotificationsMockRepository implements NotificationsRepository {
     for (const id of this.byUser(userId)) {
       const existing = this.notifications.get(id);
       if (existing && !existing.readAt) {
-        this.notifications.set(id, { ...existing, readAt: new Date().toISOString() });
+        this.notifications.set(id, {
+          ...existing,
+          readAt: new Date().toISOString(),
+        });
         count += 1;
       }
     }

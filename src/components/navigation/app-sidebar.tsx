@@ -85,8 +85,8 @@ function SidebarContent({ onNavigate }: SidebarContentProps) {
                       cn(
                         'group relative flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm transition-colors duration-150',
                         isActive
-              ? 'bg-primary/10 font-semibold text-foreground shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.22)]'
-              : 'font-medium text-neutral hover:bg-muted/80 hover:text-foreground',
+                          ? 'bg-primary/10 font-semibold text-foreground shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.22)]'
+                          : 'font-medium text-neutral hover:bg-muted/80 hover:text-foreground',
                       )
                     }
                   >
@@ -95,7 +95,9 @@ function SidebarContent({ onNavigate }: SidebarContentProps) {
                         <span
                           className={cn(
                             'absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-primary transition-[opacity,transform] duration-200',
-                            isActive ? 'opacity-100 scale-y-100' : 'opacity-0 scale-y-50',
+                            isActive
+                              ? 'opacity-100 scale-y-100'
+                              : 'opacity-0 scale-y-50',
                           )}
                           aria-hidden="true"
                         />
@@ -166,7 +168,7 @@ export function AppSidebarMobile({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-      <Dialog.Overlay className="fixed inset-0 z-40 bg-foreground/25 backdrop-blur-[2px] data-[state=open]:animate-fade-in data-[state=closed]:animate-fade-out lg:hidden" />
+        <Dialog.Overlay className="fixed inset-0 z-40 bg-foreground/25 backdrop-blur-[2px] data-[state=open]:animate-fade-in data-[state=closed]:animate-fade-out lg:hidden" />
         <Dialog.Content
           className="fixed left-0 top-0 z-50 h-full data-[state=open]:animate-drawer-in-left data-[state=closed]:animate-drawer-out-left lg:hidden"
           style={{ width: theme.sidebarWidth }}

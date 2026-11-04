@@ -41,10 +41,7 @@ export class NotificationsController {
 
   @Roles(...ALL_ROLES)
   @Patch(':id/read')
-  markAsRead(
-    @Param('id') id: string,
-    @CurrentUser() user: AuthenticatedUser,
-  ) {
+  markAsRead(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.notificationsService.markAsRead(id, user.id);
   }
 }

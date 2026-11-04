@@ -33,7 +33,9 @@ describe('buildCancellationNotifications', () => {
         assignedUser: { id: 'u1', name: 'Ana', email: null },
       },
     ]);
-    expect(result.supervisorSummary?.title).toBe('Cliente Único cancelou o contrato');
+    expect(result.supervisorSummary?.title).toBe(
+      'Cliente Único cancelou o contrato',
+    );
     expect(result.supervisorSummary?.body).toContain('Cliente Único');
     expect(result.supervisorSummary?.entityId).toBe('c1');
   });

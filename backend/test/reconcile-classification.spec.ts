@@ -18,8 +18,14 @@ function status(
 
 describe('isContractRegularized', () => {
   it('regularizado quando status elegível e sem títulos vencidos', () => {
-    expect(isContractRegularized(status({ erpContractStatus: 'Normal' }))).toBe(true);
-    expect(isContractRegularized(status({ erpContractStatus: 'Bloqueio Financeiro' }))).toBe(true);
+    expect(isContractRegularized(status({ erpContractStatus: 'Normal' }))).toBe(
+      true,
+    );
+    expect(
+      isContractRegularized(
+        status({ erpContractStatus: 'Bloqueio Financeiro' }),
+      ),
+    ).toBe(true);
   });
 
   it('NÃO é regularizado com título vencido em aberto', () => {
@@ -27,8 +33,12 @@ describe('isContractRegularized', () => {
   });
 
   it('NÃO é regularizado quando o status não é elegível (cancelado)', () => {
-    expect(isContractRegularized(status({ erpContractStatus: 'Cancelado' }))).toBe(false);
-    expect(isContractRegularized(status({ erpContractStatus: null }))).toBe(false);
+    expect(
+      isContractRegularized(status({ erpContractStatus: 'Cancelado' })),
+    ).toBe(false);
+    expect(isContractRegularized(status({ erpContractStatus: null }))).toBe(
+      false,
+    );
   });
 
   it('NÃO é regularizado quando o contrato não foi encontrado', () => {
@@ -46,7 +56,9 @@ describe('resolveReconcileOutcome (anti falso positivo de receita)', () => {
   });
 
   it('cancelado quando o contrato não está mais elegível', () => {
-    expect(resolveReconcileOutcome(status({ erpContractStatus: 'Cancelado' }), true)).toBe('cancelled');
+    expect(
+      resolveReconcileOutcome(status({ erpContractStatus: 'Cancelado' }), true),
+    ).toBe('cancelled');
   });
 
   it('cancelado quando o contrato não foi encontrado', () => {
@@ -54,7 +66,9 @@ describe('resolveReconcileOutcome (anti falso positivo de receita)', () => {
   });
 
   it('ainda com vencido em aberto e sem pagamento -> unresolved', () => {
-    expect(resolveReconcileOutcome(status({ openOverdueTitles: 1 }), false)).toBe('unresolved');
+    expect(
+      resolveReconcileOutcome(status({ openOverdueTitles: 1 }), false),
+    ).toBe('unresolved');
   });
 });
 

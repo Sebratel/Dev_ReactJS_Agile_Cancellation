@@ -1,10 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  CheckCircle,
-  RefreshCw,
-  TrendingUp,
-  UserX,
-} from 'lucide-react';
+import { CheckCircle, RefreshCw, TrendingUp, UserX } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { MetricCard } from '@/components/data-display/metric-card';
 import { PageHeader } from '@/components/data-display/page-header';
@@ -61,15 +56,21 @@ function ConfirmRecoverDialog({
       <div className="mx-4 w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-floating">
         <h2 className="mb-2 text-base font-bold">Marcar como Recuperado?</h2>
         <p className="mb-1 text-sm text-neutral">
-          Cliente: <span className="font-medium text-foreground">{item.customerName}</span>
+          Cliente:{' '}
+          <span className="font-medium text-foreground">
+            {item.customerName}
+          </span>
         </p>
         <p className="mb-4 text-sm text-neutral">
-          Contrato: <span className="font-medium text-foreground">{item.contractCode}</span>
+          Contrato:{' '}
+          <span className="font-medium text-foreground">
+            {item.contractCode}
+          </span>
         </p>
         <p className="mb-6 text-sm text-neutral">
-          Esta ação marcará o caso como <strong>Recuperado</strong> e registrará o evento de
-          auditoria. Confirme apenas se o cliente foi reativado na Voalle após contato do
-          atendente.
+          Esta ação marcará o caso como <strong>Recuperado</strong> e registrará
+          o evento de auditoria. Confirme apenas se o cliente foi reativado na
+          Voalle após contato do atendente.
         </p>
         <div className="flex justify-end gap-3">
           <Button variant="secondary" onClick={onCancel} disabled={isPending}>
@@ -88,7 +89,8 @@ export default function CancelledClientsPage() {
   const [searchInput, setSearchInput] = useState('');
   const debouncedSearch = useDebouncedValue(searchInput, 400);
   const [page, setPage] = useState(1);
-  const [confirmItem, setConfirmItem] = useState<CollectionCaseListItemResponse | null>(null);
+  const [confirmItem, setConfirmItem] =
+    useState<CollectionCaseListItemResponse | null>(null);
 
   const recoverMutation = useRecoverCancelled();
 
@@ -115,7 +117,9 @@ export default function CancelledClientsPage() {
   const closedTotal = closedQuery.data?.pagination.total ?? 0;
   const recoveredTotal = recoveredQuery.data?.pagination.total ?? 0;
 
-  const handleRetry = useCallback(() => { void casesQuery.refetch(); }, [casesQuery]);
+  const handleRetry = useCallback(() => {
+    void casesQuery.refetch();
+  }, [casesQuery]);
 
   async function handleConfirmRecover() {
     if (!confirmItem) return;
@@ -125,7 +129,9 @@ export default function CancelledClientsPage() {
       setConfirmItem(null);
     } catch (error) {
       toast.error(
-        error instanceof ApiError ? error.message : 'Não foi possível marcar o caso como recuperado.',
+        error instanceof ApiError
+          ? error.message
+          : 'Não foi possível marcar o caso como recuperado.',
       );
     }
   }
@@ -171,16 +177,17 @@ export default function CancelledClientsPage() {
           }
           description={`${formatInteger(recoveredTotal)} de ${formatInteger(closedTotal + recoveredTotal)} finalizados`}
           icon={CheckCircle}
-          variant={recoveredTotal / Math.max(closedTotal + recoveredTotal, 1) >= 0.1 ? 'success' : 'neutral'}
+          variant={
+            recoveredTotal / Math.max(closedTotal + recoveredTotal, 1) >= 0.1
+              ? 'success'
+              : 'neutral'
+          }
           loading={closedQuery.isLoading || recoveredQuery.isLoading}
           density="compact"
         />
       </div>
 
-      <SectionCard
-        title="Filtros"
-        contentClassName="p-4"
-      >
+      <SectionCard title="Filtros" contentClassName="p-4">
         <label className="block max-w-sm space-y-1 text-sm">
           <span className="text-xs font-medium text-neutral">Busca</span>
           <Input
@@ -211,7 +218,9 @@ export default function CancelledClientsPage() {
               : 'Não há clientes cancelados no momento.'
           }
           actionLabel={debouncedSearch.trim() ? 'Limpar busca' : 'Atualizar'}
-          onAction={debouncedSearch.trim() ? () => setSearchInput('') : handleRetry}
+          onAction={
+            debouncedSearch.trim() ? () => setSearchInput('') : handleRetry
+          }
         />
       ) : null}
 
@@ -227,8 +236,12 @@ export default function CancelledClientsPage() {
                 <tr>
                   <TableHeaderCell>Cliente</TableHeaderCell>
                   <TableHeaderCell>Contrato</TableHeaderCell>
-                  <TableHeaderCell align="center">Dias em atraso</TableHeaderCell>
-                  <TableHeaderCell align="center">Valor em aberto</TableHeaderCell>
+                  <TableHeaderCell align="center">
+                    Dias em atraso
+                  </TableHeaderCell>
+                  <TableHeaderCell align="center">
+                    Valor em aberto
+                  </TableHeaderCell>
                   <TableHeaderCell>Motivo</TableHeaderCell>
                   <TableHeaderCell>Atribuído em</TableHeaderCell>
                   <TableHeaderCell>Responsável</TableHeaderCell>
@@ -240,19 +253,30 @@ export default function CancelledClientsPage() {
                 {items.map((item) => {
                   return (
                     <TableRow key={item.id}>
-                      <TableCell className="font-medium">{item.customerName}</TableCell>
-                      <TableCell className="text-neutral">{item.contractCode}</TableCell>
+                      <TableCell className="font-medium">
+                        {item.customerName}
+                      </TableCell>
+                      <TableCell className="text-neutral">
+                        {item.contractCode}
+                      </TableCell>
                       <TableCell align="center" className="tabular-nums">
                         {formatInteger(item.daysOverdue)}
                       </TableCell>
-                      <TableCell align="center" className="font-medium tabular-nums">
-                        {formatCurrencyFromDecimalString(item.outstandingAmount)}
+                      <TableCell
+                        align="center"
+                        className="font-medium tabular-nums"
+                      >
+                        {formatCurrencyFromDecimalString(
+                          item.outstandingAmount,
+                        )}
                       </TableCell>
                       <TableCell className="max-w-[160px] truncate text-sm text-neutral">
                         {item.contractCancellationReason ?? '—'}
                       </TableCell>
                       <TableCell className="text-neutral">
-                        {item.assignedAt ? formatDatePtBR(item.assignedAt) : '—'}
+                        {item.assignedAt
+                          ? formatDatePtBR(item.assignedAt)
+                          : '—'}
                       </TableCell>
                       <TableCell className="text-neutral">
                         {item.assignedTo?.name ?? 'Não atribuído'}
@@ -267,7 +291,12 @@ export default function CancelledClientsPage() {
                         <div className="flex items-center gap-2">
                           <Link
                             to={`/cancelados/${item.id}`}
-                            className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }))}
+                            className={cn(
+                              buttonVariants({
+                                variant: 'secondary',
+                                size: 'sm',
+                              }),
+                            )}
                           >
                             Ver
                           </Link>
@@ -302,7 +331,9 @@ export default function CancelledClientsPage() {
       {confirmItem ? (
         <ConfirmRecoverDialog
           item={confirmItem}
-          onConfirm={() => { void handleConfirmRecover(); }}
+          onConfirm={() => {
+            void handleConfirmRecover();
+          }}
           onCancel={() => setConfirmItem(null)}
           isPending={recoverMutation.isPending}
         />

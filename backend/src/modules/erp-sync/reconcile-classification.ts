@@ -17,9 +17,7 @@ export type ErpContractReconcileStatus = {
   cancellationReason: string | null;
 };
 
-function isEligibleContractStatus(
-  status: ErpContractReconcileStatus,
-): boolean {
+function isEligibleContractStatus(status: ErpContractReconcileStatus): boolean {
   return (
     status.erpContractStatus !== null &&
     ERP_ELIGIBLE_CONTRACT_STATUSES.has(status.erpContractStatus)
@@ -100,11 +98,7 @@ export const EFFECTIVE_ATTEMPT_RESULTS = new Set([
 
 /** Dia (00:00 UTC) de uma data — para comparar contato x pagamento por dia. */
 function toDayUtc(date: Date): number {
-  return Date.UTC(
-    date.getUTCFullYear(),
-    date.getUTCMonth(),
-    date.getUTCDate(),
-  );
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
 }
 
 /**
@@ -136,12 +130,8 @@ export function resolveRecoveredCaseIds(
       continue;
     }
 
-    const paymentDate =
-      paymentDayByCase?.get(attempt.collectionCaseId) ?? null;
-    if (
-      paymentDate &&
-      toDayUtc(attempt.attemptedAt) > toDayUtc(paymentDate)
-    ) {
+    const paymentDate = paymentDayByCase?.get(attempt.collectionCaseId) ?? null;
+    if (paymentDate && toDayUtc(attempt.attemptedAt) > toDayUtc(paymentDate)) {
       continue;
     }
 

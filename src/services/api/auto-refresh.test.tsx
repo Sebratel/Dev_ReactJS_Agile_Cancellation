@@ -6,9 +6,12 @@ import { useCollectionCasePortfolios } from '@/features/collection-cases/hooks/u
 import { useDashboardSummary } from '@/features/dashboard/hooks/use-dashboard-summary';
 import { AUTO_REFRESH_INTERVAL_MS } from '@/services/api/auto-refresh';
 
-vi.mock('@/features/collection-cases/services/collection-cases.service', () => ({
-  getCollectionCasePortfolios: vi.fn().mockResolvedValue({ portfolios: [] }),
-}));
+vi.mock(
+  '@/features/collection-cases/services/collection-cases.service',
+  () => ({
+    getCollectionCasePortfolios: vi.fn().mockResolvedValue({ portfolios: [] }),
+  }),
+);
 vi.mock('@/features/dashboard/services/dashboard.service', () => ({
   getDashboardSummary: vi.fn().mockResolvedValue({}),
 }));

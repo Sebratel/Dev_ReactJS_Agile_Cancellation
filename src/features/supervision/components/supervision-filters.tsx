@@ -483,7 +483,10 @@ export function SupervisionFilters({
             <Select
               value={filters.hsmDeliveryState}
               onChange={(event) =>
-                onFilterChange({ hsmDeliveryState: event.target.value, page: 1 })
+                onFilterChange({
+                  hsmDeliveryState: event.target.value,
+                  page: 1,
+                })
               }
             >
               <option value="">Todos</option>

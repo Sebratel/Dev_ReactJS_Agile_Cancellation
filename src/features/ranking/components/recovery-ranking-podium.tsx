@@ -2,7 +2,10 @@ import { Trophy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { type RecoveryRankingItem } from '@/features/ranking/types/ranking-api.types';
 import { getRankingInitials } from '@/features/ranking/utils/ranking-labels';
-import { formatCurrencyFromDecimalString, formatInteger } from '@/utils/formatters';
+import {
+  formatCurrencyFromDecimalString,
+  formatInteger,
+} from '@/utils/formatters';
 
 type RecoveryRankingPodiumProps = {
   items: RecoveryRankingItem[];

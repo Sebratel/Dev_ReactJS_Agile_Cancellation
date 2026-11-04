@@ -36,8 +36,7 @@ export const queryKeys = {
     detail: (caseId: string) => ['collection-cases', 'detail', caseId] as const,
     timeline: (caseId: string) =>
       ['collection-cases', 'timeline', caseId] as const,
-    notes: (caseId: string) =>
-      ['collection-cases', 'notes', caseId] as const,
+    notes: (caseId: string) => ['collection-cases', 'notes', caseId] as const,
     overdueDateSummary: (params: CollectionCasesListParams) =>
       ['collection-cases', 'overdue-date-summary', params] as const,
     portfolios: ['collection-cases', 'portfolios'] as const,

@@ -129,9 +129,7 @@ describe('SendToCancellationAction', () => {
       screen.getByRole('button', { name: 'Confirmar encaminhamento' }),
     );
 
-    expect(
-      await screen.findByText('Falha ao encaminhar'),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('Falha ao encaminhar')).toBeInTheDocument();
     expect(
       screen.getByText('Caso ja possui cancelamento.'),
     ).toBeInTheDocument();

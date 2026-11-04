@@ -8,7 +8,9 @@ export function useMarkAllNotificationsAsRead() {
   return useMutation({
     mutationFn: markAllNotificationsAsRead,
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.notifications.all,
+      });
     },
   });
 }

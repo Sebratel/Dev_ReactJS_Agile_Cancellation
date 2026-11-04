@@ -46,7 +46,10 @@ const ACTION_TONE_CLASSES: Record<AgentActionTone, string> = {
 
 const WORK_HREF = '/minha-cobranca';
 
-export function DashboardAgentPanel({ user, summary }: DashboardAgentPanelProps) {
+export function DashboardAgentPanel({
+  user,
+  summary,
+}: DashboardAgentPanelProps) {
   const isCancellationAgent = user.roles.includes('CANCELLATION_AGENT');
   const workHref = isCancellationAgent ? '/cancelamentos' : WORK_HREF;
 
@@ -172,7 +175,9 @@ export function DashboardAgentPanel({ user, summary }: DashboardAgentPanelProps)
             <div className="grid grid-cols-3 gap-2">
               <div className="rounded-lg bg-muted/55 px-3 py-2.5">
                 <p className="text-xs text-neutral">Total</p>
-                <p className="text-xl font-bold tabular-nums">{formatInteger(active)}</p>
+                <p className="text-xl font-bold tabular-nums">
+                  {formatInteger(active)}
+                </p>
               </div>
               <div className="rounded-lg bg-success/10 px-3 py-2.5">
                 <p className="text-xs text-success">Já contatados</p>
@@ -207,7 +212,9 @@ export function DashboardAgentPanel({ user, summary }: DashboardAgentPanelProps)
                   <Icon className="h-5 w-5" aria-hidden="true" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-medium">{action.label}</span>
+                  <span className="block text-sm font-medium">
+                    {action.label}
+                  </span>
                   <span className="block truncate text-xs text-neutral">
                     {action.helper}
                   </span>
@@ -215,7 +222,10 @@ export function DashboardAgentPanel({ user, summary }: DashboardAgentPanelProps)
                 <span className="shrink-0 text-base font-bold tabular-nums">
                   {formatInteger(action.value)}
                 </span>
-                <ChevronRight className="h-4 w-4 shrink-0 text-neutral" aria-hidden="true" />
+                <ChevronRight
+                  className="h-4 w-4 shrink-0 text-neutral"
+                  aria-hidden="true"
+                />
               </Link>
             );
           })}
@@ -263,7 +273,9 @@ export function DashboardAgentPanel({ user, summary }: DashboardAgentPanelProps)
           contentClassName="p-0"
         >
           {nextToContactQuery.isLoading ? (
-            <p className="px-4 py-6 text-sm text-neutral">Carregando sua fila…</p>
+            <p className="px-4 py-6 text-sm text-neutral">
+              Carregando sua fila…
+            </p>
           ) : nextToContact.length === 0 ? (
             <div className="flex items-center gap-2 px-4 py-6 text-sm text-success">
               <ListChecks className="h-4 w-4 shrink-0" aria-hidden="true" />

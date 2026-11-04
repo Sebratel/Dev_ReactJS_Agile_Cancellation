@@ -89,7 +89,9 @@ describe('Whatsapp bulk contact (e2e)', () => {
       .set(authHeader(adminToken));
     expect(listResponse.status).toBe(200);
     expect(
-      listResponse.body.data.items.some((job: { id: string }) => job.id === jobId),
+      listResponse.body.data.items.some(
+        (job: { id: string }) => job.id === jobId,
+      ),
     ).toBe(true);
   });
 

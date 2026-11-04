@@ -31,9 +31,7 @@ describe('BulkContactWhatsAppAction', () => {
       screen.getByRole('button', { name: 'Enviar HSM em massa' }),
     );
 
-    expect(
-      screen.getByText(/3 casos selecionados/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/3 casos selecionados/)).toBeInTheDocument();
   });
 
   it('inicia o job e acompanha o progresso ate concluir', async () => {

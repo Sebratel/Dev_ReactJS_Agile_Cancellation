@@ -65,7 +65,9 @@ describe('SupervisionPortfolios', () => {
     );
 
     // Marina + Carlos (mesclado, 0 casos) = 2 cards de atendente.
-    const agentCards = screen.getAllByRole('button', { name: /^Ver casos de / });
+    const agentCards = screen.getAllByRole('button', {
+      name: /^Ver casos de /,
+    });
     expect(agentCards).toHaveLength(2);
 
     // "Sem responsável" tem um card de destaque próprio.

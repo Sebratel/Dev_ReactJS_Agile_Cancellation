@@ -29,7 +29,10 @@ import { CancellationReasonsReport } from '@/features/reports/components/cancell
 import { useExportCasesCsv } from '@/features/collection-cases/hooks/use-export-cases-csv';
 import { usePaymentPromisesSummary } from '@/features/payment-promises/hooks/use-payment-promises-summary';
 import { useRecoveryRanking } from '@/features/ranking/hooks/use-recovery-ranking';
-import { formatCurrencyFromDecimalString, formatInteger } from '@/utils/formatters';
+import {
+  formatCurrencyFromDecimalString,
+  formatInteger,
+} from '@/utils/formatters';
 
 const StatusDistributionChart = lazy(
   () => import('@/features/dashboard/components/status-distribution-chart'),
@@ -56,7 +59,10 @@ export default function ReportsPage() {
   const { exportCsv, isExporting } = useExportCasesCsv();
 
   const metrics = useMemo(
-    () => (dashboardQuery.data ? mapDashboardSummaryToMetrics(dashboardQuery.data) : []),
+    () =>
+      dashboardQuery.data
+        ? mapDashboardSummaryToMetrics(dashboardQuery.data)
+        : [],
     [dashboardQuery.data],
   );
 
@@ -70,7 +76,9 @@ export default function ReportsPage() {
 
   const recoveryTrend = useMemo(
     () =>
-      dashboardQuery.data ? mapDashboardSummaryToRecoveryTrend(dashboardQuery.data) : [],
+      dashboardQuery.data
+        ? mapDashboardSummaryToRecoveryTrend(dashboardQuery.data)
+        : [],
     [dashboardQuery.data],
   );
 
@@ -94,7 +102,9 @@ export default function ReportsPage() {
           <>
             <Button
               variant="secondary"
-              onClick={() => { void exportCsv({}, 'relatorio-carteira.csv'); }}
+              onClick={() => {
+                void exportCsv({}, 'relatorio-carteira.csv');
+              }}
               disabled={isExporting}
             >
               <Download className="h-4 w-4" />
@@ -144,7 +154,8 @@ export default function ReportsPage() {
               value={formatInteger(promisesSummaryQuery.data?.overdue ?? 0)}
               description="Acordos ativos com data ultrapassada"
               variant={
-                promisesSummaryQuery.data && promisesSummaryQuery.data.overdue > 0
+                promisesSummaryQuery.data &&
+                promisesSummaryQuery.data.overdue > 0
                   ? 'danger'
                   : 'neutral'
               }
@@ -152,7 +163,9 @@ export default function ReportsPage() {
             />
             <MetricCard
               title="Promessas cumpridas no mês"
-              value={formatInteger(promisesSummaryQuery.data?.fulfilledThisMonth ?? 0)}
+              value={formatInteger(
+                promisesSummaryQuery.data?.fulfilledThisMonth ?? 0,
+              )}
               description="Acordos honrados no mês atual"
               variant="success"
               loading={promisesSummaryQuery.isLoading}
@@ -182,8 +195,12 @@ export default function ReportsPage() {
                     <TableRow>
                       <TableHeaderCell className="w-16">#</TableHeaderCell>
                       <TableHeaderCell>Colaborador</TableHeaderCell>
-                      <TableHeaderCell align="right">Casos recuperados</TableHeaderCell>
-                      <TableHeaderCell align="right">Receita recuperada</TableHeaderCell>
+                      <TableHeaderCell align="right">
+                        Casos recuperados
+                      </TableHeaderCell>
+                      <TableHeaderCell align="right">
+                        Receita recuperada
+                      </TableHeaderCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -201,10 +218,16 @@ export default function ReportsPage() {
                             {item.rank}
                           </span>
                         </TableCell>
-                        <TableCell className="font-medium">{item.name}</TableCell>
-                        <TableCell numeric>{formatInteger(item.recoveredCases)}</TableCell>
+                        <TableCell className="font-medium">
+                          {item.name}
+                        </TableCell>
+                        <TableCell numeric>
+                          {formatInteger(item.recoveredCases)}
+                        </TableCell>
                         <TableCell numeric className="font-semibold">
-                          {formatCurrencyFromDecimalString(item.recoveredAmount)}
+                          {formatCurrencyFromDecimalString(
+                            item.recoveredAmount,
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}

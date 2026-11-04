@@ -31,14 +31,14 @@ sequenceDiagram
 
 ### Onde cada parte vive
 
-| Parte | Local |
-| --- | --- |
-| Detecção do pagamento (reconcile) | `backend/src/modules/erp-sync/erp-sync.service.ts` → `reconcileRecoveredCases()` |
-| Montagem das notificações (sino) | `backend/src/modules/erp-sync/recovery-notifications.builder.ts` → `buildRecoveryNotifications()` |
-| Montagem do payload do webhook | mesmo arquivo → `buildRecoveryWebhookPayload()` |
-| Envio ao N8N (best-effort) | `backend/src/modules/erp-sync/recovery-notifier.service.ts` |
-| Sino interno | `NotificationsService` (`notify` / `notifySupervisors`) |
-| Fluxo N8N (exportado) | `docs/n8n-cases-recovered.workflow.json` |
+| Parte                             | Local                                                                                             |
+| --------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Detecção do pagamento (reconcile) | `backend/src/modules/erp-sync/erp-sync.service.ts` → `reconcileRecoveredCases()`                  |
+| Montagem das notificações (sino)  | `backend/src/modules/erp-sync/recovery-notifications.builder.ts` → `buildRecoveryNotifications()` |
+| Montagem do payload do webhook    | mesmo arquivo → `buildRecoveryWebhookPayload()`                                                   |
+| Envio ao N8N (best-effort)        | `backend/src/modules/erp-sync/recovery-notifier.service.ts`                                       |
+| Sino interno                      | `NotificationsService` (`notify` / `notifySupervisors`)                                           |
+| Fluxo N8N (exportado)             | `docs/n8n-cases-recovered.workflow.json`                                                          |
 
 ---
 
@@ -98,7 +98,7 @@ O canvas tem notas (sticky notes) explicando cada bloco.
 
 ## Como configurar (uma vez)
 
-1. **Importar o fluxo no N8N:** Workflows → *Import from File* →
+1. **Importar o fluxo no N8N:** Workflows → _Import from File_ →
    `docs/n8n-cases-recovered.workflow.json`.
 2. No nó **Enviar e-mail**, confirmar a credencial Gmail e que **Email Type = HTML**.
 3. Copiar a **URL de produção** do webhook e colocar no `.env` do backend:
@@ -144,13 +144,13 @@ Deve responder `200` e cair um e-mail na caixa informada.
 
 ## Solução de problemas
 
-| Sintoma | Provável causa |
-| --- | --- |
-| `404` ao disparar | Workflow não está **ativo** no N8N, ou a URL está errada. |
-| E-mail com tags `<p>` visíveis | No nó Gmail, **Email Type** não está em **HTML**. |
+| Sintoma                            | Provável causa                                                                                      |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `404` ao disparar                  | Workflow não está **ativo** no N8N, ou a URL está errada.                                           |
+| E-mail com tags `<p>` visíveis     | No nó Gmail, **Email Type** não está em **HTML**.                                                   |
 | Valor sem separador (`R$ 1500,00`) | Função `brl` com a regex antiga (barras perdidas) — usar a versão versionada, com `toLocaleString`. |
-| Nada é enviado, sem erro | `N8N_RECOVERY_WEBHOOK_URL` vazio no `.env` (no-op), ou nenhum caso recuperado na rodada. |
-| Sino funciona, e-mail não | Problema no N8N/credencial — o sino é interno e independe do N8N. |
+| Nada é enviado, sem erro           | `N8N_RECOVERY_WEBHOOK_URL` vazio no `.env` (no-op), ou nenhum caso recuperado na rodada.            |
+| Sino funciona, e-mail não          | Problema no N8N/credencial — o sino é interno e independe do N8N.                                   |
 
 ---
 

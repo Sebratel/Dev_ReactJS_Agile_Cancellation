@@ -59,9 +59,9 @@ describe('RecoveryNotifierService', () => {
     const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
     expect(url).toBe('https://n8n.local/webhook/recovery');
     expect(init.method).toBe('POST');
-    expect(
-      (init.headers as Record<string, string>)['X-Webhook-Secret'],
-    ).toBe('segredo');
+    expect((init.headers as Record<string, string>)['X-Webhook-Secret']).toBe(
+      'segredo',
+    );
     expect(JSON.parse(init.body as string)).toMatchObject({
       event: 'cases.recovered',
       summary: { count: 1 },

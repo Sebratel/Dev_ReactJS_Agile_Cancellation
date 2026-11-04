@@ -51,7 +51,9 @@ export default function UsersPage() {
   const totalPages = Math.max(usersQuery.data?.pagination.totalPages ?? 1, 1);
   const hasActiveFilters = debouncedSearch.trim().length > 0 || status !== '';
   const activeUsers = items.filter((user) => user.status === 'ACTIVE').length;
-  const adminUsers = items.filter((user) => user.roles.includes('ADMIN')).length;
+  const adminUsers = items.filter((user) =>
+    user.roles.includes('ADMIN'),
+  ).length;
 
   const handleRetry = () => {
     void usersQuery.refetch();

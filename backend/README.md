@@ -254,10 +254,10 @@ Recebe lotes de clientes inadimplentes do fluxo `financial_collection_cancellati
 
 A plataforma tambem **dispara** webhooks para o N8N (o N8N decide o canal de entrega). Os fluxos rodam na instancia do N8N; uma copia exportada de cada um fica versionada em `docs/`:
 
-| Disparo | Env (URL) | Fluxo exportado |
-| --- | --- | --- |
-| HSM Matrix (WhatsApp de cobranca) | `N8N_MATRIX_HSM_WEBHOOK_URL` | `docs/n8n-matrix-hsm-cobranca.workflow.json` |
-| Cliente regularizou (notifica atendente/supervisao) | `N8N_RECOVERY_WEBHOOK_URL` | `docs/n8n-cases-recovered.workflow.json` |
+| Disparo                                             | Env (URL)                    | Fluxo exportado                              |
+| --------------------------------------------------- | ---------------------------- | -------------------------------------------- |
+| HSM Matrix (WhatsApp de cobranca)                   | `N8N_MATRIX_HSM_WEBHOOK_URL` | `docs/n8n-matrix-hsm-cobranca.workflow.json` |
+| Cliente regularizou (notifica atendente/supervisao) | `N8N_RECOVERY_WEBHOOK_URL`   | `docs/n8n-cases-recovered.workflow.json`     |
 
 O fluxo `cases-recovered` recebe, por rodada de reconciliacao, `{ event: 'cases.recovered', occurredAt, summary: { count, totalAmount }, supervisorEmails[], cases: [{ caseId, customerName, recoveredAmount, hadActivePromise, agent: { name, email } | null }] }` e envia os e-mails (atendente por caso + resumo para a supervisao). O webhook responde `200` no recebimento; o disparo da plataforma e best-effort.
 

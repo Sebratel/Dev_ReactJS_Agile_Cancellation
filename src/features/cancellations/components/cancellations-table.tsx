@@ -140,7 +140,8 @@ export function CancellationsTable({
     onSortChange(column, 'desc');
   };
 
-  const allSelected = items.length > 0 && items.every((i) => selectedIds.has(i.id));
+  const allSelected =
+    items.length > 0 && items.every((i) => selectedIds.has(i.id));
   const someSelected = items.some((i) => selectedIds.has(i.id));
 
   return (
@@ -230,7 +231,10 @@ export function CancellationsTable({
                   <TableCell className="text-neutral">
                     {item.contractCode}
                   </TableCell>
-                  <TableCell align="center" className="text-neutral tabular-nums">
+                  <TableCell
+                    align="center"
+                    className="text-neutral tabular-nums"
+                  >
                     {item.firstOverdueDate
                       ? formatDatePtBR(item.firstOverdueDate)
                       : 'Nao informado'}
@@ -246,7 +250,10 @@ export function CancellationsTable({
                   <TableCell align="center" className="tabular-nums">
                     {formatInteger(item.daysOverdue)}
                   </TableCell>
-                  <TableCell align="center" className="font-medium tabular-nums">
+                  <TableCell
+                    align="center"
+                    className="font-medium tabular-nums"
+                  >
                     {formatCurrencyFromDecimalString(item.outstandingAmount)}
                   </TableCell>
                   <TableCell align="center">
@@ -264,7 +271,7 @@ export function CancellationsTable({
                         workload={workload}
                       />
                     ) : (
-                      item.assignedTo?.name ?? 'Não atribuído'
+                      (item.assignedTo?.name ?? 'Não atribuído')
                     )}
                   </TableCell>
                   <TableCell>

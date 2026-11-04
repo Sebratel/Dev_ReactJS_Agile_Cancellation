@@ -17,14 +17,18 @@ function buildPath(params?: NotificationsListParams): string {
 export async function getNotifications(
   params?: NotificationsListParams,
 ): Promise<PaginatedResponse<NotificationResponse>> {
-  const { data } = await httpClient.request<PaginatedResponse<NotificationResponse>>({
+  const { data } = await httpClient.request<
+    PaginatedResponse<NotificationResponse>
+  >({
     path: buildPath(params),
     method: 'GET',
   });
   return data;
 }
 
-export async function getUnreadNotificationsCount(): Promise<{ count: number }> {
+export async function getUnreadNotificationsCount(): Promise<{
+  count: number;
+}> {
   const { data } = await httpClient.request<{ count: number }>({
     path: '/notifications/unread-count',
     method: 'GET',
@@ -32,7 +36,9 @@ export async function getUnreadNotificationsCount(): Promise<{ count: number }> 
   return data;
 }
 
-export async function markNotificationAsRead(id: string): Promise<NotificationResponse> {
+export async function markNotificationAsRead(
+  id: string,
+): Promise<NotificationResponse> {
   const { data } = await httpClient.request<NotificationResponse>({
     path: `/notifications/${id}/read`,
     method: 'PATCH',

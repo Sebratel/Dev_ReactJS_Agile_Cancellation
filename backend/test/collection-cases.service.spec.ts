@@ -23,9 +23,7 @@ function createService(repository: CollectionCasesRepository) {
   const matrixWhatsappContactService = {
     sendHsm: jest.fn(),
   } as unknown as MatrixWhatsappContactService;
-  const isAgentSendToCancellationAllowed = jest
-    .fn()
-    .mockResolvedValue(false);
+  const isAgentSendToCancellationAllowed = jest.fn().mockResolvedValue(false);
   const settingsService = {
     isAgentSendToCancellationAllowed,
   } as unknown as SettingsService;

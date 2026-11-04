@@ -10,6 +10,11 @@ const usePreCollection = vi.fn();
 vi.mock('@/features/pre-collection/hooks/use-pre-collection', () => ({
   usePreCollection: (daysWindow: number): unknown =>
     usePreCollection(daysWindow),
+  useDistributePreCollection: (): unknown => ({
+    mutateAsync: vi.fn(),
+    mutate: vi.fn(),
+    isPending: false,
+  }),
 }));
 
 function buildData(
@@ -89,7 +94,9 @@ describe('PreCollectionPage', () => {
     );
 
     await waitFor(() => {
-      expect(screen.queryByText('Construtora Horizonte')).not.toBeInTheDocument();
+      expect(
+        screen.queryByText('Construtora Horizonte'),
+      ).not.toBeInTheDocument();
     });
     expect(screen.getByText('Mercado Litoral')).toBeInTheDocument();
   });

@@ -17,7 +17,10 @@ import {
   TableHeaderCell,
   TableRow,
 } from '@/components/ui/table';
-import { useIntegrationEvents, useIntegrationEventsSummary } from '@/features/integrations/hooks/use-integration-events';
+import {
+  useIntegrationEvents,
+  useIntegrationEventsSummary,
+} from '@/features/integrations/hooks/use-integration-events';
 import { type IntegrationEventStatus } from '@/features/integrations/types/integration-events-api.types';
 import { type StatusVariant } from '@/types/ui';
 import { formatDateTimePtBR, formatInteger } from '@/utils/formatters';
@@ -52,7 +55,9 @@ export function IntegrationEventsPanel() {
   const summary = summaryQuery.data;
   const items = listQuery.data?.items ?? [];
 
-  const handleRetry = () => { void listQuery.refetch(); };
+  const handleRetry = () => {
+    void listQuery.refetch();
+  };
 
   return (
     <div className="space-y-4">
@@ -103,17 +108,26 @@ export function IntegrationEventsPanel() {
           <div className="flex items-center gap-2">
             <Select
               value={status}
-              onChange={(e) => setStatus(e.target.value as IntegrationEventStatus | '')}
+              onChange={(e) =>
+                setStatus(e.target.value as IntegrationEventStatus | '')
+              }
               className="h-8 text-xs"
             >
               <option value="">Todos os status</option>
-              {(Object.keys(STATUS_LABELS) as IntegrationEventStatus[]).map((s) => (
-                <option key={s} value={s}>
-                  {STATUS_LABELS[s]}
-                </option>
-              ))}
+              {(Object.keys(STATUS_LABELS) as IntegrationEventStatus[]).map(
+                (s) => (
+                  <option key={s} value={s}>
+                    {STATUS_LABELS[s]}
+                  </option>
+                ),
+              )}
             </Select>
-            <Button variant="secondary" size="sm" onClick={handleRetry} disabled={listQuery.isLoading}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleRetry}
+              disabled={listQuery.isLoading}
+            >
               <RefreshCw className="h-3.5 w-3.5" />
             </Button>
           </div>
@@ -152,8 +166,12 @@ export function IntegrationEventsPanel() {
               <TableBody>
                 {items.map((event) => (
                   <TableRow key={event.id}>
-                    <TableCell className="font-medium">{event.source}</TableCell>
-                    <TableCell className="text-neutral">{event.eventType}</TableCell>
+                    <TableCell className="font-medium">
+                      {event.source}
+                    </TableCell>
+                    <TableCell className="text-neutral">
+                      {event.eventType}
+                    </TableCell>
                     <TableCell>
                       <StatusBadge
                         label={STATUS_LABELS[event.status]}

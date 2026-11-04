@@ -101,7 +101,8 @@ export default function PaymentPromisesPage() {
 
   const listParams: PaymentPromisesListParams = useMemo(
     () => ({
-      status: (filters.status as PaymentPromisesListParams['status']) || undefined,
+      status:
+        (filters.status as PaymentPromisesListParams['status']) || undefined,
       search: debouncedSearch.trim() || undefined,
       from: filters.from || undefined,
       to: filters.to || undefined,
@@ -129,7 +130,9 @@ export default function PaymentPromisesPage() {
     setSearchParams(new URLSearchParams(), { replace: true });
   };
 
-  const handleRetry = () => { void listQuery.refetch(); };
+  const handleRetry = () => {
+    void listQuery.refetch();
+  };
 
   return (
     <PageContainer>
@@ -177,7 +180,9 @@ export default function PaymentPromisesPage() {
           value={formatInteger(summary?.brokenThisMonth ?? 0)}
           description="Acordos não honrados no mês atual"
           icon={XCircle}
-          variant={summary && summary.brokenThisMonth > 0 ? 'warning' : 'neutral'}
+          variant={
+            summary && summary.brokenThisMonth > 0 ? 'warning' : 'neutral'
+          }
           loading={summaryQuery.isLoading}
           density="compact"
         />
@@ -202,7 +207,9 @@ export default function PaymentPromisesPage() {
             <span className="text-xs font-medium text-neutral">Status</span>
             <Select
               value={filters.status}
-              onChange={(e) => updateFilters({ status: e.target.value, page: 1 })}
+              onChange={(e) =>
+                updateFilters({ status: e.target.value, page: 1 })
+              }
             >
               <option value="">Todos os status</option>
               <option value="ACTIVE">Ativas</option>
@@ -213,7 +220,9 @@ export default function PaymentPromisesPage() {
           </label>
 
           <label className="space-y-1 text-sm">
-            <span className="text-xs font-medium text-neutral">Data inicial</span>
+            <span className="text-xs font-medium text-neutral">
+              Data inicial
+            </span>
             <Input
               type="date"
               value={filters.from}
@@ -276,7 +285,9 @@ export default function PaymentPromisesPage() {
                 <tr>
                   <TableHeaderCell>Cliente</TableHeaderCell>
                   <TableHeaderCell>Contrato</TableHeaderCell>
-                  <TableHeaderCell align="right">Valor prometido</TableHeaderCell>
+                  <TableHeaderCell align="right">
+                    Valor prometido
+                  </TableHeaderCell>
                   <TableHeaderCell>Data prometida</TableHeaderCell>
                   <TableHeaderCell>Status</TableHeaderCell>
                   <TableHeaderCell>Responsável</TableHeaderCell>
@@ -292,13 +303,18 @@ export default function PaymentPromisesPage() {
                     <TableCell className="font-medium">
                       <div>
                         <p>{item.customer.name}</p>
-                        <p className="text-xs text-neutral">{item.customer.document}</p>
+                        <p className="text-xs text-neutral">
+                          {item.customer.document}
+                        </p>
                       </div>
                     </TableCell>
                     <TableCell className="text-neutral">
                       {item.contract.code}
                     </TableCell>
-                    <TableCell align="right" className="font-medium tabular-nums">
+                    <TableCell
+                      align="right"
+                      className="font-medium tabular-nums"
+                    >
                       {formatCurrencyFromDecimalString(item.promisedAmount)}
                     </TableCell>
                     <TableCell className="tabular-nums">
@@ -319,7 +335,9 @@ export default function PaymentPromisesPage() {
                     </TableCell>
                     <TableCell className="text-neutral">
                       {item.assignedTo?.name ?? (
-                        <span className="italic text-neutral/60">Não atribuído</span>
+                        <span className="italic text-neutral/60">
+                          Não atribuído
+                        </span>
                       )}
                     </TableCell>
                     <TableCell>

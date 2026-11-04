@@ -48,21 +48,22 @@ function createPrismaMock(existingCaseId: string | null) {
   const tx = {
     customer: { upsert: jest.fn().mockResolvedValue({ id: 'cus-1' }) },
     contract: { upsert: jest.fn().mockResolvedValue({ id: 'ctr-1' }) },
-    invoice: { upsert: jest.fn().mockResolvedValue({ id: 'inv-1' }) },
+    invoice: {
+      upsert: jest.fn().mockResolvedValue({ id: 'inv-1' }),
+      updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+    },
     collectionCase: {
       findUnique: jest
         .fn()
         .mockResolvedValue(existingCaseId ? { id: existingCaseId } : null),
-      upsert: jest
-        .fn()
-        .mockResolvedValue({ id: existingCaseId ?? 'case-new' }),
+      upsert: jest.fn().mockResolvedValue({ id: existingCaseId ?? 'case-new' }),
     },
     collectionAttempt: { create: collectionAttemptCreate },
   };
 
   const prisma = {
-    $transaction: jest.fn(
-      async (cb: (txArg: typeof tx) => Promise<unknown>) => cb(tx),
+    $transaction: jest.fn(async (cb: (txArg: typeof tx) => Promise<unknown>) =>
+      cb(tx),
     ),
     integrationEvent: { create: jest.fn().mockResolvedValue({ id: 'evt-1' }) },
   } as unknown as PrismaService;
@@ -95,7 +96,8 @@ describe('WebhooksPrismaRepository.ingestCollectionBatch', () => {
   });
 
   it('NAO cria tentativa quando o caso ja existe (evita duplicar em re-ingestao)', async () => {
-    const { prisma, collectionAttemptCreate } = createPrismaMock('case-existing');
+    const { prisma, collectionAttemptCreate } =
+      createPrismaMock('case-existing');
     const repository = new WebhooksPrismaRepository(prisma);
 
     await repository.ingestCollectionBatch('n8n', [buildEvent()]);

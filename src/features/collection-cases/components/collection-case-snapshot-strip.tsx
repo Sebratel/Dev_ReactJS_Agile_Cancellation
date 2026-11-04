@@ -1,11 +1,13 @@
-import { AlertTriangle, CheckCircle2, ClipboardList, PhoneOff } from 'lucide-react';
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ClipboardList,
+  PhoneOff,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { type CollectionCaseListItemResponse } from '@/features/collection-cases/types/collection-cases-api.types';
 import { getSlaPresentation } from '@/features/collection-cases/utils/collection-case-labels';
-import {
-  formatCurrencyBRL,
-  formatInteger,
-} from '@/utils/formatters';
+import { formatCurrencyBRL, formatInteger } from '@/utils/formatters';
 
 type SnapshotItem = {
   label: string;
@@ -56,23 +58,30 @@ export function CollectionCaseSnapshotStrip({
     {
       label: 'Sem responsável',
       value: formatInteger(notAssigned),
-      hint: notAssigned > 0 ? 'Aguardam atribuição de atendente' : 'Todos com atendente definido',
+      hint:
+        notAssigned > 0
+          ? 'Aguardam atribuição de atendente'
+          : 'Todos com atendente definido',
       tone: notAssigned > 0 ? 'warning' : 'success',
       icon: CheckCircle2,
     },
     {
       label: 'Sem resposta',
       value: formatInteger(noResponse),
-      hint: noResponse > 0 ? 'Clientes que não responderam ao contato' : 'Nenhum caso neste status',
+      hint:
+        noResponse > 0
+          ? 'Clientes que não responderam ao contato'
+          : 'Nenhum caso neste status',
       tone: noResponse > 0 ? 'danger' : 'neutral',
       icon: PhoneOff,
     },
     {
       label: 'SLA vencido',
       value: formatInteger(overdueSla),
-      hint: overdueSla > 0
-        ? `${formatCurrencyBRL(overdueSlaOutstanding)} em aberto nesses casos`
-        : 'Nenhum prazo de atendimento vencido',
+      hint:
+        overdueSla > 0
+          ? `${formatCurrencyBRL(overdueSlaOutstanding)} em aberto nesses casos`
+          : 'Nenhum prazo de atendimento vencido',
       tone: overdueSla > 0 ? 'danger' : 'success',
       icon: AlertTriangle,
     },

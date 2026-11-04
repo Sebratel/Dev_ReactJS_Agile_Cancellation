@@ -234,7 +234,9 @@ export class CollectionCasesMockRepository implements CollectionCasesRepository 
     return Promise.resolve(byStatus);
   }
 
-  getIntakeSummary(now: Date = new Date()): Promise<CollectionCaseIntakeSummary> {
+  getIntakeSummary(
+    now: Date = new Date(),
+  ): Promise<CollectionCaseIntakeSummary> {
     const todayStart = new Date(now);
     todayStart.setHours(0, 0, 0, 0);
     const tomorrowStart = new Date(todayStart);
@@ -246,7 +248,10 @@ export class CollectionCasesMockRepository implements CollectionCasesRepository 
     let yesterday = 0;
     for (const record of mockCollectionCaseListRecords) {
       const createdAt = new Date(record.createdAt).getTime();
-      if (createdAt >= todayStart.getTime() && createdAt < tomorrowStart.getTime()) {
+      if (
+        createdAt >= todayStart.getTime() &&
+        createdAt < tomorrowStart.getTime()
+      ) {
         today += 1;
       } else if (
         createdAt >= yesterdayStart.getTime() &&
@@ -483,7 +488,8 @@ export class CollectionCasesMockRepository implements CollectionCasesRepository 
         attendanceCode: matrixAttendanceCode ?? null,
         messageCode: matrixMessageCode ?? null,
         awaitingReply: status === 'COMPLETED' && Boolean(matrixAttendanceCode),
-        lastOutboundAt: status === 'COMPLETED' ? now : details.matrixContact.lastOutboundAt,
+        lastOutboundAt:
+          status === 'COMPLETED' ? now : details.matrixContact.lastOutboundAt,
         lastReplyAt: details.matrixContact.lastReplyAt,
       };
       details.updatedAt = now;
@@ -913,7 +919,9 @@ export class CollectionCasesMockRepository implements CollectionCasesRepository 
     details.status = 'RECOVERED';
     details.updatedAt = now;
 
-    const record = mockCollectionCaseListRecords.find((item) => item.id === caseId);
+    const record = mockCollectionCaseListRecords.find(
+      (item) => item.id === caseId,
+    );
     if (record) {
       record.status = 'RECOVERED';
       record.updatedAt = now;

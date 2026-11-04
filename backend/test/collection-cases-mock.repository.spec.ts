@@ -171,7 +171,9 @@ describe('CollectionCasesMockRepository', () => {
 
     expect(result.items.length).toBeGreaterThan(0);
     expect(
-      result.items.every((item) => item.firstOverdueDate?.slice(0, 10) === sampleDate),
+      result.items.every(
+        (item) => item.firstOverdueDate?.slice(0, 10) === sampleDate,
+      ),
     ).toBe(true);
   });
 
@@ -188,7 +190,9 @@ describe('CollectionCasesMockRepository', () => {
 
     expect(result.items.length).toBeGreaterThan(0);
     expect(
-      result.items.every((item) => item.secondOverdueDate?.slice(0, 10) === sampleDate),
+      result.items.every(
+        (item) => item.secondOverdueDate?.slice(0, 10) === sampleDate,
+      ),
     ).toBe(true);
   });
 
@@ -453,13 +457,19 @@ describe('CollectionCasesMockRepository', () => {
   it('retorna already_in_cancellation ao reencaminhar caso', async () => {
     await repository.sendToCancellation({
       caseId: 'case_0002',
-      input: { reason: 'Primeiro encaminhamento.', assignedUserId: 'usr_cancel' },
+      input: {
+        reason: 'Primeiro encaminhamento.',
+        assignedUserId: 'usr_cancel',
+      },
       performedByUserId: 'usr_marina',
     });
 
     const result = await repository.sendToCancellation({
       caseId: 'case_0002',
-      input: { reason: 'Segundo encaminhamento.', assignedUserId: 'usr_cancel' },
+      input: {
+        reason: 'Segundo encaminhamento.',
+        assignedUserId: 'usr_cancel',
+      },
       performedByUserId: 'usr_marina',
     });
 

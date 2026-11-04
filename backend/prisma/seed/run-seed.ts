@@ -273,7 +273,8 @@ async function seedCollectionCases(
           performedByUserId: null,
           channel: 'WHATSAPP',
           result: 'NO_ANSWER',
-          notes: 'Mensagem automática enviada ao cliente antes da entrada na plataforma.',
+          notes:
+            'Mensagem automática enviada ao cliente antes da entrada na plataforma.',
           attemptedAt: createdCase.createdAt,
           isAutomatic: true,
         },

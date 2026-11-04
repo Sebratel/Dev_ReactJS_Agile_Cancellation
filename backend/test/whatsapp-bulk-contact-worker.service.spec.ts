@@ -31,17 +31,44 @@ describe('WhatsappBulkContactWorkerService', () => {
 
     await worker.tick();
 
-    expect(collectionCasesService.attemptWhatsAppContact).not.toHaveBeenCalled();
+    expect(
+      collectionCasesService.attemptWhatsAppContact,
+    ).not.toHaveBeenCalled();
     expect(recordItemResult).not.toHaveBeenCalled();
   });
 
   it('mapeia cada desfecho do envio individual para o status correto do item', async () => {
     const items = [
-      { itemId: 'item_sent', jobId: 'job_1', collectionCaseId: 'case_sent', createdByUserId: 'usr_1' },
-      { itemId: 'item_status', jobId: 'job_1', collectionCaseId: 'case_status', createdByUserId: 'usr_1' },
-      { itemId: 'item_phone', jobId: 'job_1', collectionCaseId: 'case_phone', createdByUserId: 'usr_1' },
-      { itemId: 'item_missing', jobId: 'job_1', collectionCaseId: 'case_missing', createdByUserId: 'usr_1' },
-      { itemId: 'item_failed', jobId: 'job_1', collectionCaseId: 'case_failed', createdByUserId: 'usr_1' },
+      {
+        itemId: 'item_sent',
+        jobId: 'job_1',
+        collectionCaseId: 'case_sent',
+        createdByUserId: 'usr_1',
+      },
+      {
+        itemId: 'item_status',
+        jobId: 'job_1',
+        collectionCaseId: 'case_status',
+        createdByUserId: 'usr_1',
+      },
+      {
+        itemId: 'item_phone',
+        jobId: 'job_1',
+        collectionCaseId: 'case_phone',
+        createdByUserId: 'usr_1',
+      },
+      {
+        itemId: 'item_missing',
+        jobId: 'job_1',
+        collectionCaseId: 'case_missing',
+        createdByUserId: 'usr_1',
+      },
+      {
+        itemId: 'item_failed',
+        jobId: 'job_1',
+        collectionCaseId: 'case_failed',
+        createdByUserId: 'usr_1',
+      },
     ];
     const recordItemResult = jest.fn().mockResolvedValue(undefined);
     const repository = createRepository({
@@ -123,7 +150,9 @@ describe('WhatsappBulkContactWorkerService', () => {
 
     await worker.tick();
 
-    expect(collectionCasesService.attemptWhatsAppContact).not.toHaveBeenCalled();
+    expect(
+      collectionCasesService.attemptWhatsAppContact,
+    ).not.toHaveBeenCalled();
     expect(recordItemResult).toHaveBeenCalledWith(
       expect.objectContaining({ itemId: 'item_1', status: 'FAILED' }),
     );

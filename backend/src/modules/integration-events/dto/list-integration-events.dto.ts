@@ -3,7 +3,14 @@ import { Type } from 'class-transformer';
 
 export class ListIntegrationEventsDto {
   @IsOptional()
-  @IsIn(['PENDING', 'PROCESSING', 'COMPLETED', 'FAILED', 'RETRYING', 'DISCARDED'])
+  @IsIn([
+    'PENDING',
+    'PROCESSING',
+    'COMPLETED',
+    'FAILED',
+    'RETRYING',
+    'DISCARDED',
+  ])
   status?: string;
 
   @IsOptional()

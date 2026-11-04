@@ -47,7 +47,9 @@ describe('SyncHealthBanner', () => {
     mockData({ newCasesLast7d: 0, newCasesLast24h: 0 });
     render(<SyncHealthBanner />);
     expect(
-      screen.getByText('Sem entrada de casos há 7 dias — verifique o feed do ERP.'),
+      screen.getByText(
+        'Sem entrada de casos há 7 dias — verifique o feed do ERP.',
+      ),
     ).toBeInTheDocument();
   });
 

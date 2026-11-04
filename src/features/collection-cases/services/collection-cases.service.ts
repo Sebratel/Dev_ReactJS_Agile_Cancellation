@@ -223,11 +223,10 @@ export async function createCollectionAttempt(
 }
 
 export async function contactCustomerByWhatsApp(caseId: string) {
-  const response =
-    await httpClient.request<ContactCustomerWhatsAppResponse>({
-      path: `/collection-cases/${caseId}/contact-whatsapp`,
-      method: 'POST',
-    });
+  const response = await httpClient.request<ContactCustomerWhatsAppResponse>({
+    path: `/collection-cases/${caseId}/contact-whatsapp`,
+    method: 'POST',
+  });
 
   return response.data;
 }

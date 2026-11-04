@@ -238,7 +238,9 @@ export default function CustomerDetailPage() {
                         </TableCell>
                         <TableCell
                           numeric
-                          className={cn(invoice.isOverdue && 'font-semibold text-danger')}
+                          className={cn(
+                            invoice.isOverdue && 'font-semibold text-danger',
+                          )}
                         >
                           {formatCurrencyFromDecimalString(invoice.amount)}
                         </TableCell>

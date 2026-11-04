@@ -477,11 +477,17 @@ export function filterMockCollectionCases(
       return false;
     }
 
-    if (params.hsmDeliveryState && record.hsmDeliveryState !== params.hsmDeliveryState) {
+    if (
+      params.hsmDeliveryState &&
+      record.hsmDeliveryState !== params.hsmDeliveryState
+    ) {
       return false;
     }
 
-    if (params.contractStatus && record.contractStatus !== params.contractStatus) {
+    if (
+      params.contractStatus &&
+      record.contractStatus !== params.contractStatus
+    ) {
       return false;
     }
 
@@ -573,7 +579,10 @@ export function filterMockCollectionCases(
         return false;
       }
       const assignedTime = new Date(record.assignedAt).getTime();
-      if (assignedFrom && assignedTime < getStartOfDayUTC(assignedFrom).getTime()) {
+      if (
+        assignedFrom &&
+        assignedTime < getStartOfDayUTC(assignedFrom).getTime()
+      ) {
         return false;
       }
       if (assignedTo && assignedTime > getEndOfDayUTC(assignedTo).getTime()) {

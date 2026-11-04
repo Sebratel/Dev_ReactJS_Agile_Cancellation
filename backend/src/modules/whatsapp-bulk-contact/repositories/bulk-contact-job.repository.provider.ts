@@ -5,7 +5,6 @@ import { createBulkContactJobRepository } from '@/modules/whatsapp-bulk-contact/
 
 export const bulkContactJobRepositoryProvider: Provider = {
   provide: BULK_CONTACT_JOB_REPOSITORY,
-  useFactory: (prisma: PrismaService) =>
-    createBulkContactJobRepository(prisma),
+  useFactory: (prisma: PrismaService) => createBulkContactJobRepository(prisma),
   inject: [PrismaService],
 };

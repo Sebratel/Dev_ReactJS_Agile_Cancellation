@@ -15,7 +15,9 @@ export type ListPaymentPromisesParams = {
 };
 
 export interface PaymentPromisesRepository {
-  list(params: ListPaymentPromisesParams): Promise<PaginatedResponse<PaymentPromiseListItemResponse>>;
+  list(
+    params: ListPaymentPromisesParams,
+  ): Promise<PaginatedResponse<PaymentPromiseListItemResponse>>;
   getSummary(): Promise<PaymentPromisesSummaryResponse>;
 }
 

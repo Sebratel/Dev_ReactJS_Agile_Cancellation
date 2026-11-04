@@ -20,6 +20,7 @@ describe('CollectionCasesPrismaRepository', () => {
         },
         assignedUser: { id: 'usr_db_1', name: 'Operador DB' },
         _count: { collectionAttempts: 2 },
+        collectionAttempts: [{ attemptedAt: new Date('2026-07-09T12:00:00Z') }],
       },
     ]);
     const count = jest.fn().mockResolvedValue(1);
@@ -67,6 +68,7 @@ describe('CollectionCasesPrismaRepository', () => {
     });
     expect(result.pagination.total).toBe(1);
     expect(result.items[0]?.customerName).toBe('Cliente DB');
+    expect(result.items[0]?.lastContactAt).toBe('2026-07-09T12:00:00.000Z');
   });
 
   it('monta where e orderBy com filtros', async () => {

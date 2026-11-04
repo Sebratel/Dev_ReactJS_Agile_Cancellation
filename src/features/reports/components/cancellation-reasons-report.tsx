@@ -61,7 +61,8 @@ export function CancellationReasonsReport() {
           {/* Cartões por categoria */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {data.byCategory.map((item) => {
-              const style = CATEGORY_STYLE[item.category] ?? CATEGORY_STYLE.OUTRO;
+              const style =
+                CATEGORY_STYLE[item.category] ?? CATEGORY_STYLE.OUTRO;
               const Icon = style.icon;
               return (
                 <div
@@ -115,7 +116,9 @@ export function CancellationReasonsReport() {
                     CATEGORY_STYLE[item.category] ?? CATEGORY_STYLE.OUTRO;
                   return (
                     <TableRow key={`${item.category}-${item.reason}`}>
-                      <TableCell className="font-medium">{item.reason}</TableCell>
+                      <TableCell className="font-medium">
+                        {item.reason}
+                      </TableCell>
                       <TableCell>
                         <span
                           className={cn(

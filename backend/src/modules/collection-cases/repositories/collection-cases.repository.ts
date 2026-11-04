@@ -246,7 +246,9 @@ export interface CollectionCasesRepository {
     params: CreateCollectionAttemptParams,
   ): Promise<CollectionAttemptResponse | null>;
 
-  getContactContext(caseId: string): Promise<CollectionCaseContactContext | null>;
+  getContactContext(
+    caseId: string,
+  ): Promise<CollectionCaseContactContext | null>;
 
   recordWhatsAppContactIntegration(
     params: RecordWhatsAppContactIntegrationParams,
@@ -274,8 +276,12 @@ export interface CollectionCasesRepository {
 
   assignCase(params: AssignCaseParams): Promise<AssignCaseResult>;
 
-  bulkAssignCases(params: BulkAssignCasesParams): Promise<BulkAssignCasesResult>;
-  autoDistributeCases(params: AutoDistributeCasesParams): Promise<AutoDistributeCasesResult>;
+  bulkAssignCases(
+    params: BulkAssignCasesParams,
+  ): Promise<BulkAssignCasesResult>;
+  autoDistributeCases(
+    params: AutoDistributeCasesParams,
+  ): Promise<AutoDistributeCasesResult>;
 }
 
 export function mapQueryDtoToListParams(

@@ -127,9 +127,9 @@ function ContactProgress({
   interacted: number;
   total: number;
 }) {
-  const pct = total > 0 ? Math.round((Math.min(interacted, total) / total) * 100) : 0;
-  const tone =
-    pct >= 60 ? 'success' : pct >= 30 ? 'warning' : 'danger';
+  const pct =
+    total > 0 ? Math.round((Math.min(interacted, total) / total) * 100) : 0;
+  const tone = pct >= 60 ? 'success' : pct >= 30 ? 'warning' : 'danger';
   const barClass =
     tone === 'success'
       ? 'bg-success'
@@ -147,11 +147,19 @@ function ContactProgress({
     <div className="flex items-center gap-2">
       <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
         <div
-          className={cn('h-full rounded-full', total > 0 ? barClass : 'bg-transparent')}
+          className={cn(
+            'h-full rounded-full',
+            total > 0 ? barClass : 'bg-transparent',
+          )}
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className={cn('shrink-0 text-xs font-semibold', total > 0 ? textClass : 'text-neutral')}>
+      <span
+        className={cn(
+          'shrink-0 text-xs font-semibold',
+          total > 0 ? textClass : 'text-neutral',
+        )}
+      >
         {total > 0 ? `${pct}% contatados` : 'carteira vazia'}
       </span>
     </div>
@@ -175,12 +183,17 @@ function PortfolioCard({
       aria-label={`Ver casos de ${name}`}
     >
       <div className="flex items-center gap-3">
-        <PortfolioAvatar name={name} avatarUrl={portfolio.agent?.avatarUrl ?? null} />
+        <PortfolioAvatar
+          name={name}
+          avatarUrl={portfolio.agent?.avatarUrl ?? null}
+        />
         <div className="min-w-0 flex-1">
           <span className="block min-w-0 truncate font-semibold">{name}</span>
           <div className="mt-0.5 text-xs text-neutral">
             {formatInteger(portfolio.totalAssigned)}{' '}
-            {portfolio.totalAssigned === 1 ? 'caso ativo na carteira' : 'casos ativos na carteira'}
+            {portfolio.totalAssigned === 1
+              ? 'caso ativo na carteira'
+              : 'casos ativos na carteira'}
           </div>
         </div>
         <ChevronRight
@@ -331,7 +344,8 @@ export function SupervisionPortfolios({
 
     return onlyAgents.sort((left, right) => {
       if (sortBy === 'outstanding') {
-        const diff = Number(right.totalOutstanding) - Number(left.totalOutstanding);
+        const diff =
+          Number(right.totalOutstanding) - Number(left.totalOutstanding);
         if (diff !== 0) return diff;
       } else if (sortBy === 'noInteraction') {
         const diff = noInteractionCount(right) - noInteractionCount(left);

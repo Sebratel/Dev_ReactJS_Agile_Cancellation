@@ -11,8 +11,9 @@ ENV VITE_APP_NAME=$VITE_APP_NAME
 ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
 RUN npm run build
 
-FROM nginx:alpine AS runner
+# Sem root: a imagem unprivileged escuta em 8080 (o compose mapeia a porta publica)
+FROM nginxinc/nginx-unprivileged:alpine AS runner
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-EXPOSE 80
+EXPOSE 8080
 CMD ["nginx", "-g", "daemon off;"]

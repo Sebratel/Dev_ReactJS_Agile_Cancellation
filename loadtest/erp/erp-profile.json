@@ -1,0 +1,3970 @@
+{
+  "generatedAt": "2026-11-03T19:03:34.109Z",
+  "schema": "erp",
+  "tables": {
+    "contract_event_types": {
+      "approxRows": 152,
+      "totalBytes": 106496,
+      "tableBytes": 49152,
+      "indexBytes": 16384,
+      "exactRows": 152,
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "code",
+          "type": "character varying",
+          "nullable": false
+        },
+        {
+          "name": "title",
+          "type": "character varying",
+          "nullable": false
+        },
+        {
+          "name": "description_default",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "objective",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "synsuite_code",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "active",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "created",
+          "type": "timestamp without time zone",
+          "nullable": false
+        },
+        {
+          "name": "modified",
+          "type": "timestamp without time zone",
+          "nullable": true
+        },
+        {
+          "name": "created_by",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "modified_by",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "deleted",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "hash",
+          "type": "uuid",
+          "nullable": false
+        }
+      ]
+    },
+    "contract_events": {
+      "approxRows": 7485752,
+      "totalBytes": 2469502976,
+      "tableBytes": 1977958400,
+      "indexBytes": 382787584,
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "contract_id",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "person_id",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "contract_event_type_id",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "date",
+          "type": "timestamp without time zone",
+          "nullable": false
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "extra_info",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "created",
+          "type": "timestamp without time zone",
+          "nullable": false
+        },
+        {
+          "name": "modified",
+          "type": "timestamp without time zone",
+          "nullable": true
+        },
+        {
+          "name": "created_by",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "modified_by",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "deleted",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "erp_code",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "erp_code_origin",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "contract_additive_id",
+          "type": "bigint",
+          "nullable": true
+        }
+      ],
+      "distributions": {
+        "deleted": {
+          "nDistinct": 1,
+          "nullFrac": 0,
+          "values": ["f"],
+          "freqs": [1]
+        }
+      }
+    },
+    "contract_types": {
+      "approxRows": 40,
+      "totalBytes": 344064,
+      "tableBytes": 24576,
+      "indexBytes": 278528,
+      "exactRows": 40,
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "code",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "title",
+          "type": "character varying",
+          "nullable": false
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "active",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "is_corporate",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "company_place_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "financial_operation_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "second_financial_operation_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "financial_collection_type_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "financer_nature_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "second_financer_nature_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "payment_condition_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "invoice_serie_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "product_invoice_serie_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "product_financial_operation_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "product_financer_nature_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "future_financial_operation_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "future_product_financial_operation_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "future_invoicing",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "invoice_type",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "advance_billings",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "proportionality",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "generate_user_portal",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "generate_authentication",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "automatic_billing",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "collection_day",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "billing_day",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "months_duration",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "proportionality_type",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "expiration_docket_type",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "adjustment_indice_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "use_addendum",
+          "type": "boolean",
+          "nullable": true
+        },
+        {
+          "name": "need_client_acceptance",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "payment_card",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "validity_readjustment",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "additional_config",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "contract_date_managements",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "billing_type",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "created",
+          "type": "timestamp without time zone",
+          "nullable": true
+        },
+        {
+          "name": "modified",
+          "type": "timestamp without time zone",
+          "nullable": true
+        },
+        {
+          "name": "created_by",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "modified_by",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "deleted",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "generate_authentication_hotspot",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "erp_code",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "erp_code_origin",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "contract_service_tag_template",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "generate_only_title",
+          "type": "boolean",
+          "nullable": true
+        },
+        {
+          "name": "billing_communication",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "hash",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "synsuite_code",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "print_template_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "electronic_signature_integrator",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "electronic_signature_dispatch_type",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "use_electronic_signature_responsible",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "sale_electronic_signature_generate_document",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "sale_electronic_signature_dispatch",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "change_service_electronic_signature_generate_document",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "change_service_electronic_signature_dispatch",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "add_service_electronic_signature_generate_document",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "add_service_electronic_signature_dispatch",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "electronic_signature_option_authentication",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "integration",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "erp_code_connector",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "discount_use_contract",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "discount_use_service_product",
+          "type": "boolean",
+          "nullable": true
+        },
+        {
+          "name": "discount_value",
+          "type": "numeric",
+          "nullable": true
+        },
+        {
+          "name": "discount_days_before",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "electronic_signature_after_win",
+          "type": "boolean",
+          "nullable": true
+        },
+        {
+          "name": "edit_adhesion_term",
+          "type": "boolean",
+          "nullable": true
+        },
+        {
+          "name": "sap_integration",
+          "type": "boolean",
+          "nullable": true
+        },
+        {
+          "name": "custom_tag",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "enable_signer_auth_change",
+          "type": "boolean",
+          "nullable": true
+        },
+        {
+          "name": "allowed_electronic_signature_authentication_types",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "financial_block_rule_type",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "financial_block_rule",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "financial_receivable_titles_overdue_days",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "overdue_authentication_address_list_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "financial_receivable_titles_block_days",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "overdue_blocking_authentication",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "single_contract_cancellation_rule_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "batch_contract_cancellation_rule_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "public_id",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "electronic_signature_additional_config",
+          "type": "jsonb",
+          "nullable": true
+        },
+        {
+          "name": "nfcom_implementation_changed",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "client_change_electronic_signature_generate_document",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "client_change_electronic_signature_dispatch",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "client_change_print_template_id",
+          "type": "bigint",
+          "nullable": true
+        }
+      ]
+    },
+    "contracts": {
+      "approxRows": 291147,
+      "totalBytes": 463773696,
+      "tableBytes": 288153600,
+      "indexBytes": 175505408,
+      "exactRows": 291413,
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "parent_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "company_place_id",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "company_place_business_unit_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "invoice_company_place_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "client_id",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "contract_number",
+          "type": "character varying",
+          "nullable": false
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "is_corporate",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "contract_type_id",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "contract_date_configuration_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "date",
+          "type": "date",
+          "nullable": false
+        },
+        {
+          "name": "beginning_date",
+          "type": "date",
+          "nullable": true
+        },
+        {
+          "name": "final_date",
+          "type": "date",
+          "nullable": true
+        },
+        {
+          "name": "billing_beginning_date",
+          "type": "date",
+          "nullable": true
+        },
+        {
+          "name": "billing_final_date",
+          "type": "date",
+          "nullable": true
+        },
+        {
+          "name": "special_billing",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "special_billing_type_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "months_duration",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "observation",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "status_actual",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "physical_contract",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "alert_payment",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "billing_communication",
+          "type": "smallint",
+          "nullable": false
+        },
+        {
+          "name": "send_email_nfe",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "responsible_financial_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "responsible_ti_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "technical_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "suspension_days",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "billing_type",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "expiration_docket",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "collection_day",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "cut_day",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "operation_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "second_financial_operation_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "third_financial_operation_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "product_financial_operation_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "payment_form_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "financial_collection_type_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "people_card_token_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "seller_1_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "seller_2_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "amount",
+          "type": "numeric",
+          "nullable": false
+        },
+        {
+          "name": "weight",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "observation_invoice_1",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "observation_invoice_2",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "first_collection_date",
+          "type": "date",
+          "nullable": true
+        },
+        {
+          "name": "next_adjustment_date",
+          "type": "date",
+          "nullable": true
+        },
+        {
+          "name": "adjustment_index",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "adjustment_email",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "number_hours",
+          "type": "numeric",
+          "nullable": true
+        },
+        {
+          "name": "use_tag_hour",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "additional_time_value",
+          "type": "numeric",
+          "nullable": true
+        },
+        {
+          "name": "observation_billing",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "uses_default_address",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "status",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "stage",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "cancellation_date",
+          "type": "date",
+          "nullable": true
+        },
+        {
+          "name": "cancellation_motive",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "end_date",
+          "type": "date",
+          "nullable": true
+        },
+        {
+          "name": "crm_opportunity_reason_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "financer_nature_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "second_financer_nature_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "third_financer_nature_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "product_financer_nature_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "approval_submission_date",
+          "type": "date",
+          "nullable": true
+        },
+        {
+          "name": "approval_date",
+          "type": "date",
+          "nullable": true
+        },
+        {
+          "name": "invoice_serie_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "invoice_type",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "product_invoice_serie_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "assignment_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "assignment_type",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "lawsuit_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "people_group_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "contractors",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "related_people",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "future_financial_operation_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "future_product_financial_operation_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "future_invoicing",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "folder",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "crm_person_opportunity_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "unlimited_period",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "automatic_blocking",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "collection_sms",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "erp_code",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "erp_code_amount",
+          "type": "numeric",
+          "nullable": true
+        },
+        {
+          "name": "erp_code_type",
+          "type": "smallint",
+          "nullable": true
+        },
+        {
+          "name": "erp_code_origin",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "service_city_code",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "authentication_access_point_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "external_identification",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "allow_client_renegotiation",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "billing_email_model_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "alert_overdue_email_model_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "alert_expiration_email_model_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "billet_message",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "tip_status",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "billing_day",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "use_tag_service",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "febraban_account_code",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "adjustment_indice_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "adjustment_indice_month_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "use_addendum",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "client_acceptance",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "file_name_contract",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "bill_type",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "bill_company_place_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "bill_financial_collection_type_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "bill_financial_operation_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "bill_financer_nature_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "bill_expiration_day",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "discount_use_contract",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "discount_value",
+          "type": "numeric",
+          "nullable": true
+        },
+        {
+          "name": "discount_days_before",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "discount_use_service_product",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "client_type",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "unblock_attempt_count",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "generate_only_title",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "people_address_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "created",
+          "type": "timestamp without time zone",
+          "nullable": false
+        },
+        {
+          "name": "modified",
+          "type": "timestamp without time zone",
+          "nullable": true
+        },
+        {
+          "name": "created_by",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "modified_by",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "deleted",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "motv_code_integration",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "has_convenia_integration",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "marking",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "dealership_group",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "in_project",
+          "type": "boolean",
+          "nullable": true
+        },
+        {
+          "name": "approval_client_hash",
+          "type": "uuid",
+          "nullable": true
+        },
+        {
+          "name": "grouping_contracts",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "automatic_approval_attemps",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "contract_event_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "client_signed_documents",
+          "type": "boolean",
+          "nullable": true
+        },
+        {
+          "name": "technical_team_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "fingerprint",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "v_stage",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "v_status",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "v_invoice_type",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "observation_is_visible",
+          "type": "boolean",
+          "nullable": true
+        },
+        {
+          "name": "sap_modified_integration",
+          "type": "timestamp with time zone",
+          "nullable": true
+        },
+        {
+          "name": "custom_title",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "suspension_date",
+          "type": "date",
+          "nullable": true
+        },
+        {
+          "name": "suspension_motive",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "negotiation_id",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "cut_day_telephone",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "cancellation_process_initiation_date",
+          "type": "timestamp without time zone",
+          "nullable": true
+        },
+        {
+          "name": "cancellation_process_finalization_date",
+          "type": "timestamp without time zone",
+          "nullable": true
+        },
+        {
+          "name": "fixed_due_days",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "status_date",
+          "type": "timestamp without time zone",
+          "nullable": true
+        },
+        {
+          "name": "stage_date",
+          "type": "timestamp without time zone",
+          "nullable": true
+        },
+        {
+          "name": "public_id",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "nfcom_implementation_changed",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "financial_pix_authorize_recurrence_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "last_automatic_approval_attempt",
+          "type": "timestamp without time zone",
+          "nullable": true
+        }
+      ],
+      "distributions": {
+        "contract_type_id": {
+          "nDistinct": 30,
+          "nullFrac": 0,
+          "values": [
+            "27",
+            "28",
+            "38",
+            "21",
+            "2",
+            "30",
+            "19",
+            "16",
+            "8",
+            "6",
+            "18",
+            "39",
+            "1",
+            "7",
+            "3",
+            "4",
+            "33"
+          ],
+          "freqs": [
+            0.3482, 0.2814, 0.13083333, 0.070766665, 0.043866668, 0.04366667,
+            0.024033334, 0.018166667, 0.012833334, 0.009266667, 0.0056666667,
+            0.0020666667, 0.0017, 0.0015, 0.0013333333, 0.00083333335,
+            0.00083333335
+          ]
+        },
+        "status": {
+          "nDistinct": 6,
+          "nullFrac": 0,
+          "values": ["4", "1", "6", "5", "3", "9"],
+          "freqs": [
+            0.6788667, 0.30693334, 0.013033333, 0.0007, 0.00033333333,
+            0.00013333333
+          ]
+        },
+        "stage": {
+          "nDistinct": 5,
+          "nullFrac": 0,
+          "values": ["3", "5", "2", "1", "4"],
+          "freqs": [
+            0.73433334, 0.263, 0.0019333333, 0.00066666666, 0.00006666667
+          ]
+        },
+        "client_type": {
+          "nDistinct": 8,
+          "nullFrac": 0.07073333,
+          "values": ["3", "99", "1", "2", "4"],
+          "freqs": [
+            0.91546667, 0.0065333336, 0.005433333, 0.0007, 0.00066666666
+          ]
+        },
+        "deleted": {
+          "nDistinct": 2,
+          "nullFrac": 0,
+          "values": ["f", "t"],
+          "freqs": [0.9903, 0.0097]
+        },
+        "v_status": {
+          "nDistinct": 6,
+          "nullFrac": 0,
+          "values": [
+            "Cancelado",
+            "Normal",
+            "\"Bloqueio Financeiro\"",
+            "Suspenso",
+            "Cortesia",
+            "Encerrado"
+          ],
+          "freqs": [
+            0.6788667, 0.30693334, 0.013033333, 0.0007, 0.00033333333,
+            0.00013333333
+          ]
+        }
+      }
+    },
+    "financers_natures": {
+      "approxRows": 475,
+      "totalBytes": 335872,
+      "tableBytes": 114688,
+      "indexBytes": 180224,
+      "exactRows": 475,
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "code",
+          "type": "character varying",
+          "nullable": false
+        },
+        {
+          "name": "parent_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "title",
+          "type": "character varying",
+          "nullable": false
+        },
+        {
+          "name": "signal",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "type",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "integratea_accounting",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "financial_history_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "financial_operation_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "account_accountant",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "account_accountant_name",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "integratea_accounting_titles",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "account_accountant_title",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "account_accountant_title_name",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "rules_type",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "observation",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "financial_group_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "accumulator_code",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "active",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "erp_code",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "erp_code_origin",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "created",
+          "type": "timestamp without time zone",
+          "nullable": false
+        },
+        {
+          "name": "modified",
+          "type": "timestamp without time zone",
+          "nullable": true
+        },
+        {
+          "name": "created_by",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "modified_by",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "deleted",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "public_id",
+          "type": "uuid",
+          "nullable": true
+        }
+      ]
+    },
+    "financial_receipt_titles": {
+      "approxRows": 12463014,
+      "totalBytes": 5982699520,
+      "tableBytes": 3366543360,
+      "indexBytes": 2615148544,
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "financial_receivable_title_id",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "company_place_id",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "client_id",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "financial_account_accountant_file_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "receipt_date",
+          "type": "date",
+          "nullable": false
+        },
+        {
+          "name": "client_paid_date",
+          "type": "date",
+          "nullable": true
+        },
+        {
+          "name": "increase_amount",
+          "type": "numeric",
+          "nullable": false
+        },
+        {
+          "name": "fine_amount",
+          "type": "numeric",
+          "nullable": false
+        },
+        {
+          "name": "discount_value",
+          "type": "numeric",
+          "nullable": false
+        },
+        {
+          "name": "bank_tax_amount",
+          "type": "numeric",
+          "nullable": false
+        },
+        {
+          "name": "amount",
+          "type": "numeric",
+          "nullable": false
+        },
+        {
+          "name": "evolution_amount",
+          "type": "numeric",
+          "nullable": false
+        },
+        {
+          "name": "receipt_variation",
+          "type": "numeric",
+          "nullable": false
+        },
+        {
+          "name": "other_credits",
+          "type": "numeric",
+          "nullable": false
+        },
+        {
+          "name": "other_debts",
+          "type": "numeric",
+          "nullable": false
+        },
+        {
+          "name": "financial_operation_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "total_amount",
+          "type": "numeric",
+          "nullable": false
+        },
+        {
+          "name": "financer_nature_id",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "integrate_accounting",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "bank_account_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "payment_condition_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "financial_cost_center_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "financial_history_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "sale_point_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "payment_form_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "complement",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "finished",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "irrf_amount",
+          "type": "numeric",
+          "nullable": false
+        },
+        {
+          "name": "irrf_aliquot",
+          "type": "numeric",
+          "nullable": false
+        },
+        {
+          "name": "financial_serial_number",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "origin",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "receipt_origin_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "credit_card_person_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "credit_card_prevision_receipt_date",
+          "type": "date",
+          "nullable": true
+        },
+        {
+          "name": "credit_card_receipt_date",
+          "type": "date",
+          "nullable": true
+        },
+        {
+          "name": "credit_card_tax",
+          "type": "numeric",
+          "nullable": false
+        },
+        {
+          "name": "credit_card_amount",
+          "type": "numeric",
+          "nullable": false
+        },
+        {
+          "name": "credit_card_status",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "credit_card_installment",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "credit_card_nsu",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "credit_card_authorization_code",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "credit_card_tid",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "sum_financial_cobilling_receipts_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "doc_financial_cobilling_receipts_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "created",
+          "type": "timestamp without time zone",
+          "nullable": false
+        },
+        {
+          "name": "modified",
+          "type": "timestamp without time zone",
+          "nullable": true
+        },
+        {
+          "name": "created_by",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "modified_by",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "deleted",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "erp_code",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "sent_operation_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "financial_sale_point_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "financial_collection_type_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "is_origin_csharp",
+          "type": "boolean",
+          "nullable": true
+        },
+        {
+          "name": "integration_code",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "sap_modified_integration",
+          "type": "timestamp without time zone",
+          "nullable": true
+        },
+        {
+          "name": "public_id",
+          "type": "uuid",
+          "nullable": false
+        }
+      ],
+      "distributions": {
+        "finished": {
+          "nDistinct": 2,
+          "nullFrac": 0,
+          "values": ["f", "t"],
+          "freqs": [0.94423336, 0.05576667]
+        },
+        "origin": {
+          "nDistinct": 7,
+          "nullFrac": 0,
+          "values": ["4", "2", "5", "1", "3"],
+          "freqs": [0.59066665, 0.27413332, 0.05576667, 0.052866668, 0.0264]
+        },
+        "deleted": {
+          "nDistinct": 2,
+          "nullFrac": 0,
+          "values": ["f", "t"],
+          "freqs": [0.99703336, 0.0029666666]
+        }
+      }
+    },
+    "financial_receivable_titles": {
+      "approxRows": 17015804,
+      "totalBytes": 18632998912,
+      "tableBytes": 9236840448,
+      "indexBytes": 9393569792,
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "company_place_id",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "company_place_business_unit_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "client_id",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "type",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "situation",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "title",
+          "type": "character varying",
+          "nullable": false
+        },
+        {
+          "name": "parcel",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "bank_title_number",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "bank_title_number_no_format",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "document_amount",
+          "type": "numeric",
+          "nullable": false
+        },
+        {
+          "name": "title_amount",
+          "type": "numeric",
+          "nullable": false
+        },
+        {
+          "name": "balance",
+          "type": "numeric",
+          "nullable": false
+        },
+        {
+          "name": "interest_amount",
+          "type": "numeric",
+          "nullable": false
+        },
+        {
+          "name": "fine_amount",
+          "type": "numeric",
+          "nullable": false
+        },
+        {
+          "name": "issue_date",
+          "type": "date",
+          "nullable": false
+        },
+        {
+          "name": "entry_date",
+          "type": "date",
+          "nullable": false
+        },
+        {
+          "name": "expiration_date",
+          "type": "date",
+          "nullable": false
+        },
+        {
+          "name": "original_expiration_date",
+          "type": "date",
+          "nullable": false
+        },
+        {
+          "name": "financial_operation_id",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "financer_nature_id",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "integrate_accounting",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "bank_account_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "financial_collection_type_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "financial_collection_type_id_original",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "payment_condition_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "financial_history_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "financial_cost_center_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "complement",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "financial_remittance_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "invoice_note_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "contract_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "competence",
+          "type": "date",
+          "nullable": true
+        },
+        {
+          "name": "assignment_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "resource_request_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "bill_title_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "origin",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "billing_email",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "billet_printed",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "internal_billet_printed",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "first_warning",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "first_warning_date",
+          "type": "date",
+          "nullable": true
+        },
+        {
+          "name": "second_warning",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "second_warning_date",
+          "type": "date",
+          "nullable": true
+        },
+        {
+          "name": "contact_made",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "contact_made_date",
+          "type": "date",
+          "nullable": true
+        },
+        {
+          "name": "registry",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "registry_date",
+          "type": "date",
+          "nullable": true
+        },
+        {
+          "name": "protest",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "protest_date",
+          "type": "date",
+          "nullable": true
+        },
+        {
+          "name": "spc",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "spc_date",
+          "type": "date",
+          "nullable": true
+        },
+        {
+          "name": "extrajudicial_notification",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "extrajudicial_notification_date",
+          "type": "date",
+          "nullable": true
+        },
+        {
+          "name": "judicial_notification",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "judicial_notification_date",
+          "type": "date",
+          "nullable": true
+        },
+        {
+          "name": "finished",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "finished_date",
+          "type": "date",
+          "nullable": true
+        },
+        {
+          "name": "title_loss",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "sale_request_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "credit_account_accountant",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "credit_account_accountant_name",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "debit_account_accountant",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "debit_account_accountant_name",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "address_type",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "client_renegotiation_times",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "client_on_time_renegotiation_times",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "lawsuit_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "efetive_invoice_note_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "typeful_line",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "barcode",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "warning_sms",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "sms_log_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "reweb_csv_exported",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "before_update_info",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "old_bank_title_number",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "old_bank_title_number_no_format",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "renegotiated",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "renegotiated_diff",
+          "type": "numeric",
+          "nullable": false
+        },
+        {
+          "name": "renegotiated_diff_balance",
+          "type": "numeric",
+          "nullable": false
+        },
+        {
+          "name": "financial_group_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "bank_situation",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "doc_financial_cobilling_entry_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "sum_financial_cobilling_entry_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "blocked_contract",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "contract_configuration_billing_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "created",
+          "type": "timestamp without time zone",
+          "nullable": false
+        },
+        {
+          "name": "modified",
+          "type": "timestamp without time zone",
+          "nullable": true
+        },
+        {
+          "name": "created_by",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "modified_by",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "deleted",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "erp_code",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "erp_code_origin",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "erp_code_bill_title",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "lawsuit_payment_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "contract_discount_value",
+          "type": "numeric",
+          "nullable": true
+        },
+        {
+          "name": "contract_days_before",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "contract_discount_use_contract",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "pdv_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "last_integration_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "integration_status",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "recurrence_status",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "not_block_until_date",
+          "type": "date",
+          "nullable": true
+        },
+        {
+          "name": "expected_credit_date",
+          "type": "date",
+          "nullable": true
+        },
+        {
+          "name": "expected_credit_amount",
+          "type": "numeric",
+          "nullable": true
+        },
+        {
+          "name": "group_in_billing",
+          "type": "boolean",
+          "nullable": true
+        },
+        {
+          "name": "is_origin_csharp",
+          "type": "boolean",
+          "nullable": true
+        },
+        {
+          "name": "integration_status_date",
+          "type": "timestamp without time zone",
+          "nullable": true
+        },
+        {
+          "name": "number_of_automatic_remittance_attempts",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "last_before_update_info",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "pix_qr_code",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "old_financer_nature_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "p_is_receivable",
+          "type": "boolean",
+          "nullable": true
+        },
+        {
+          "name": "v_final_amount",
+          "type": "numeric",
+          "nullable": true
+        },
+        {
+          "name": "p_has_before_update_info",
+          "type": "boolean",
+          "nullable": true
+        },
+        {
+          "name": "integration",
+          "type": "boolean",
+          "nullable": true
+        },
+        {
+          "name": "sap_modified_integration",
+          "type": "timestamp with time zone",
+          "nullable": true
+        },
+        {
+          "name": "sap_modified_integration_receipt",
+          "type": "timestamp with time zone",
+          "nullable": true
+        },
+        {
+          "name": "has_billing_communication_sent",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "has_invoice_control_by_due_date",
+          "type": "boolean",
+          "nullable": true
+        },
+        {
+          "name": "nfcom_implementation_changed",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "nfcom_implementation_primary",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "billing_with_mod62",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "public_id",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "lawsuit_payment_person_id",
+          "type": "uuid",
+          "nullable": true
+        },
+        {
+          "name": "lawsuit_payment_people_id",
+          "type": "uuid",
+          "nullable": true
+        },
+        {
+          "name": "use_receivable_split",
+          "type": "boolean",
+          "nullable": false
+        }
+      ],
+      "distributions": {
+        "type": {
+          "nDistinct": 2,
+          "nullFrac": 0,
+          "values": ["2", "0"],
+          "freqs": [0.9979, 0.0021]
+        },
+        "situation": {
+          "nDistinct": 1,
+          "nullFrac": 0,
+          "values": ["0"],
+          "freqs": [1]
+        },
+        "parcel": {
+          "nDistinct": 9,
+          "nullFrac": 0,
+          "values": ["1", "2", "3", "4"],
+          "freqs": [0.99803334, 0.0011333333, 0.00036666667, 0.0003]
+        },
+        "origin": {
+          "nDistinct": 9,
+          "nullFrac": 0,
+          "values": ["44", "8", "4", "11", "3", "2", "1", "33", "7"],
+          "freqs": [
+            0.6611, 0.3135, 0.013633333, 0.0079333335, 0.0018333333,
+            0.00073333335, 0.0007, 0.00036666667, 0.0002
+          ]
+        },
+        "finished": {
+          "nDistinct": 2,
+          "nullFrac": 0,
+          "values": ["f", "t"],
+          "freqs": [0.8900667, 0.10993333]
+        },
+        "title_loss": {
+          "nDistinct": 1,
+          "nullFrac": 0,
+          "values": ["0"],
+          "freqs": [1]
+        },
+        "renegotiated": {
+          "nDistinct": 2,
+          "nullFrac": 0,
+          "values": ["f", "t"],
+          "freqs": [0.9803, 0.0197]
+        },
+        "bank_situation": {
+          "nDistinct": 9,
+          "nullFrac": 0.79943335,
+          "values": ["06", "09", "02", "03", "36", "17", "14", "26", "27"],
+          "freqs": [
+            0.124866664, 0.050166667, 0.0238, 0.0011666666, 0.0002,
+            0.00013333333, 0.0001, 0.00006666667, 0.00006666667
+          ]
+        },
+        "blocked_contract": {
+          "nDistinct": 1,
+          "nullFrac": 0,
+          "values": ["f"],
+          "freqs": [1]
+        },
+        "deleted": {
+          "nDistinct": 2,
+          "nullFrac": 0,
+          "values": ["f", "t"],
+          "freqs": [0.86396664, 0.13603333]
+        }
+      }
+    },
+    "financial_renegotiation_titles": {
+      "approxRows": 363870,
+      "totalBytes": 71147520,
+      "tableBytes": 45465600,
+      "indexBytes": 25640960,
+      "exactRows": 364002,
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "financial_renegotiation_id",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "financial_receivable_title_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "financial_payable_title_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "type",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "rescheduling_type",
+          "type": "smallint",
+          "nullable": true
+        },
+        {
+          "name": "expiration_date",
+          "type": "date",
+          "nullable": true
+        },
+        {
+          "name": "balance",
+          "type": "numeric",
+          "nullable": true
+        },
+        {
+          "name": "interest",
+          "type": "numeric",
+          "nullable": true
+        },
+        {
+          "name": "original_fine",
+          "type": "numeric",
+          "nullable": true
+        },
+        {
+          "name": "created",
+          "type": "timestamp without time zone",
+          "nullable": true
+        },
+        {
+          "name": "modified",
+          "type": "timestamp without time zone",
+          "nullable": true
+        },
+        {
+          "name": "created_by",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "modified_by",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "deleted",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "sap_id",
+          "type": "character varying",
+          "nullable": true
+        }
+      ],
+      "distributions": {
+        "type": {
+          "nDistinct": 2,
+          "nullFrac": 0,
+          "values": ["1", "0"],
+          "freqs": [0.508, 0.492]
+        },
+        "deleted": {
+          "nDistinct": 1,
+          "nullFrac": 0,
+          "values": ["f"],
+          "freqs": [1]
+        }
+      }
+    },
+    "financial_renegotiations": {
+      "approxRows": 178382,
+      "totalBytes": 37380096,
+      "tableBytes": 27918336,
+      "indexBytes": 9428992,
+      "exactRows": 178445,
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "responsible_id",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "date",
+          "type": "timestamp without time zone",
+          "nullable": true
+        },
+        {
+          "name": "client_id",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "company_place_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "type",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "total_amount_renegotiated",
+          "type": "numeric",
+          "nullable": false
+        },
+        {
+          "name": "total_titles_renegotiated",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "total_amount_generated",
+          "type": "numeric",
+          "nullable": false
+        },
+        {
+          "name": "total_titles_generated",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "renegotiation_diff",
+          "type": "numeric",
+          "nullable": false
+        },
+        {
+          "name": "created",
+          "type": "timestamp without time zone",
+          "nullable": true
+        },
+        {
+          "name": "modified",
+          "type": "timestamp without time zone",
+          "nullable": true
+        },
+        {
+          "name": "created_by",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "modified_by",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "deleted",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "sap_modified_integration",
+          "type": "timestamp with time zone",
+          "nullable": true
+        },
+        {
+          "name": "financial_automatic_negotiation_rule_id",
+          "type": "bigint",
+          "nullable": true
+        }
+      ],
+      "distributions": {
+        "type": {
+          "nDistinct": 2,
+          "nullFrac": 0,
+          "values": ["0", "1"],
+          "freqs": [0.668, 0.332]
+        },
+        "deleted": {
+          "nDistinct": 2,
+          "nullFrac": 0,
+          "values": ["f", "t"],
+          "freqs": [0.9966, 0.0034]
+        }
+      }
+    },
+    "people": {
+      "approxRows": 307537,
+      "totalBytes": 558088192,
+      "tableBytes": 212238336,
+      "indexBytes": 247767040,
+      "exactRows": 307646,
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "situation",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "type_tx_id",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "tx_id",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "name",
+          "type": "character varying",
+          "nullable": false
+        },
+        {
+          "name": "name_2",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "people_address_main_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "people_address_financier_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "people_address_delivery_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "postal_code",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "street",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "street_type",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "number",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "address_complement",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "neighborhood",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "city",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "code_city_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "state",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "country",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "code_country",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "address_reference",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "status",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "client",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "supplier",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "vendor",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "collaborator",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "technical",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "supervisor",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "service_provider_autonomo",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "competitor",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "candidate",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "resale",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "franchisee",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "authorized",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "franchisor",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "resource",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "carrier",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "outsourced",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "user_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "commercial_agent",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "accountant",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "gender",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "civil_status",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "financier_postal_code",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "financier_street",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "financier_number",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "financier_address_complement",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "financier_neighborhood",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "financier_city",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "financier_code_city_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "financier_state",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "financier_country",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "financier_address_reference",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "email",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "email_NFE",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "register_credit_client_status",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "bank_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "agency",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "agency_check_digit",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "account_check_digit",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "current_account",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "tax_value",
+          "type": "boolean",
+          "nullable": true
+        },
+        {
+          "name": "tax_percentage",
+          "type": "numeric",
+          "nullable": true
+        },
+        {
+          "name": "taxes_issqn",
+          "type": "boolean",
+          "nullable": true
+        },
+        {
+          "name": "federal_organ",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "public_entity",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "rural_producer",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "aliquot_irr",
+          "type": "numeric",
+          "nullable": true
+        },
+        {
+          "name": "retains_inss",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "taxes_municipality",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "account_accountant_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "financier_nature_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "date_limit_cred",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "value_limit_cred",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "associated_vendor_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "associated_tec_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "people_group_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "business_group_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "activity_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "crm_function_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "region_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "route_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "frequency_visits",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "visit_time",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "mother_company",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "identity",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "birth_date",
+          "type": "date",
+          "nullable": true
+        },
+        {
+          "name": "parents_name",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "house_lawyer",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "unlike_lawyer",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "deceased",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "rapporteur",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "court_judge",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "syndicate",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "expert",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "simple_opting",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "account_accounting_client",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "account_accounting_supplier",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "financial_account_accountant_file_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "supplier_financial_account_accountant_file_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "sector_area_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "company_place_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "default_team_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "administrative_observation",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "lat",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "lng",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "taxation_regime_type",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "debit_account_code",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "debit_account_operation",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "crc",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "retains_income_tax",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "retains_social_contribution",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "csll_deducted",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "pis_aliquot",
+          "type": "numeric",
+          "nullable": false
+        },
+        {
+          "name": "cofins_aliquot",
+          "type": "numeric",
+          "nullable": false
+        },
+        {
+          "name": "photo_base64",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "check_tx_id_data",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "check_tx_id_data_complete",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "check_tx_id_data_serasa",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "prosoft_exported",
+          "type": "timestamp without time zone",
+          "nullable": true
+        },
+        {
+          "name": "sms_enabled",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "website",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "iss_responsible",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "icms_discount",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "last_known_geoposition_latitude",
+          "type": "numeric",
+          "nullable": true
+        },
+        {
+          "name": "last_known_geoposition_longitude",
+          "type": "numeric",
+          "nullable": true
+        },
+        {
+          "name": "last_known_geoposition_precision",
+          "type": "numeric",
+          "nullable": true
+        },
+        {
+          "name": "last_known_geoposition_velocity",
+          "type": "numeric",
+          "nullable": true
+        },
+        {
+          "name": "last_known_geoposition_timestamp",
+          "type": "timestamp without time zone",
+          "nullable": true
+        },
+        {
+          "name": "last_known_geoposition_battery",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "last_known_geoposition_errors",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "last_known_geoposition_mocked",
+          "type": "boolean",
+          "nullable": true
+        },
+        {
+          "name": "created",
+          "type": "timestamp without time zone",
+          "nullable": false
+        },
+        {
+          "name": "modified",
+          "type": "timestamp without time zone",
+          "nullable": true
+        },
+        {
+          "name": "modified_by",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "created_by",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "deleted",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "client_group_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "phone",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "commercial_phone",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "fax_phone",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "cell_phone_1",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "cell_phone_2",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "observ",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "observ2",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "technical_documentation",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "id_provisorio",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "grupo",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "state_registration_type",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "state_registration",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "municipal_registration",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "regional_council_registration",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "erp_code",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "erp_code_type",
+          "type": "smallint",
+          "nullable": true
+        },
+        {
+          "name": "erp_code_origin",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "driver_integration_code",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "sync_id",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "erp_code_tecnico",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "erp_code_tecnico_os",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "debit_register_file_remittance_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "debit_register_file_return_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "service_provider",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "service_provider_cprb_opting",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "telegram_phone",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "whatsapp_phone",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "not_comunicate_me",
+          "type": "boolean",
+          "nullable": true
+        },
+        {
+          "name": "comunicate_through_email",
+          "type": "boolean",
+          "nullable": true
+        },
+        {
+          "name": "comunicate_through_sms",
+          "type": "boolean",
+          "nullable": true
+        },
+        {
+          "name": "comunicate_through_whatsapp",
+          "type": "boolean",
+          "nullable": true
+        },
+        {
+          "name": "comunicate_through_telegram",
+          "type": "boolean",
+          "nullable": true
+        },
+        {
+          "name": "social_network_facebook",
+          "type": "boolean",
+          "nullable": true
+        },
+        {
+          "name": "social_network_instagram",
+          "type": "boolean",
+          "nullable": true
+        },
+        {
+          "name": "social_network_linkedin",
+          "type": "boolean",
+          "nullable": true
+        },
+        {
+          "name": "social_network_twitter",
+          "type": "boolean",
+          "nullable": true
+        },
+        {
+          "name": "updated_profile",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "resp_retains",
+          "type": "boolean",
+          "nullable": true
+        },
+        {
+          "name": "is_origin_csharp",
+          "type": "boolean",
+          "nullable": true
+        },
+        {
+          "name": "cell_phone_1_has_telegram",
+          "type": "boolean",
+          "nullable": true
+        },
+        {
+          "name": "cell_phone_1_has_whatsapp",
+          "type": "boolean",
+          "nullable": true
+        },
+        {
+          "name": "updated_profile_date",
+          "type": "timestamp without time zone",
+          "nullable": true
+        },
+        {
+          "name": "cell_phone_2_has_whatsapp",
+          "type": "boolean",
+          "nullable": true
+        },
+        {
+          "name": "cell_phone_2_has_telegram",
+          "type": "boolean",
+          "nullable": true
+        },
+        {
+          "name": "integration_taxation_regime_type",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "v_name",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "p_search_column",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "crm_last_update",
+          "type": "timestamp without time zone",
+          "nullable": true
+        },
+        {
+          "name": "anonymized_data",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "consent_submission_date_email",
+          "type": "timestamp without time zone",
+          "nullable": true
+        },
+        {
+          "name": "consent_submission_date_sms",
+          "type": "timestamp without time zone",
+          "nullable": true
+        },
+        {
+          "name": "number_consent_submissions_email",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "number_consent_submissions_sms",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "has_consent",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "consent_date",
+          "type": "timestamp without time zone",
+          "nullable": true
+        },
+        {
+          "name": "consent_acceptance_method",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "send_consent_method",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "vseller_hash_created_lead",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "fingerprint",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "manager",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "coordinator",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "schedule_cycle_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "attendance_stripe_letters",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "attendance_stripe_color",
+          "type": "character varying",
+          "nullable": true
+        },
+        {
+          "name": "sap_modified_integration",
+          "type": "timestamp with time zone",
+          "nullable": true
+        },
+        {
+          "name": "sap_client_type",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "sap_service_type",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "insignia_id",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "photo_path",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "bio",
+          "type": "text",
+          "nullable": true
+        }
+      ],
+      "distributions": {
+        "situation": {
+          "nDistinct": 5,
+          "nullFrac": 0,
+          "values": ["3", "4", "8", "1", "5"],
+          "freqs": [0.73733336, 0.1855, 0.04256667, 0.033833332, 0.00076666666]
+        },
+        "status": {
+          "nDistinct": 2,
+          "nullFrac": 0,
+          "values": ["1"],
+          "freqs": [0.9999667]
+        },
+        "client": {
+          "nDistinct": 2,
+          "nullFrac": 0,
+          "values": ["t", "f"],
+          "freqs": [0.7546333, 0.24536666]
+        },
+        "deleted": {
+          "nDistinct": 2,
+          "nullFrac": 0,
+          "values": ["f", "t"],
+          "freqs": [0.94913334, 0.050866667]
+        }
+      }
+    }
+  },
+  "connection": {
+    "samples": 15,
+    "connectMs": {
+      "p50": 94.94,
+      "p95": 137.11,
+      "max": 137.11
+    },
+    "queryRttMs": {
+      "p50": 8.32,
+      "p95": 56.87,
+      "p99": 64.89,
+      "max": 64.89
+    }
+  }
+}

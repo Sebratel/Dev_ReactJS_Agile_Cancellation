@@ -12,9 +12,7 @@ import type {
 } from '@/modules/payment-promises/repositories/payment-promises.repository';
 
 @Injectable()
-export class PaymentPromisesPrismaRepository
-  implements PaymentPromisesRepository
-{
+export class PaymentPromisesPrismaRepository implements PaymentPromisesRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async list(params: ListPaymentPromisesParams) {

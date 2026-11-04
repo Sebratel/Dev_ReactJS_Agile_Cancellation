@@ -371,7 +371,10 @@ export type AutoDistributeResponse = {
   agents: number;
 };
 
-export type BulkContactWhatsAppJobStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED';
+export type BulkContactWhatsAppJobStatus =
+  | 'PENDING'
+  | 'PROCESSING'
+  | 'COMPLETED';
 
 export type BulkContactWhatsAppJobResponse = {
   id: string;

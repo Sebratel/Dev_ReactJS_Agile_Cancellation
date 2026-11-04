@@ -99,15 +99,19 @@ export default function SettingsPage() {
         </div>
         <p className="mt-3 flex items-center gap-1.5 text-xs text-neutral">
           <ShieldAlert className="h-3.5 w-3.5" />
-          Alterações de SLA requerem atualização no motor de priorização (ERP Sync).
+          Alterações de SLA requerem atualização no motor de priorização (ERP
+          Sync).
         </p>
       </SectionCard>
 
       <div className="space-y-2">
         <div>
-          <h2 className="text-sm font-semibold">Monitoramento de integrações</h2>
+          <h2 className="text-sm font-semibold">
+            Monitoramento de integrações
+          </h2>
           <p className="text-xs text-neutral">
-            Acompanhe a saúde dos eventos recebidos via webhook e sincronização externa.
+            Acompanhe a saúde dos eventos recebidos via webhook e sincronização
+            externa.
           </p>
         </div>
         <IntegrationEventsPanel />

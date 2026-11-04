@@ -37,8 +37,13 @@ const WINDOW_OPTIONS = [3, 7, 15] as const;
 
 function daysBadge(days: number) {
   if (days <= 0) return { label: 'vence hoje', variant: 'danger' as const };
-  if (days <= 2) return { label: `em ${days} ${days === 1 ? 'dia' : 'dias'}`, variant: 'danger' as const };
-  if (days <= 5) return { label: `em ${days} dias`, variant: 'warning' as const };
+  if (days <= 2)
+    return {
+      label: `em ${days} ${days === 1 ? 'dia' : 'dias'}`,
+      variant: 'danger' as const,
+    };
+  if (days <= 5)
+    return { label: `em ${days} dias`, variant: 'warning' as const };
   return { label: `em ${days} dias`, variant: 'neutral' as const };
 }
 
@@ -56,7 +61,8 @@ function matchesSearch(item: PreCollectionItem, term: string) {
 export default function PreCollectionPage() {
   const { session } = useAuth();
   const canDistribute =
-    session?.user.roles.some((r) => r === 'ADMIN' || r === 'SUPERVISOR') ?? false;
+    session?.user.roles.some((r) => r === 'ADMIN' || r === 'SUPERVISOR') ??
+    false;
 
   const [daysWindow, setDaysWindow] = useState<number>(7);
   const [search, setSearch] = useState('');
@@ -78,7 +84,9 @@ export default function PreCollectionPage() {
       toast.success(msg);
     } catch (error) {
       toast.error(
-        error instanceof ApiError ? error.message : 'Erro ao distribuir clientes da pré-cobrança.',
+        error instanceof ApiError
+          ? error.message
+          : 'Erro ao distribuir clientes da pré-cobrança.',
       );
     }
   }
@@ -106,12 +114,16 @@ export default function PreCollectionPage() {
             {canDistribute ? (
               <Button
                 variant="secondary"
-                onClick={() => { void handleDistribute(); }}
+                onClick={() => {
+                  void handleDistribute();
+                }}
                 disabled={distributeMutation.isPending}
                 title="Cria casos de cobrança para clientes com 2ª vencendo em até 5 dias e distribui entre os atendentes"
               >
                 <Shuffle className="h-4 w-4" />
-                {distributeMutation.isPending ? 'Distribuindo...' : 'Distribuir (5 dias)'}
+                {distributeMutation.isPending
+                  ? 'Distribuindo...'
+                  : 'Distribuir (5 dias)'}
               </Button>
             ) : null}
             <Button
@@ -171,7 +183,10 @@ export default function PreCollectionPage() {
         />
       ) : null}
 
-      {!query.isLoading && !query.isError && isRefreshing && items.length === 0 ? (
+      {!query.isLoading &&
+      !query.isError &&
+      isRefreshing &&
+      items.length === 0 ? (
         <EmptyState
           title="Montando a lista…"
           description="O primeiro carregamento consulta o ERP e pode levar alguns segundos. Atualiza sozinho."
@@ -218,13 +233,17 @@ export default function PreCollectionPage() {
                 {items.map((item) => {
                   const badge = daysBadge(item.daysUntilSecond);
                   return (
-                    <TableRow key={`${item.contractCode}-${item.contractExternalId ?? ''}`}>
+                    <TableRow
+                      key={`${item.contractCode}-${item.contractExternalId ?? ''}`}
+                    >
                       <TableCell className="font-medium">
                         <div className="min-w-0">
                           <div className="truncate">{item.customerName}</div>
                           <div className="text-xs text-neutral">
                             {item.customerDocument ?? '—'}
-                            {item.customerPhone ? ` · ${item.customerPhone}` : ''}
+                            {item.customerPhone
+                              ? ` · ${item.customerPhone}`
+                              : ''}
                           </div>
                         </div>
                       </TableCell>
@@ -236,7 +255,9 @@ export default function PreCollectionPage() {
                           {formatDateOnlyPtBR(item.firstOverdueDate) ?? '—'}
                         </div>
                         <div className="text-xs">
-                          {formatCurrencyFromDecimalString(item.firstOverdueAmount)}
+                          {formatCurrencyFromDecimalString(
+                            item.firstOverdueAmount,
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -244,13 +265,21 @@ export default function PreCollectionPage() {
                           {formatDateOnlyPtBR(item.secondDueDate) ?? '—'}
                         </div>
                         <div className="mt-1 flex items-center gap-2">
-                          <StatusBadge label={badge.label} variant={badge.variant} />
+                          <StatusBadge
+                            label={badge.label}
+                            variant={badge.variant}
+                          />
                           <span className="text-xs text-neutral">
-                            {formatCurrencyFromDecimalString(item.secondDueAmount)}
+                            {formatCurrencyFromDecimalString(
+                              item.secondDueAmount,
+                            )}
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell align="right" className="font-semibold tabular-nums">
+                      <TableCell
+                        align="right"
+                        className="font-semibold tabular-nums"
+                      >
                         {formatCurrencyFromDecimalString(item.totalOpenAmount)}
                       </TableCell>
                     </TableRow>
