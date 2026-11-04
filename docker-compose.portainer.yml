@@ -140,3 +140,7 @@ services:
 
 volumes:
   db_data:
+    # Nome do volume configuravel: na migracao da stack antiga (agile-cancellation-platform) aponte
+    # DB_VOLUME_NAME=agile-cancellation-platform_db_data para REAPROVEITAR o banco existente (sem copia).
+    # Sem a variavel, usa o nome padrao da stack (identico ao que o Compose criaria).
+    name: ${DB_VOLUME_NAME:-dev_reactjs_agile_cancellation_db_data}
