@@ -77,6 +77,12 @@ services:
       ERP_DB_USER: ${ERP_DB_USER:-}
       ERP_DB_PASSWORD: ${ERP_DB_PASSWORD:-}
       ERP_DB_SSL: ${ERP_DB_SSL:-false}
+      # banco MySQL do Matrix (status de entrega do HSM); sem estas variaveis o job fica desligado
+      MYSQL_HOST: ${MYSQL_HOST:-}
+      MYSQL_PORT: ${MYSQL_PORT:-3306}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-}
+      MYSQL_USER: ${MYSQL_USER:-}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-}
     cpus: ${BACKEND_CPUS:-1.0}
     mem_limit: ${BACKEND_MEM_LIMIT:-1g}
     memswap_limit: ${BACKEND_MEM_LIMIT:-1g}
