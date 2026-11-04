@@ -16,6 +16,9 @@ jest.mock('pg', () => ({
     query(...args: unknown[]) {
       return mockQuery(...args) as unknown;
     }
+    on() {
+      return this;
+    }
   },
 }));
 

@@ -1,4 +1,9 @@
-import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  type OnModuleDestroy,
+  type OnModuleInit,
+} from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { Pool } from 'pg';
 import type { CollectionStatus } from '@prisma/client';
@@ -183,7 +188,7 @@ const FINALIZED_STATUSES: CollectionStatus[] = [
 ];
 
 @Injectable()
-export class PreCollectionService implements OnModuleInit {
+export class PreCollectionService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PreCollectionService.name);
   private pool: Pool | null = null;
   private cache: {
@@ -199,6 +204,12 @@ export class PreCollectionService implements OnModuleInit {
     void this.refreshCache();
   }
 
+  async onModuleDestroy(): Promise<void> {
+    const pool = this.pool;
+    this.pool = null;
+    await pool?.end();
+  }
+
   @Cron('*/30 * * * *')
   handleScheduledRefresh(): void {
     void this.refreshCache();
@@ -208,15 +219,23 @@ export class PreCollectionService implements OnModuleInit {
   // O método distribute() continua disponível via endpoint POST /pre-collection/distribute.
 
   private getPool(db: ErpSyncDbConfig): Pool {
-    this.pool ??= new Pool({
-      host: db.host,
-      port: db.port,
-      database: db.database,
-      user: db.user,
-      password: db.password,
-      max: 2,
-      ssl: false,
-    });
+    if (!this.pool) {
+      this.pool = new Pool({
+        host: db.host,
+        port: db.port,
+        database: db.database,
+        user: db.user,
+        password: db.password,
+        max: 2,
+        ssl: false,
+      });
+      // Conexao ociosa derrubada pelo ERP emite 'error' no pool; sem listener o Node encerra o processo.
+      this.pool.on('error', (error: Error) => {
+        this.logger.error(
+          `Conexao ociosa do pool do ERP (pre-cobranca) falhou: ${error.message}`,
+        );
+      });
+    }
     return this.pool;
   }
 

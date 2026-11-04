@@ -5,3 +5,11 @@ coverage
 .env.*
 !.env.example
 *.log
+.git
+.github
+.claude
+docs
+deploy
+loadtest
+*.md
+!README.md

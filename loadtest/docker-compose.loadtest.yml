@@ -1,0 +1,122 @@
+# Override de TESTE DE CARGA sobre a stack real (docker-compose.portainer.yml).
+# NAO usar em producao: adiciona ERP artificial (Postgres), mock do N8N e sondas de memoria.
+#   docker compose -p ger-loadtest --env-file loadtest/loadtest.env \
+#     -f docker-compose.portainer.yml -f loadtest/docker-compose.loadtest.yml up -d --build --wait
+# (o orquestrador `node loadtest/run.mjs` ja faz isso)
+services:
+  postgres-erp:
+    init: true
+    image: postgres:16
+    cpus: ${ERP_CPUS:-4.0}
+    mem_limit: ${ERP_MEM_LIMIT:-6g}
+    memswap_limit: ${ERP_MEM_LIMIT:-6g}
+    shm_size: 1gb
+    environment:
+      POSTGRES_DB: erp_artificial
+      POSTGRES_USER: erp_user
+      POSTGRES_PASSWORD: erp-test-placeholder-not-a-secret
+    command:
+      - postgres
+      - -c
+      - shared_buffers=2GB
+      - -c
+      - effective_cache_size=4GB
+      - -c
+      - work_mem=32MB
+      - -c
+      - max_wal_size=6GB
+      - -c
+      - checkpoint_timeout=15min
+      - -c
+      - max_connections=50
+    volumes:
+      # dataset do ERP: volume nomeado do projeto (removido por loadtest/cleanup.sh), nunca arquivo do repo
+      - erp_data:/var/lib/postgresql/data
+      - ./loadtest/erp:/erp-sql:ro
+    healthcheck:
+      test:
+        ['CMD-SHELL', 'pg_isready -U erp_user -d erp_artificial -h 127.0.0.1']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    ports:
+      - '127.0.0.1:${ERP_PORT:-55432}:5432'
+
+  # Latencia realista de rede ate o ERP (conexao ~95 ms, RTT de consulta p50 ~9 ms / p95 ~57 ms)
+  erp-latency:
+    init: true
+    image: node:22-alpine
+    cpus: 0.5
+    mem_limit: 128m
+    memswap_limit: 128m
+    environment:
+      ERP_LAT_FAST_MS: ${ERP_LAT_FAST_MS:-4.2}
+      ERP_LAT_FAST_SD: ${ERP_LAT_FAST_SD:-1.2}
+      ERP_LAT_SLOW_MS: ${ERP_LAT_SLOW_MS:-29}
+      ERP_LAT_SLOW_SD: ${ERP_LAT_SLOW_SD:-3}
+      ERP_LAT_SLOW_PROB: ${ERP_LAT_SLOW_PROB:-0.23}
+      ERP_LAT_CONNECT_EXTRA_MS: ${ERP_LAT_CONNECT_EXTRA_MS:-66}
+      ERP_LAT_CONNECT_SIGMA: ${ERP_LAT_CONNECT_SIGMA:-0.3}
+    command: ['node', '/app/latency-proxy.mjs']
+    volumes:
+      - ./loadtest/erp/latency-proxy.mjs:/app/latency-proxy.mjs:ro
+    depends_on:
+      postgres-erp:
+        condition: service_healthy
+    ports:
+      - '127.0.0.1:${ERP_PROXY_PORT:-55433}:5432'
+
+  n8n-mock:
+    init: true
+    image: node:22-alpine
+    cpus: 0.25
+    mem_limit: 128m
+    memswap_limit: 128m
+    environment:
+      MOCK_LATENCY_MS: ${MOCK_LATENCY_MS:-40}
+    command: ['node', '/app/server.mjs']
+    volumes:
+      - ./loadtest/mock-n8n/server.mjs:/app/server.mjs:ro
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'wget',
+          '--quiet',
+          '--tries=1',
+          '--spider',
+          'http://127.0.0.1:8080/health',
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    # Mesmo comando da imagem + (so aqui) flags de diagnostico: --expose-gc, snapshot por SIGUSR2,
+    # sonda HTTP interna e cron acelerado. `exec` deixa o node como filho direto do tini (init).
+    environment:
+      LT_MALLOC_TUNE: ${LT_MALLOC_TUNE:-}
+    command:
+      - sh
+      - -c
+      - >-
+        npx prisma migrate deploy || echo 'WARN: prisma migrate deploy failed';
+        if [ -n "$$LT_MALLOC_TUNE" ]; then export MALLOC_ARENA_MAX=2 MALLOC_MMAP_THRESHOLD_=131072 MALLOC_TRIM_THRESHOLD_=131072; fi;
+        NODE_OPTIONS="$$NODE_OPTIONS --expose-gc --heapsnapshot-signal=SIGUSR2 --diagnostic-dir=/tmp/snap --require /loadtest/fast-cron.cjs --require /loadtest/mem-probe.cjs"
+        exec node dist/main.js
+    volumes:
+      - ./loadtest/container:/loadtest:ro
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      erp-latency:
+        condition: service_started
+      postgres-erp:
+        condition: service_healthy
+      n8n-mock:
+        condition: service_healthy
+
+volumes:
+  erp_data:
+    name: ger-loadtest-erp-data

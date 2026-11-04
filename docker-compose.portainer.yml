@@ -3,7 +3,15 @@ name: dev_reactjs_agile_cancellation
 
 services:
   mariadb:
-    image: mariadb:11
+    init: true
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+    # versao menor FIXA (nao usar tag flutuante): a partir da 11.6.2 o MariaDB liga innodb_snapshot_isolation
+    # (erro 1020 em escritas concorrentes); a API repete essas escritas (retryOnWriteConflict). Ver loadtest/README.md
+    image: mariadb:11.8
     restart: unless-stopped
     cpus: ${MARIADB_CPUS:-1.0}
     mem_limit: ${MARIADB_MEM_LIMIT:-1g}
@@ -26,6 +34,12 @@ services:
       retries: 12
 
   backend:
+    init: true
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -87,6 +101,12 @@ services:
       - '${API_PORT:-4000}:4000'
 
   frontend:
+    init: true
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
     build:
       context: .
       dockerfile: Dockerfile
@@ -106,14 +126,14 @@ services:
           '--quiet',
           '--tries=1',
           '--spider',
-          'http://127.0.0.1:80/',
+          'http://127.0.0.1:8080/',
         ]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
     ports:
-      - '${WEB_PORT:-80}:80'
+      - '${WEB_PORT:-80}:8080'
     depends_on:
       backend:
         condition: service_healthy
