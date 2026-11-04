@@ -4,14 +4,14 @@ Documento para repasse interno. Não foi enviado a ninguém. PR: Sebratel/Dev_Re
 
 ## 1. O que muda para quem opera
 
-| Área | Mudança | Ação necessária |
-|---|---|---|
-| Compose | `docker-compose.yml` virou `docker-compose.portainer.yml`; stack `dev_reactjs_agile_cancellation`; serviços `frontend`, `backend`, `mariadb`; sem `container_name`; healthchecks; `init: true`; logs json-file 10m x 3 | Apontar a stack do Portainer para o novo arquivo |
-| Recursos | `mem_limit`/`cpus`/heap por variável, com perfis em `deploy/profiles/{low,medium,high}.env` | Definir as variáveis no Environment do Portainer (perfil `medium` é o padrão) |
-| Frontend | Imagem `nginx-unprivileged`, escuta na porta **8080** (não 80) | Publicação continua `${WEB_PORT:-80}:8080`; ajustar proxy externo se apontava para 80 do container |
-| Backend | Roda como usuário `node`; `TZ` e `NODE_OPTIONS` definidos | Nenhuma |
-| CI | GitHub Actions com `ci-ok` (validações do compose, front, back, imagem + smoke) | Proteger `staging`/`main` exigindo `ci-ok` + 1 aprovação |
-| Segredos | Só no Environment do Portainer | `JWT_SECRET` ≥ 32 caracteres, `N8N_WEBHOOK_SECRET` ≥ 16, `CORS_ORIGIN` fora de localhost (a API recusa subir sem isso) |
+| Área     | Mudança                                                                                                                                                                                                                | Ação necessária                                                                                                        |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Compose  | `docker-compose.yml` virou `docker-compose.portainer.yml`; stack `dev_reactjs_agile_cancellation`; serviços `frontend`, `backend`, `mariadb`; sem `container_name`; healthchecks; `init: true`; logs json-file 10m x 3 | Apontar a stack do Portainer para o novo arquivo                                                                       |
+| Recursos | `mem_limit`/`cpus`/heap por variável, com perfis em `deploy/profiles/{low,medium,high}.env`                                                                                                                            | Definir as variáveis no Environment do Portainer (perfil `medium` é o padrão)                                          |
+| Frontend | Imagem `nginx-unprivileged`, escuta na porta **8080** (não 80)                                                                                                                                                         | Publicação continua `${WEB_PORT:-80}:8080`; ajustar proxy externo se apontava para 80 do container                     |
+| Backend  | Roda como usuário `node`; `TZ` e `NODE_OPTIONS` definidos                                                                                                                                                              | Nenhuma                                                                                                                |
+| CI       | GitHub Actions com `ci-ok` (validações do compose, front, back, imagem + smoke)                                                                                                                                        | Proteger `staging`/`main` exigindo `ci-ok` + 1 aprovação                                                               |
+| Segredos | Só no Environment do Portainer                                                                                                                                                                                         | `JWT_SECRET` ≥ 32 caracteres, `N8N_WEBHOOK_SECRET` ≥ 16, `CORS_ORIGIN` fora de localhost (a API recusa subir sem isso) |
 
 ## 2. Correções de código (achadas no teste de carga)
 

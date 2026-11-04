@@ -60,7 +60,8 @@ function delayedPipe(src, dst) {
     lastAt = now;
     lastDeliver = Math.max(lastDeliver, now + burstDelay);
     queue.push({ at: lastDeliver, chunk });
-    if (!timer) timer = setTimeout(drain, Math.max(0, lastDeliver - performance.now()));
+    if (!timer)
+      timer = setTimeout(drain, Math.max(0, lastDeliver - performance.now()));
   });
   src.on('end', () => {
     ended = true;

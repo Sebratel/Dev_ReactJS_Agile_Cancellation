@@ -21,21 +21,21 @@ O relatorio final fica em [`RESULTS.md`](./RESULTS.md) (gerado a cada execucao; 
 
 ## O que existe
 
-| Arquivo | Funcao |
-| --- | --- |
-| `run.sh` / `run.mjs` | Orquestrador: ERP + proxy -> dataset -> medicao de latencia -> stack real (build) -> seed -> N ciclos (memoria + carga + idle + GC + heap snapshot) -> `RESULTS.md` -> cleanup |
-| `docker-compose.loadtest.yml`, `loadtest.env` | Override sobre `docker-compose.portainer.yml` (perfil medium): `postgres-erp`, `erp-latency`, `n8n-mock` e flags de diagnostico so no backend. Valores PLACEHOLDER |
-| `erp/erp-profile.json` | Perfil agregado do ERP real (linhas, bytes, colunas, distribuicoes, latencia). Sem PII, sem credenciais |
-| `erp/profile-real-erp.mjs` | Refaz o perfil lendo o ERP real em modo somente leitura: `node loadtest/erp/profile-real-erp.mjs --env-file <.env com ERP_DB_*>` (o env-file **nunca** e commitado) |
-| `erp/build-erp.mjs` | Gera o ERP artificial em lotes SQL (`generate_series`), com `ERP_SCALE` (1 = real, 0.01 = smoke), calibracao de largura de linha e de indices e relatorio simulado x real. Idempotente/retomavel |
-| `erp/mutate.sql` | "Virada" do ERP durante a carga: pagamentos, cancelamentos e novos contratos elegiveis |
-| `erp/latency-proxy.mjs` | Proxy TCP entre backend e ERP: conexao ~95 ms, RTT de consulta p50 ~9 ms / p95 ~57 ms (calibravel por `ERP_LAT_*`) |
-| `erp/measure-erp-latency.mjs` | Mesma rotina do perfil real (15 conexoes novas x 5 `SELECT 1`) |
-| `mock-n8n/server.mjs` | Mock HTTP do N8N (HSM e recuperacao) |
-| `container/*.cjs` | `seed-users` (usuarios), `fast-cron` (acelera `@Cron`), `mem-probe` (GC forcado e heap snapshot), montados so no backend de teste |
-| `scenario.mjs` | Runner de carga (fetch nativo): VUs com RTT de cliente (20 ms +- 10) e think time de 1-5 s, webhooks de ingestao e virada do ERP; p50/p95/p99 por endpoint |
-| `analyze-heap.mjs` | Contagem/tamanho por constructor e diff entre `.heapsnapshot` |
-| `cleanup.sh`, `cleanup.ps1`, `compact-docker-disk.ps1` | Limpeza total e compactacao do disco do Docker (ver abaixo) |
+| Arquivo                                                | Funcao                                                                                                                                                                                           |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `run.sh` / `run.mjs`                                   | Orquestrador: ERP + proxy -> dataset -> medicao de latencia -> stack real (build) -> seed -> N ciclos (memoria + carga + idle + GC + heap snapshot) -> `RESULTS.md` -> cleanup                   |
+| `docker-compose.loadtest.yml`, `loadtest.env`          | Override sobre `docker-compose.portainer.yml` (perfil medium): `postgres-erp`, `erp-latency`, `n8n-mock` e flags de diagnostico so no backend. Valores PLACEHOLDER                               |
+| `erp/erp-profile.json`                                 | Perfil agregado do ERP real (linhas, bytes, colunas, distribuicoes, latencia). Sem PII, sem credenciais                                                                                          |
+| `erp/profile-real-erp.mjs`                             | Refaz o perfil lendo o ERP real em modo somente leitura: `node loadtest/erp/profile-real-erp.mjs --env-file <.env com ERP_DB_*>` (o env-file **nunca** e commitado)                              |
+| `erp/build-erp.mjs`                                    | Gera o ERP artificial em lotes SQL (`generate_series`), com `ERP_SCALE` (1 = real, 0.01 = smoke), calibracao de largura de linha e de indices e relatorio simulado x real. Idempotente/retomavel |
+| `erp/mutate.sql`                                       | "Virada" do ERP durante a carga: pagamentos, cancelamentos e novos contratos elegiveis                                                                                                           |
+| `erp/latency-proxy.mjs`                                | Proxy TCP entre backend e ERP: conexao ~95 ms, RTT de consulta p50 ~9 ms / p95 ~57 ms (calibravel por `ERP_LAT_*`)                                                                               |
+| `erp/measure-erp-latency.mjs`                          | Mesma rotina do perfil real (15 conexoes novas x 5 `SELECT 1`)                                                                                                                                   |
+| `mock-n8n/server.mjs`                                  | Mock HTTP do N8N (HSM e recuperacao)                                                                                                                                                             |
+| `container/*.cjs`                                      | `seed-users` (usuarios), `fast-cron` (acelera `@Cron`), `mem-probe` (GC forcado e heap snapshot), montados so no backend de teste                                                                |
+| `scenario.mjs`                                         | Runner de carga (fetch nativo): VUs com RTT de cliente (20 ms +- 10) e think time de 1-5 s, webhooks de ingestao e virada do ERP; p50/p95/p99 por endpoint                                       |
+| `analyze-heap.mjs`                                     | Contagem/tamanho por constructor e diff entre `.heapsnapshot`                                                                                                                                    |
+| `cleanup.sh`, `cleanup.ps1`, `compact-docker-disk.ps1` | Limpeza total e compactacao do disco do Docker (ver abaixo)                                                                                                                                      |
 
 ## Decisoes e limites
 
