@@ -101,6 +101,7 @@ export default function CancelledClientsPage() {
   const listParams = useMemo(
     () => ({
       status: 'CLOSED',
+      contractStatus: 'CANCELLED',
       search: debouncedSearch.trim() || undefined,
       page,
       limit: DEFAULT_LIMIT,
@@ -110,7 +111,13 @@ export default function CancelledClientsPage() {
 
   const casesQuery = useCollectionCases(listParams);
   const recoveredQuery = useCollectionCases({ status: 'RECOVERED', limit: 1 });
-  const closedQuery = useCollectionCases({ status: 'CLOSED', limit: 1 });
+  // Só contratos de fato cancelados no ERP: casos encerrados por outro motivo
+  // (ex.: duplicados) não são "cancelados".
+  const closedQuery = useCollectionCases({
+    status: 'CLOSED',
+    contractStatus: 'CANCELLED',
+    limit: 1,
+  });
 
   const items = casesQuery.data?.items ?? [];
   const totalPages = Math.max(casesQuery.data?.pagination.totalPages ?? 1, 1);
