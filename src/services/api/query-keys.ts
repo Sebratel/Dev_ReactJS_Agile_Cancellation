@@ -62,6 +62,7 @@ export const queryKeys = {
     all: ['users'] as const,
     list: (params: UsersListParams) => ['users', 'list', params] as const,
     workload: ['users', 'workload'] as const,
+    cancellationAgents: ['users', 'cancellation-agents'] as const,
   },
   customers: {
     all: ['customers'] as const,

@@ -23,6 +23,16 @@ export class UsersController {
     return this.usersService.list(query);
   }
 
+  // Quem encaminha casos ao cancelamento (inclusive atendente de cobranca, quando
+  // liberado) precisa listar os agentes de cancelamento ativos. A listagem geral
+  // (`GET /users`) e so de ADMIN/SUPERVISOR, entao o atendente recebia 403 e via
+  // "nenhum atendente". Rota declarada antes de `:id` para nao ser capturada por ela.
+  @Roles('ADMIN', 'SUPERVISOR', 'COLLECTION_AGENT', 'CANCELLATION_AGENT')
+  @Get('cancellation-agents')
+  listCancellationAgents() {
+    return this.usersService.listCancellationAgents();
+  }
+
   @Roles('ADMIN', 'SUPERVISOR')
   @Get('workload')
   getWorkload() {

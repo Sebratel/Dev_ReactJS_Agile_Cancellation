@@ -50,7 +50,11 @@ export function DashboardAgentPanel({
   user,
   summary,
 }: DashboardAgentPanelProps) {
-  const isCancellationAgent = user.roles.includes('CANCELLATION_AGENT');
+  // Quem acumula os dois papéis vê o painel de cobrança; a tela de
+  // Cancelamentos continua acessível pelo menu.
+  const isCancellationAgent =
+    user.roles.includes('CANCELLATION_AGENT') &&
+    !user.roles.includes('COLLECTION_AGENT');
   const workHref = isCancellationAgent ? '/cancelamentos' : WORK_HREF;
 
   // Próximos a contatar: casos DELE ainda sem contato manual, do mais crítico

@@ -35,6 +35,16 @@ export async function getUsers(params: UsersListParams = {}) {
   return response.data;
 }
 
+// Rota aberta a quem encaminha casos ao cancelamento (inclusive atendente de
+// cobranca); `GET /users` e restrita a ADMIN/SUPERVISOR.
+export async function getCancellationAgents() {
+  const response = await httpClient.request<PaginatedResponse<UserResponse>>({
+    path: '/users/cancellation-agents',
+  });
+
+  return response.data;
+}
+
 export async function createUser(payload: CreateUserPayload) {
   const response = await httpClient.request<UserResponse>({
     path: '/users',

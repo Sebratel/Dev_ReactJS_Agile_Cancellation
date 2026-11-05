@@ -35,6 +35,16 @@ describe('UsersService (mock)', () => {
     });
   });
 
+  it('lista apenas agentes de cancelamento ativos', async () => {
+    const response = await service.listCancellationAgents();
+
+    expect(response.data.items.length).toBeGreaterThan(0);
+    response.data.items.forEach((user) => {
+      expect(user.roles).toContain('CANCELLATION_AGENT');
+      expect(user.status).toBe('ACTIVE');
+    });
+  });
+
   it('cria um usuario sem senha, liberado para login via Google', async () => {
     const response = await service.create({
       email: 'novo@ger.local',

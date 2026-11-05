@@ -40,6 +40,21 @@ export class UsersService {
     );
   }
 
+  /** Agentes de cancelamento ativos — destinatarios possiveis de um caso encaminhado. */
+  async listCancellationAgents() {
+    const limit = 100;
+    const { items, total } = await this.usersRepository.list({
+      page: 1,
+      limit,
+      status: UserStatus.ACTIVE,
+      role: 'CANCELLATION_AGENT',
+    });
+
+    return createApiResponse(
+      createPaginatedResponse(items.map(toUserResponse), 1, limit, total),
+    );
+  }
+
   async getById(id: string) {
     const user = await this.requireUser(id);
     return createApiResponse(toUserResponse(user));
