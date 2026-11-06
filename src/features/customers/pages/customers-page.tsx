@@ -1,5 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { isInteractiveTarget } from '@/features/collection-cases/utils/case-row-presentation';
 import {
   AlertTriangle,
   ArrowDown,
@@ -71,6 +72,7 @@ function SortIndicator({
 }
 
 export default function CustomersPage() {
+  const navigate = useNavigate();
   const tableShellRef = useRef<HTMLDivElement>(null);
   const lastPageChangePosition = useRef<{
     windowY: number;
@@ -329,7 +331,15 @@ export default function CustomersPage() {
               </TableHead>
               <TableBody>
                 {items.map((customer) => (
-                  <TableRow key={customer.id}>
+                  <TableRow
+                    key={customer.id}
+                    className="cursor-pointer"
+                    onClick={(event) => {
+                      if (!isInteractiveTarget(event.target)) {
+                        void navigate(`/clientes/${customer.id}`);
+                      }
+                    }}
+                  >
                     <TableCell className="font-medium">
                       <Link
                         to={`/clientes/${customer.id}`}

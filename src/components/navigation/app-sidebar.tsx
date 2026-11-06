@@ -2,9 +2,10 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { PanelLeftClose } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { UserAvatar } from '@/components/ui/user-avatar';
 import { roleLabels } from '@/features/auth/auth.constants';
 import { useAuth } from '@/features/auth/auth-context';
-import { getRoutesForRole } from '@/features/auth/utils/route-access';
+import { getRoutesForRoles } from '@/features/auth/utils/route-access';
 import { cn } from '@/lib/utils';
 import { theme } from '@/design-system/theme';
 import { type AppRouteItem } from '@/app/router/route-config';
@@ -14,27 +15,13 @@ const NAV_GROUPS: Array<{ key: AppRouteItem['group']; label: string }> = [
   { key: 'gestao', label: 'Gestão' },
 ];
 
-function getUserInitials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-
-  if (parts.length === 0) {
-    return '?';
-  }
-
-  const first = parts[0]?.charAt(0) ?? '';
-  const last =
-    parts.length > 1 ? (parts[parts.length - 1]?.charAt(0) ?? '') : '';
-
-  return `${first}${last}`.toUpperCase() || '?';
-}
-
 type SidebarContentProps = {
   onNavigate?: () => void;
 };
 
 function SidebarContent({ onNavigate }: SidebarContentProps) {
   const { session } = useAuth();
-  const routes = session ? getRoutesForRole(session.user.role) : [];
+  const routes = session ? getRoutesForRoles(session.user.roles) : [];
 
   return (
     <div className="flex h-full flex-col border-r border-border bg-card">
@@ -123,18 +110,17 @@ function SidebarContent({ onNavigate }: SidebarContentProps) {
       {session ? (
         <div className="border-t border-border px-4 py-3">
           <div className="flex items-center gap-3">
-            <div
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-foreground"
-              aria-hidden="true"
-            >
-              {getUserInitials(session.user.name)}
-            </div>
+            <UserAvatar
+              name={session.user.name}
+              avatarUrl={session.user.avatarUrl}
+              className="h-8 w-8 text-xs font-semibold"
+            />
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold leading-tight">
                 {session.user.name}
               </p>
               <p className="truncate text-xs text-neutral">
-                {roleLabels[session.user.role]}
+                {session.user.roles.map((role) => roleLabels[role]).join(' · ')}
               </p>
             </div>
           </div>

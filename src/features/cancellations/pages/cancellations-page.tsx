@@ -1,21 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  CheckCircle,
-  Download,
-  RefreshCw,
-  Shuffle,
-  Timer,
-  TrendingUp,
-} from 'lucide-react';
+import { Download, Shuffle } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { BulkActionBar } from '@/components/data-display/bulk-action-bar';
-import { MetricCard } from '@/components/data-display/metric-card';
 import { PageHeader } from '@/components/data-display/page-header';
 import { PageContainer } from '@/components/navigation/page-container';
-import { SectionCard } from '@/components/data-display/section-card';
 import { EmptyState } from '@/components/feedback/empty-state';
 import { ErrorState } from '@/components/feedback/error-state';
 import { TableSkeleton } from '@/components/feedback/table-skeleton';
+import {
+  ActionsMenu,
+  type ActionsMenuItem,
+} from '@/components/ui/actions-menu';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -35,11 +30,18 @@ import { useUsersWorkload } from '@/features/users/hooks/use-users-workload';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { toast } from '@/lib/toast';
 import { ApiError } from '@/services/api/api-error';
+import { cn } from '@/lib/utils';
 import { formatInteger, formatPercentRate } from '@/utils/formatters';
 
 const PRIORITY_OPTIONS = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as const;
 
 const DEFAULT_LIMIT = 10;
+
+const STATUS_SEGMENTS = [
+  { value: 'CANCELLATION_IN_PROGRESS', label: 'Em andamento' },
+  { value: 'RECOVERED', label: 'Retidos' },
+  { value: 'CLOSED', label: 'Encerrados' },
+] as const;
 
 type CancellationsFilters = {
   status: string;
@@ -246,6 +248,39 @@ export default function CancellationsPage() {
     }
   }
 
+  const menuItems: ActionsMenuItem[] = [
+    ...(canDistribute
+      ? [
+          {
+            key: 'auto-distribute',
+            label: autoDistributeMutation.isPending
+              ? 'Distribuindo...'
+              : 'Distribuir automaticamente',
+            icon: <Shuffle className="h-4 w-4" aria-hidden="true" />,
+            disabled: autoDistributeMutation.isPending,
+            onSelect: () => {
+              void handleAutoDistribute();
+            },
+          },
+        ]
+      : []),
+    {
+      key: 'export-csv',
+      label: isExporting ? 'Exportando...' : 'Exportar CSV',
+      icon: <Download className="h-4 w-4" aria-hidden="true" />,
+      disabled: isExporting || casesQuery.isLoading,
+      onSelect: () => {
+        void exportCsv({ ...listParams });
+      },
+    },
+  ];
+
+  const segmentTotals: Record<string, number> = {
+    CANCELLATION_IN_PROGRESS: inProgressTotal,
+    RECOVERED: recoveredTotal,
+    CLOSED: closedTotal,
+  };
+
   return (
     <PageContainer>
       <PageHeader
@@ -253,30 +288,7 @@ export default function CancellationsPage() {
         description="Monitoramento dos processos de cancelamento em andamento: responsável, prazo e evolução."
         actions={
           <>
-            {canDistribute ? (
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  void handleAutoDistribute();
-                }}
-                disabled={autoDistributeMutation.isPending}
-              >
-                <Shuffle className="h-4 w-4" />
-                {autoDistributeMutation.isPending
-                  ? 'Distribuindo...'
-                  : 'Distribuir automaticamente'}
-              </Button>
-            ) : null}
-            <Button
-              variant="secondary"
-              onClick={() => {
-                void exportCsv({ ...listParams });
-              }}
-              disabled={isExporting || casesQuery.isLoading}
-            >
-              <Download className="h-4 w-4" />
-              {isExporting ? 'Exportando...' : 'Exportar CSV'}
-            </Button>
+            <ActionsMenu items={menuItems} />
             <Button onClick={handleRetry} disabled={casesQuery.isLoading}>
               Atualizar
             </Button>
@@ -284,100 +296,93 @@ export default function CancellationsPage() {
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4 card-stagger">
-        <MetricCard
-          title="Em andamento"
-          value={formatInteger(inProgressTotal)}
-          description="Processos de cancelamento ativos"
-          icon={Timer}
-          variant="warning"
-          loading={inProgressQuery.isLoading}
-          density="compact"
-        />
-        <MetricCard
-          title="Retidos"
-          value={formatInteger(recoveredTotal)}
-          description="Cliente reverteu o cancelamento"
-          icon={TrendingUp}
-          variant="success"
-          loading={recoveredQuery.isLoading}
-          density="compact"
-        />
-        <MetricCard
-          title="Encerrados"
-          value={formatInteger(closedTotal)}
-          description="Cancelamento concluído"
-          icon={CheckCircle}
-          variant="neutral"
-          loading={closedQuery.isLoading}
-          density="compact"
-        />
-        <MetricCard
-          title="Taxa de recuperação"
-          value={formatPercentRate(recoveryRate)}
-          description={`${formatInteger(recoveredTotal)} de ${formatInteger(completedTotal)} finalizados`}
-          icon={RefreshCw}
-          variant={recoveryRate >= 0.3 ? 'success' : 'danger'}
-          loading={recoveredQuery.isLoading || closedQuery.isLoading}
-          density="compact"
-        />
-      </div>
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+        <div
+          role="group"
+          aria-label="Situação dos processos"
+          className="inline-flex rounded-lg border border-border bg-card p-0.5"
+        >
+          {STATUS_SEGMENTS.map((segment) => {
+            const active = filters.status === segment.value;
+            const total = segmentTotals[segment.value];
 
-      <SectionCard
-        title="Filtros"
-        description="Filtre por status, prioridade ou busca textual."
-        contentClassName="space-y-3"
-      >
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <label className="space-y-1 text-sm">
-            <span className="text-xs font-medium text-neutral">Busca</span>
-            <Input
-              placeholder="Cliente, documento ou contrato"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-            />
-          </label>
-
-          <label className="space-y-1 text-sm">
-            <span className="text-xs font-medium text-neutral">Status</span>
-            <Select
-              value={filters.status}
-              onChange={(e) =>
-                updateFilters({ status: e.target.value, page: 1 })
-              }
-            >
-              <option value="CANCELLATION_IN_PROGRESS">Em andamento</option>
-              <option value="RECOVERED">Retidos</option>
-              <option value="CLOSED">Encerrados</option>
-            </Select>
-          </label>
-
-          <label className="space-y-1 text-sm">
-            <span className="text-xs font-medium text-neutral">Prioridade</span>
-            <Select
-              value={filters.priority}
-              onChange={(e) =>
-                updateFilters({ priority: e.target.value, page: 1 })
-              }
-            >
-              <option value="">Todas as prioridades</option>
-              {PRIORITY_OPTIONS.map((p) => (
-                <option key={p} value={p}>
-                  {getPriorityLabel(p)}
-                </option>
-              ))}
-            </Select>
-          </label>
+            return (
+              <button
+                key={segment.value}
+                type="button"
+                aria-pressed={active}
+                onClick={() =>
+                  updateFilters({ status: segment.value, page: 1 })
+                }
+                className={cn(
+                  'inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                  active
+                    ? 'bg-primary/15 text-foreground'
+                    : 'text-neutral hover:text-foreground',
+                )}
+              >
+                {segment.label}
+                <span className="text-xs tabular-nums text-neutral">
+                  {formatInteger(total ?? 0)}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
+        <p
+          className="text-sm text-neutral"
+          title={`${formatInteger(recoveredTotal)} de ${formatInteger(completedTotal)} finalizados`}
+        >
+          Taxa de recuperação{' '}
+          <strong
+            className={cn(
+              'text-base font-semibold tabular-nums',
+              recoveryRate >= 0.3 ? 'text-success' : 'text-danger',
+            )}
+          >
+            {formatPercentRate(recoveryRate)}
+          </strong>{' '}
+          <span className="text-xs">
+            ({formatInteger(recoveredTotal)} de {formatInteger(completedTotal)}{' '}
+            finalizados)
+          </span>
+        </p>
+      </div>
+
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="min-w-[240px] flex-1 space-y-1 text-sm md:max-w-md">
+          <span className="text-xs font-medium text-neutral">Busca</span>
+          <Input
+            placeholder="Cliente, documento ou contrato"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+          />
+        </label>
+
+        <label className="w-56 space-y-1 text-sm">
+          <span className="text-xs font-medium text-neutral">Prioridade</span>
+          <Select
+            value={filters.priority}
+            onChange={(e) =>
+              updateFilters({ priority: e.target.value, page: 1 })
+            }
+          >
+            <option value="">Todas as prioridades</option>
+            {PRIORITY_OPTIONS.map((p) => (
+              <option key={p} value={p}>
+                {getPriorityLabel(p)}
+              </option>
+            ))}
+          </Select>
+        </label>
+
         {hasActiveFilters ? (
-          <div className="flex justify-end">
-            <Button variant="secondary" size="sm" onClick={clearFilters}>
-              Limpar filtros
-            </Button>
-          </div>
+          <Button variant="secondary" onClick={clearFilters}>
+            Limpar filtros
+          </Button>
         ) : null}
-      </SectionCard>
+      </div>
 
       {casesQuery.isLoading ? <TableSkeleton rows={6} columns={5} /> : null}
 
