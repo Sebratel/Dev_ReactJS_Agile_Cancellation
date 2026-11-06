@@ -56,8 +56,12 @@ describe('AuditoriaPage', () => {
     renderAuditoria();
 
     expect(await screen.findByText('Auditoria')).toBeInTheDocument();
+    expect(await screen.findByText('ACME LTDA')).toBeInTheDocument();
     expect(
-      await screen.findByText('Tentativa de cobrança registrada'),
+      screen.getByText(/registrou uma tentativa de contato com/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Contrato 238580 · WhatsApp · sem resposta'),
     ).toBeInTheDocument();
     expect(screen.getByText('Registros de auditoria')).toBeInTheDocument();
   });
@@ -84,7 +88,7 @@ describe('AuditoriaPage', () => {
     await screen.findByText('Registros de auditoria');
 
     await user.type(
-      screen.getByPlaceholderText('Entidade, ação, usuário...'),
+      screen.getByPlaceholderText('Buscar por nome do cliente ou contrato'),
       'admin',
     );
 
@@ -134,7 +138,7 @@ describe('AuditoriaPage', () => {
     const user = userEvent.setup();
     renderAuditoria();
 
-    await screen.findByText('Tentativa de cobrança registrada');
+    await screen.findByText('ACME LTDA');
     await user.click(
       screen.getByRole('button', {
         name: 'Ver detalhes de Tentativa de cobrança registrada',

@@ -28,6 +28,7 @@ export function buildAuditLogsPath(params: AuditLogsListParams = {}) {
   appendParam(searchParams, 'startDate', params.startDate);
   appendParam(searchParams, 'endDate', params.endDate);
   appendParam(searchParams, 'search', params.search);
+  appendParam(searchParams, 'category', params.category);
 
   const query = searchParams.toString();
 

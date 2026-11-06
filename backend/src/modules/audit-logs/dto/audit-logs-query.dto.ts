@@ -3,12 +3,23 @@ import { Transform, Type } from 'class-transformer';
 import {
   IsDateString,
   IsEnum,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
   Max,
   Min,
 } from 'class-validator';
+
+export const AUDIT_LOG_CATEGORY_FILTERS = [
+  'CONTACT',
+  'PROMISE',
+  'CANCELLATION',
+  'ASSIGNMENT',
+] as const;
+
+export type AuditLogCategoryFilter =
+  (typeof AUDIT_LOG_CATEGORY_FILTERS)[number];
 
 function toOptionalInt(value: unknown) {
   if (value === undefined || value === null || value === '') {
@@ -61,4 +72,8 @@ export class AuditLogsQueryDto {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @IsOptional()
+  @IsIn(AUDIT_LOG_CATEGORY_FILTERS)
+  category?: AuditLogCategoryFilter;
 }

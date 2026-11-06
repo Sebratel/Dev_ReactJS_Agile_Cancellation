@@ -19,6 +19,7 @@ describe('auditoria-search-params', () => {
       entityType: 'COLLECTION_CASE',
       entityId: '',
       action: 'CREATE',
+      category: '',
       startDate: '2026-06-01',
       endDate: '2026-06-10',
       page: 2,

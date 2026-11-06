@@ -4,6 +4,22 @@ export type AuditLogActor = {
   id: string;
   name: string;
   email: string;
+  avatarUrl?: string | null;
+};
+
+export type AuditLogCategory =
+  | 'CONTACT'
+  | 'PROMISE'
+  | 'CANCELLATION'
+  | 'ASSIGNMENT'
+  | 'STATUS'
+  | 'ACCESS'
+  | 'EXPORT'
+  | 'OTHER';
+
+export type AuditLogSubject = {
+  customerName: string;
+  contractCode: string | null;
 };
 
 export type AuditLogItem = {
@@ -13,6 +29,12 @@ export type AuditLogItem = {
   entityId: string;
   action: string;
   summary: string;
+  // Leitura para a gerência (sempre enviados pela API; opcionais para tolerar
+  // versões antigas do backend durante um deploy).
+  category?: AuditLogCategory;
+  verb?: string;
+  detail?: string | null;
+  subject?: AuditLogSubject | null;
   createdAt: string;
   metadata: Record<string, unknown>;
 };
@@ -27,6 +49,7 @@ export type AuditLogsListParams = {
   startDate?: string;
   endDate?: string;
   search?: string;
+  category?: string;
 };
 
 export type AuditLogsPageResponse = PaginatedResponse<AuditLogItem>;

@@ -130,6 +130,7 @@ describe('audit-logs-list.utils', () => {
       id: 'u1',
       name: 'Ana',
       email: 'ana@x.com',
+      avatarUrl: null,
     });
     expect(withActor.summary).toBe('Tentativa de cobranca registrada');
     expect(withActor.createdAt).toBe('2026-06-01T00:00:00.000Z');
