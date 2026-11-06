@@ -57,7 +57,7 @@ const items = [
     id: 'c2',
     customerName: 'BETA SA',
     status: 'CANCELLED_IN_RECOVERY',
-    assignedTo: { id: 'usr_deb', name: 'Débora', avatarUrl: null },
+    assignedTo: { id: 'usr_deb', name: 'Débora' },
   }),
 ];
 

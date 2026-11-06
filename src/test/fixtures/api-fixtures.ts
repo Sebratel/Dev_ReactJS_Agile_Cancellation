@@ -342,7 +342,7 @@ export function createMockAuditLogsPage(
       entityId: 'case_0001',
       action: 'CREATE',
       summary: 'Tentativa de cobrança registrada',
-      category: 'CONTACT',
+      category: 'CONTACT' as const,
       verb: 'registrou uma tentativa de contato com',
       detail: 'WhatsApp · sem resposta',
       subject: { customerName: 'ACME LTDA', contractCode: '238580' },
