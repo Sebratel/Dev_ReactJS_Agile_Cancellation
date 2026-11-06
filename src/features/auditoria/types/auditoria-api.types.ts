@@ -25,6 +25,8 @@ export type AuditLogSubject = {
 export type AuditLogItem = {
   id: string;
   actor: AuditLogActor | null;
+  // Sem usuário (ex.: tentativa de login de e-mail desconhecido): o e-mail usado.
+  actorLabel?: string | null;
   entityType: string;
   entityId: string;
   action: string;

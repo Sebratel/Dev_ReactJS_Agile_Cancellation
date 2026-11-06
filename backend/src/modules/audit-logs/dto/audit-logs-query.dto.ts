@@ -16,6 +16,8 @@ export const AUDIT_LOG_CATEGORY_FILTERS = [
   'PROMISE',
   'CANCELLATION',
   'ASSIGNMENT',
+  'ACCESS',
+  'EXPORT',
 ] as const;
 
 export type AuditLogCategoryFilter =

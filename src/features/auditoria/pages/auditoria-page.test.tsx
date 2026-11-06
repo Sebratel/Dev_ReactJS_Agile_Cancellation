@@ -66,6 +66,54 @@ describe('AuditoriaPage', () => {
     expect(screen.getByText('Registros de auditoria')).toBeInTheDocument();
   });
 
+  it('mostra acessos e acesso recusado com o e-mail de quem tentou', async () => {
+    const [first] = createMockAuditLogsPage(1, 20).items;
+
+    if (!first) {
+      throw new Error('fixture vazia');
+    }
+
+    vi.mocked(getAuditLogs).mockResolvedValue({
+      items: [
+        {
+          ...first,
+          id: 'audit_login',
+          actor: null,
+          actorLabel: 'x@fora.com',
+          entityType: 'AUTH',
+          entityId: 'x@fora.com',
+          action: 'LOGIN',
+          summary: 'Login realizado',
+          category: 'ACCESS',
+          verb: 'teve o acesso recusado',
+          detail: 'E-mail n\u00e3o cadastrado na plataforma \u00b7 x@fora.com',
+          subject: null,
+        },
+        {
+          ...first,
+          id: 'audit_export',
+          category: 'EXPORT',
+          verb: 'exportou 120 casos em CSV',
+          detail: 'status: CLOSED',
+          subject: null,
+          action: 'EXPORT',
+          summary: 'Exportacao realizada',
+        },
+      ],
+      pagination: { page: 1, limit: 20, total: 2, totalPages: 1 },
+    });
+
+    renderAuditoria();
+
+    expect(await screen.findByText('x@fora.com')).toBeInTheDocument();
+    expect(screen.getByText(/teve o acesso recusado/)).toBeInTheDocument();
+    expect(screen.getByText(/exportou 120 casos em CSV/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Acessos' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Exporta\u00e7\u00f5es' }),
+    ).toBeInTheDocument();
+  });
+
   it('le filtros da URL', async () => {
     renderAuditoria('/auditoria?action=CREATE&search=case_0001');
 

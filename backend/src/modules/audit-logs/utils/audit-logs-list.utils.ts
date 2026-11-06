@@ -67,6 +67,12 @@ function buildCategoryWhere(
           metaEquals('$.action', 'CANCELLED_RECOVERY_REACTIVATED'),
         ],
       };
+    case 'ACCESS':
+      return {
+        action: { in: [AuditAction.LOGIN, AuditAction.LOGOUT] },
+      };
+    case 'EXPORT':
+      return { action: AuditAction.EXPORT };
     case 'ASSIGNMENT':
       return {
         action: AuditAction.UPDATE,
@@ -200,6 +206,11 @@ export function mapAuditLogRecord(
           avatarUrl: record.performedBy.avatarUrl ?? null,
         }
       : null,
+    actorLabel: record.performedBy
+      ? null
+      : typeof metadata.email === 'string'
+        ? metadata.email
+        : null,
     entityType: record.entityType,
     entityId: record.entityId,
     action: record.action,

@@ -9,6 +9,8 @@ export const AUDIT_CATEGORY_FILTER_OPTIONS = [
   { value: 'PROMISE', label: 'Promessas' },
   { value: 'CANCELLATION', label: 'Cancelamentos' },
   { value: 'ASSIGNMENT', label: 'Atribuições' },
+  { value: 'ACCESS', label: 'Acessos' },
+  { value: 'EXPORT', label: 'Exportações' },
 ] as const;
 
 export const AUDIT_CATEGORY_LABELS: Record<AuditLogCategory, string> = {

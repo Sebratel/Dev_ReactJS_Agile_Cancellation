@@ -1,4 +1,12 @@
-import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
+import {
+  HttpStatus,
+  Inject,
+  Injectable,
+  Logger,
+  Optional,
+} from '@nestjs/common';
+import { AuditAction } from '@prisma/client';
+import { AuditService } from '@/modules/audit/audit.service';
 import { COLLECTION_CASES_REPOSITORY } from '@/common/data-source/data-source.constants';
 import {
   assertCanActOnCase,
@@ -116,6 +124,22 @@ function canAccessCaseDetails(
   return assignedToId === user.id;
 }
 
+// Filtros efetivos da exportação (sem paginação/ordem), para a auditoria.
+function summarizeExportFilters(
+  params: CollectionCasesListParams,
+): Record<string, string> {
+  const ignored = new Set(['page', 'limit', 'sortBy', 'sortDirection']);
+  const summary: Record<string, string> = {};
+
+  for (const [key, value] of Object.entries(params)) {
+    if (ignored.has(key) || value === undefined || value === null) continue;
+    if (value === '' || (Array.isArray(value) && value.length === 0)) continue;
+    summary[key] = Array.isArray(value) ? value.join(',') : String(value);
+  }
+
+  return summary;
+}
+
 @Injectable()
 export class CollectionCasesService {
   private readonly logger = new Logger(CollectionCasesService.name);
@@ -127,6 +151,8 @@ export class CollectionCasesService {
     private readonly matrixWhatsappContactService: MatrixWhatsappContactService,
     private readonly notificationsService: NotificationsService,
     private readonly settingsService: SettingsService,
+    // Opcional: sem o serviço de auditoria (testes), nada é gravado.
+    @Optional() private readonly auditService?: AuditService,
   ) {}
 
   async listCases(params: CollectionCasesListParams) {
@@ -829,12 +855,29 @@ export class CollectionCasesService {
     }
   }
 
-  async exportCasesCsv(params: CollectionCasesListParams): Promise<string> {
+  async exportCasesCsv(
+    params: CollectionCasesListParams,
+    actor?: AuthenticatedUser,
+  ): Promise<string> {
     const result = await this.collectionCasesRepository.listCases({
       ...params,
       page: 1,
       limit: 5000,
     });
+
+    if (actor) {
+      await this.auditService?.record({
+        action: AuditAction.EXPORT,
+        entityType: 'EXPORT',
+        entityId: 'collection_cases',
+        performedByUserId: actor.id,
+        metadata: {
+          resourceType: 'COLLECTION_CASES_CSV',
+          rows: result.items.length,
+          filters: summarizeExportFilters(params),
+        },
+      });
+    }
 
     const headers = [
       'ID',

@@ -188,6 +188,7 @@ export class CollectionCasesController {
   ) {
     return this.collectionCasesService.exportCasesCsv(
       restrictToOwnCasesIfAgent(mapQueryDtoToListParams(query), user),
+      user,
     );
   }
 

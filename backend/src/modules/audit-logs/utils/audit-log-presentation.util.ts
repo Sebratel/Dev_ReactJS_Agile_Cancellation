@@ -276,6 +276,22 @@ export function resolveAuditLogPresentation(
     };
   }
 
+  if (action === 'LOGIN' && asString(meta?.outcome) === 'DENIED') {
+    const reasons: Record<string, string> = {
+      NOT_REGISTERED: 'E-mail não cadastrado na plataforma',
+      INACTIVE: 'Usuário inativo ou bloqueado',
+    };
+
+    return {
+      category: 'ACCESS',
+      verb: 'teve o acesso recusado',
+      detail: join([
+        reasons[asString(meta?.reason) ?? ''] ?? null,
+        asString(meta?.email),
+      ]),
+    };
+  }
+
   if (action === 'LOGIN' || action === 'LOGOUT') {
     return {
       category: 'ACCESS',
@@ -285,7 +301,22 @@ export function resolveAuditLogPresentation(
   }
 
   if (action === 'EXPORT') {
-    return { category: 'EXPORT', verb: 'exportou dados', detail: null };
+    const rows = typeof meta?.rows === 'number' ? meta.rows : null;
+    const filters = asRecord(meta?.filters);
+    const filterText = filters
+      ? Object.entries(filters)
+          .map(([key, value]) => `${key}: ${String(value)}`)
+          .join(' · ')
+      : '';
+
+    return {
+      category: 'EXPORT',
+      verb:
+        rows === null
+          ? 'exportou dados'
+          : `exportou ${rows} ${rows === 1 ? 'caso' : 'casos'} em CSV`,
+      detail: filters ? filterText || 'Sem filtros' : null,
+    };
   }
 
   return { category: 'OTHER', verb: 'realizou uma ação em', detail: null };

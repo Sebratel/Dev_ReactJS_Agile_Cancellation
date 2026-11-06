@@ -1,7 +1,7 @@
-import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable, Optional } from '@nestjs/common';
 import { isDevLoginEnabled } from '@/modules/auth/utils/dev-login.util';
 import { JwtService } from '@nestjs/jwt';
-import { UserStatus } from '@prisma/client';
+import { AuditAction, UserStatus } from '@prisma/client';
 import { MOCK_AUTH_USER_DEFINITIONS } from '@/modules/auth/mocks/mock-auth-users';
 import {
   AUTH_REPOSITORY,
@@ -9,6 +9,7 @@ import {
 } from '@/common/data-source/data-source.constants';
 import { AppException } from '@/common/exceptions/app.exception';
 import { createApiResponse } from '@/common/responses/api-response';
+import { AuditService } from '@/modules/audit/audit.service';
 import type { GoogleLoginDto } from '@/modules/auth/dto/google-login.dto';
 import type { LogoutDto } from '@/modules/auth/dto/logout.dto';
 import type { RefreshTokenDto } from '@/modules/auth/dto/refresh-token.dto';
@@ -39,6 +40,8 @@ export class AuthService {
     @Inject(GOOGLE_TOKEN_VERIFIER)
     private readonly googleTokenVerifier: GoogleTokenVerifier,
     private readonly jwtService: JwtService,
+    // Opcional: sem o serviço de auditoria (testes), nada é gravado.
+    @Optional() private readonly auditService?: AuditService,
   ) {}
 
   async devLogin(email: string) {
@@ -94,6 +97,15 @@ export class AuthService {
     const accessToken = await this.jwtService.signAsync(payload, {
       expiresIn: '8h',
     });
+
+    if (!mockDef) {
+      await this.recordAccess({
+        action: AuditAction.LOGIN,
+        entityId: authenticatedUser.id,
+        performedByUserId: authenticatedUser.id,
+        metadata: { outcome: 'SUCCESS', method: 'DEV' },
+      });
+    }
 
     const response: LoginResponse = {
       accessToken,
@@ -172,6 +184,17 @@ export class AuthService {
     const user = await this.authRepository.findByEmail(googlePayload.email);
 
     if (!user) {
+      await this.recordAccess({
+        action: AuditAction.LOGIN,
+        entityId: googlePayload.email,
+        performedByUserId: null,
+        metadata: {
+          outcome: 'DENIED',
+          reason: 'NOT_REGISTERED',
+          method: 'GOOGLE',
+          email: googlePayload.email,
+        },
+      });
       throw new AppException(
         'Seu e-mail não está cadastrado na plataforma. Solicite acesso a um administrador.',
         HttpStatus.FORBIDDEN,
@@ -179,6 +202,17 @@ export class AuthService {
     }
 
     if (user.status !== UserStatus.ACTIVE) {
+      await this.recordAccess({
+        action: AuditAction.LOGIN,
+        entityId: user.id,
+        performedByUserId: user.id,
+        metadata: {
+          outcome: 'DENIED',
+          reason: 'INACTIVE',
+          method: 'GOOGLE',
+          email: googlePayload.email,
+        },
+      });
       throw new AppException(
         'Usuário inativo ou bloqueado.',
         HttpStatus.UNAUTHORIZED,
@@ -196,6 +230,13 @@ export class AuthService {
         avatarUrl: googlePayload.picture,
       }),
     ]);
+
+    await this.recordAccess({
+      action: AuditAction.LOGIN,
+      entityId: user.id,
+      performedByUserId: user.id,
+      metadata: { outcome: 'SUCCESS', method: 'GOOGLE' },
+    });
 
     const response: LoginResponse = {
       ...tokens,
@@ -270,6 +311,12 @@ export class AuthService {
 
     if (userId) {
       await this.authRepository.updateRefreshTokenHash(userId, null);
+      await this.recordAccess({
+        action: AuditAction.LOGOUT,
+        entityId: userId,
+        performedByUserId: userId,
+        metadata: { outcome: 'SUCCESS' },
+      });
     }
 
     const response: LogoutResponse = { success: true };
@@ -354,6 +401,23 @@ export class AuthService {
     }
 
     return this.toAuthenticatedUser(user);
+  }
+
+  // Acesso (login/logout) na auditoria. A renovação automática da sessão
+  // (refresh) NÃO é registrada: acontece o tempo todo.
+  private async recordAccess(input: {
+    action: AuditAction;
+    entityId: string;
+    performedByUserId: string | null;
+    metadata: Record<string, string>;
+  }) {
+    await this.auditService?.record({
+      action: input.action,
+      entityType: 'AUTH',
+      entityId: input.entityId,
+      performedByUserId: input.performedByUserId,
+      metadata: input.metadata,
+    });
   }
 
   private async resolveLogoutUserId(

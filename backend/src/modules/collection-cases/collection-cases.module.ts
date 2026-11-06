@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AuditModule } from '@/modules/audit/audit.module';
 import { CollectionCasesController } from '@/modules/collection-cases/collection-cases.controller';
 import { CollectionCasesService } from '@/modules/collection-cases/collection-cases.service';
 import { collectionCasesRepositoryProvider } from '@/modules/collection-cases/repositories/collection-cases.repository.provider';
@@ -8,7 +9,7 @@ import { NotificationsModule } from '@/modules/notifications/notifications.modul
 import { SettingsModule } from '@/modules/settings/settings.module';
 
 @Module({
-  imports: [NotificationsModule, SettingsModule],
+  imports: [AuditModule, NotificationsModule, SettingsModule],
   controllers: [CollectionCasesController],
   providers: [
     CollectionCasesService,

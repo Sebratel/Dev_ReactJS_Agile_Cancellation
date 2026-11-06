@@ -15,6 +15,9 @@ export type AuditLogSubjectResponse = {
 export type AuditLogListItemResponse = {
   id: string;
   actor: AuditLogActorResponse | null;
+  // Quando não há usuário (ex.: tentativa de login de e-mail desconhecido), o
+  // e-mail informado, para identificar quem tentou.
+  actorLabel?: string | null;
   entityType: string;
   entityId: string;
   action: string;

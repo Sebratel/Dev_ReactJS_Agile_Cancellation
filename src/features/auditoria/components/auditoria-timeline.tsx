@@ -1,5 +1,5 @@
 import * as Dialog from '@radix-ui/react-dialog';
-import { Copy, RefreshCw, X } from 'lucide-react';
+import { Copy, RefreshCw, ShieldAlert, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { toast } from '@/lib/toast';
 import { SectionCard } from '@/components/data-display/section-card';
@@ -27,6 +27,17 @@ type AuditoriaTimelineProps = {
 const STANDALONE_CATEGORIES = new Set(['ACCESS', 'EXPORT']);
 
 function ActorAvatar({ item }: { item: AuditLogItem }) {
+  if (!item.actor && item.actorLabel) {
+    return (
+      <span
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-danger/10 text-danger"
+        title="Tentativa de acesso recusada"
+      >
+        <ShieldAlert className="h-4 w-4" aria-hidden="true" />
+      </span>
+    );
+  }
+
   if (!item.actor) {
     return (
       <span
@@ -50,7 +61,7 @@ function ActorAvatar({ item }: { item: AuditLogItem }) {
 // "Débora registrou uma tentativa de contato com ACME LTDA": quem, o quê e em
 // quem. Sem cliente identificado, cai no resumo técnico traduzido.
 function AuditSentence({ item }: { item: AuditLogItem }) {
-  const actorName = item.actor?.name ?? 'Sistema';
+  const actorName = item.actor?.name ?? item.actorLabel ?? 'Sistema';
   const category = getAuditCategory(item);
 
   if (item.verb && item.subject) {
@@ -126,7 +137,7 @@ function AuditoriaLogDetailDialog({
               <dd>
                 {log.actor
                   ? `${log.actor.name} (${log.actor.email})`
-                  : 'Sistema'}
+                  : (log.actorLabel ?? 'Sistema')}
               </dd>
             </div>
             {log.subject ? (
