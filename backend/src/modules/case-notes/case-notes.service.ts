@@ -1,4 +1,6 @@
-import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable, Optional } from '@nestjs/common';
+import { AuditAction } from '@prisma/client';
+import { AuditService } from '@/modules/audit/audit.service';
 import { AppException } from '@/common/exceptions/app.exception';
 import { createApiResponse } from '@/common/responses/api-response';
 import type { AuthenticatedUser } from '@/modules/auth/types/authenticated-user.type';
@@ -19,6 +21,8 @@ export class CaseNotesService {
     @Inject(CASE_NOTES_REPOSITORY)
     private readonly repository: CaseNotesRepository,
     private readonly performedByResolver: PerformedByResolverService,
+    // Opcional: sem o serviço de auditoria (testes), nada é gravado.
+    @Optional() private readonly auditService?: AuditService,
   ) {}
 
   async listByCase(caseId: string, actor?: AuthenticatedUser) {
@@ -73,6 +77,18 @@ export class CaseNotesService {
         HttpStatus.NOT_FOUND,
       );
     }
+
+    // Auditoria sem o texto da nota (pode ter dado sensível): só que existe.
+    await this.auditService?.record({
+      action: AuditAction.CREATE,
+      entityType: 'COLLECTION_CASE',
+      entityId: caseId,
+      performedByUserId: authorId,
+      metadata: {
+        resourceType: 'CASE_NOTE',
+        length: dto.content.length,
+      },
+    });
 
     return createApiResponse(note);
   }

@@ -1,6 +1,7 @@
-import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable, Optional } from '@nestjs/common';
 import { PORTFOLIO_ACTIVE_STATUSES } from '@/modules/collection-cases/utils/portfolio-cases.util';
-import { UserStatus } from '@prisma/client';
+import { AuditAction, UserStatus } from '@prisma/client';
+import { AuditService } from '@/modules/audit/audit.service';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import { USERS_REPOSITORY } from '@/common/data-source/data-source.constants';
 import { AppException } from '@/common/exceptions/app.exception';
@@ -21,6 +22,8 @@ export class UsersService {
     @Inject(USERS_REPOSITORY)
     private readonly usersRepository: UsersRepository,
     private readonly prisma: PrismaService,
+    // Opcional: sem o serviço de auditoria (testes), nada é gravado.
+    @Optional() private readonly auditService?: AuditService,
   ) {}
 
   async list(query: UsersQueryDto) {
@@ -85,7 +88,7 @@ export class UsersService {
     );
   }
 
-  async create(dto: CreateUserDto) {
+  async create(dto: CreateUserDto, actorId?: string) {
     const email = dto.email.trim().toLowerCase();
     const existing = await this.usersRepository.findByEmail(email);
 
@@ -103,10 +106,24 @@ export class UsersService {
       roleCodes: dto.roles,
     });
 
+    await this.auditService?.record({
+      action: AuditAction.CREATE,
+      entityType: 'USER',
+      entityId: created.id,
+      performedByUserId: actorId ?? null,
+      metadata: {
+        resourceType: 'USER',
+        targetName: created.name,
+        targetEmail: created.email,
+        roles: created.roles,
+        status: created.status,
+      },
+    });
+
     return createApiResponse(toUserResponse(created));
   }
 
-  async update(id: string, dto: UpdateUserDto) {
+  async update(id: string, dto: UpdateUserDto, actorId?: string) {
     const existing = await this.requireUser(id);
 
     await this.guardLastActiveAdmin(existing, dto);
@@ -119,6 +136,34 @@ export class UsersService {
 
     if (!updated) {
       throw new AppException('Usuário não encontrado.', HttpStatus.NOT_FOUND);
+    }
+
+    const changes: Record<string, { from: string; to: string }> = {};
+    if (existing.name !== updated.name) {
+      changes.name = { from: existing.name, to: updated.name };
+    }
+    if (existing.status !== updated.status) {
+      changes.status = { from: existing.status, to: updated.status };
+    }
+    const rolesBefore = [...existing.roles].sort().join(',');
+    const rolesAfter = [...updated.roles].sort().join(',');
+    if (rolesBefore !== rolesAfter) {
+      changes.roles = { from: rolesBefore, to: rolesAfter };
+    }
+
+    if (Object.keys(changes).length > 0) {
+      await this.auditService?.record({
+        action: AuditAction.UPDATE,
+        entityType: 'USER',
+        entityId: id,
+        performedByUserId: actorId ?? null,
+        metadata: {
+          resourceType: 'USER',
+          targetName: updated.name,
+          targetEmail: updated.email,
+          changes,
+        },
+      });
     }
 
     return createApiResponse(toUserResponse(updated));

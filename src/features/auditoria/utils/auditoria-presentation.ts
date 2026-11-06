@@ -11,6 +11,9 @@ export const AUDIT_CATEGORY_FILTER_OPTIONS = [
   { value: 'ASSIGNMENT', label: 'Atribuições' },
   { value: 'ACCESS', label: 'Acessos' },
   { value: 'EXPORT', label: 'Exportações' },
+  { value: 'NOTE', label: 'Notas' },
+  { value: 'ADMIN', label: 'Administração' },
+  { value: 'MESSAGE', label: 'Envios em massa' },
 ] as const;
 
 export const AUDIT_CATEGORY_LABELS: Record<AuditLogCategory, string> = {
@@ -21,6 +24,9 @@ export const AUDIT_CATEGORY_LABELS: Record<AuditLogCategory, string> = {
   STATUS: 'Situação',
   ACCESS: 'Acesso',
   EXPORT: 'Exportação',
+  NOTE: 'Nota',
+  ADMIN: 'Administração',
+  MESSAGE: 'Envio em massa',
   OTHER: 'Outros',
 };
 
@@ -35,6 +41,9 @@ export const AUDIT_CATEGORY_VARIANTS: Record<
   STATUS: 'success',
   ACCESS: 'neutral',
   EXPORT: 'neutral',
+  NOTE: 'neutral',
+  ADMIN: 'warning',
+  MESSAGE: 'neutral',
   OTHER: 'neutral',
 };
 

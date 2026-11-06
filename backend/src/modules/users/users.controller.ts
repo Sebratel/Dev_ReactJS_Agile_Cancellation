@@ -7,7 +7,9 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
+import { CurrentUser } from '@/modules/auth/decorators/current-user.decorator';
 import { Roles } from '@/modules/auth/decorators/roles.decorator';
+import type { AuthenticatedUser } from '@/modules/auth/types/authenticated-user.type';
 import { CreateUserDto } from '@/modules/users/dto/create-user.dto';
 import { UpdateUserDto } from '@/modules/users/dto/update-user.dto';
 import { UsersQueryDto } from '@/modules/users/dto/users-query.dto';
@@ -47,13 +49,17 @@ export class UsersController {
 
   @Roles('ADMIN')
   @Post()
-  create(@Body() body: CreateUserDto) {
-    return this.usersService.create(body);
+  create(@Body() body: CreateUserDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.usersService.create(body, user.id);
   }
 
   @Roles('ADMIN')
   @Patch(':id')
-  update(@Param('id') id: string, @Body() body: UpdateUserDto) {
-    return this.usersService.update(id, body);
+  update(
+    @Param('id') id: string,
+    @Body() body: UpdateUserDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.usersService.update(id, body, user.id);
   }
 }

@@ -18,6 +18,9 @@ export const AUDIT_LOG_CATEGORY_FILTERS = [
   'ASSIGNMENT',
   'ACCESS',
   'EXPORT',
+  'NOTE',
+  'ADMIN',
+  'MESSAGE',
 ] as const;
 
 export type AuditLogCategoryFilter =

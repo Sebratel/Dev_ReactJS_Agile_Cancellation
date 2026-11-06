@@ -15,6 +15,9 @@ export type AuditLogCategory =
   | 'STATUS'
   | 'ACCESS'
   | 'EXPORT'
+  | 'NOTE'
+  | 'ADMIN'
+  | 'MESSAGE'
   | 'OTHER';
 
 export type AuditLogSubject = {

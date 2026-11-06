@@ -6,6 +6,9 @@ export type AuditLogCategory =
   | 'STATUS'
   | 'ACCESS'
   | 'EXPORT'
+  | 'NOTE'
+  | 'ADMIN'
+  | 'MESSAGE'
   | 'OTHER';
 
 export type AuditLogPresentation = {
@@ -40,6 +43,33 @@ const STATUS_LABELS: Record<string, string> = {
   CANCELLED_IN_RECOVERY: 'Cancelado em recuperação',
   REACTIVATED: 'Reativado',
 };
+
+const ROLE_LABELS: Record<string, string> = {
+  ADMIN: 'Administrador',
+  SUPERVISOR: 'Supervisor',
+  COLLECTION_AGENT: 'Agente de cobrança',
+  CANCELLATION_AGENT: 'Agente de cancelamento',
+  FINANCE: 'Financeiro',
+  VIEWER: 'Visualizador',
+};
+
+const USER_STATUS_LABELS: Record<string, string> = {
+  ACTIVE: 'Ativo',
+  INACTIVE: 'Inativo',
+  BLOCKED: 'Bloqueado',
+};
+
+const SETTING_LABELS: Record<string, string> = {
+  allowAgentSendToCancellation: 'Atendente pode encaminhar ao cancelamento',
+};
+
+function describeRoles(value: string): string {
+  return value
+    .split(',')
+    .filter(Boolean)
+    .map((role) => ROLE_LABELS[role] ?? role)
+    .join(', ');
+}
 
 const CHANNEL_LABELS: Record<string, string> = {
   PHONE: 'Telefone',
@@ -141,6 +171,92 @@ export function resolveAuditLogPresentation(
   const after = asRecord(context.afterSnapshot);
   const resourceType = asString(meta?.resourceType);
   const metaAction = asString(meta?.action);
+
+  if (resourceType === 'USER' && (action === 'CREATE' || action === 'UPDATE')) {
+    const target = asString(meta?.targetName) ?? 'usuário';
+
+    if (action === 'CREATE') {
+      const roles = Array.isArray(meta?.roles)
+        ? (meta.roles as unknown[]).map(String).join(',')
+        : '';
+      const status = asString(meta?.status);
+
+      return {
+        category: 'ADMIN',
+        verb: `cadastrou o usuário ${target}`,
+        detail: join([
+          roles ? `Perfis: ${describeRoles(roles)}` : null,
+          status ? `Status: ${USER_STATUS_LABELS[status] ?? status}` : null,
+        ]),
+      };
+    }
+
+    const changes = asRecord(meta?.changes) ?? {};
+    const parts: Array<string | null> = [];
+    for (const [field, raw] of Object.entries(changes)) {
+      const change = asRecord(raw);
+      const from = asString(change?.from) ?? '';
+      const to = asString(change?.to) ?? '';
+
+      if (field === 'roles') {
+        parts.push(`Perfis: ${describeRoles(from)} → ${describeRoles(to)}`);
+      } else if (field === 'status') {
+        parts.push(
+          `Status: ${USER_STATUS_LABELS[from] ?? from} → ${USER_STATUS_LABELS[to] ?? to}`,
+        );
+      } else if (field === 'name') {
+        parts.push(`Nome: ${from} → ${to}`);
+      }
+    }
+
+    return {
+      category: 'ADMIN',
+      verb: `alterou o usuário ${target}`,
+      detail: join(parts),
+    };
+  }
+
+  if (resourceType === 'SETTING' && action === 'UPDATE') {
+    const key = asString(meta?.key) ?? '';
+    const toLabel = (value: string | null) =>
+      value === 'true' ? 'ligado' : value === 'false' ? 'desligado' : value;
+
+    return {
+      category: 'ADMIN',
+      verb: 'alterou a configuração',
+      detail: `${SETTING_LABELS[key] ?? key}: ${toLabel(asString(meta?.from))} → ${toLabel(asString(meta?.to))}`,
+    };
+  }
+
+  if (resourceType === 'CASE_NOTE' && action === 'CREATE') {
+    return {
+      category: 'NOTE',
+      verb: 'registrou uma nota em',
+      detail: null,
+    };
+  }
+
+  if (resourceType === 'BULK_CONTACT_JOB' && action === 'CREATE') {
+    const total = typeof meta?.total === 'number' ? meta.total : null;
+    const filters = asRecord(meta?.filters);
+    const mode = asString(meta?.mode);
+
+    return {
+      category: 'MESSAGE',
+      verb:
+        total === null
+          ? 'disparou um envio de HSM em massa'
+          : `disparou um envio de HSM em massa para ${total} ${total === 1 ? 'caso' : 'casos'}`,
+      detail:
+        mode === 'FILTER' && filters
+          ? `Por filtro: ${
+              Object.entries(filters)
+                .map(([key, value]) => `${key}: ${String(value)}`)
+                .join(' · ') || 'todos'
+            }`
+          : 'Seleção manual',
+    };
+  }
 
   if (action === 'CREATE' && resourceType === 'PAYMENT_PROMISE') {
     return {

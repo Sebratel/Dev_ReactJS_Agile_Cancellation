@@ -114,6 +114,60 @@ describe('AuditoriaPage', () => {
     ).toBeInTheDocument();
   });
 
+  it('mostra acoes administrativas e envios em massa sem precisar de cliente', async () => {
+    const [first] = createMockAuditLogsPage(1, 20).items;
+
+    if (!first) {
+      throw new Error('fixture vazia');
+    }
+
+    vi.mocked(getAuditLogs).mockResolvedValue({
+      items: [
+        {
+          ...first,
+          id: 'audit_user',
+          entityType: 'USER',
+          entityId: 'u2',
+          action: 'UPDATE',
+          summary: 'Registro atualizado',
+          category: 'ADMIN',
+          verb: 'alterou o usu\u00e1rio Ana',
+          detail: 'Status: Ativo \u2192 Inativo',
+          subject: null,
+        },
+        {
+          ...first,
+          id: 'audit_bulk',
+          entityType: 'BULK_CONTACT_JOB',
+          entityId: 'job1',
+          action: 'CREATE',
+          summary: 'Registro criado',
+          category: 'MESSAGE',
+          verb: 'disparou um envio de HSM em massa para 120 casos',
+          detail: 'Sele\u00e7\u00e3o manual',
+          subject: null,
+        },
+      ],
+      pagination: { page: 1, limit: 20, total: 2, totalPages: 1 },
+    });
+
+    renderAuditoria();
+
+    expect(
+      await screen.findByText(/alterou o usu\u00e1rio Ana/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/disparou um envio de HSM em massa para 120 casos/),
+    ).toBeInTheDocument();
+    for (const label of [
+      'Notas',
+      'Administra\u00e7\u00e3o',
+      'Envios em massa',
+    ]) {
+      expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
+    }
+  });
+
   it('le filtros da URL', async () => {
     renderAuditoria('/auditoria?action=CREATE&search=case_0001');
 

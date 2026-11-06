@@ -73,6 +73,17 @@ function buildCategoryWhere(
       };
     case 'EXPORT':
       return { action: AuditAction.EXPORT };
+    case 'NOTE':
+      return metaEquals('$.resourceType', 'CASE_NOTE');
+    case 'ADMIN':
+      return {
+        OR: [
+          metaEquals('$.resourceType', 'USER'),
+          metaEquals('$.resourceType', 'SETTING'),
+        ],
+      };
+    case 'MESSAGE':
+      return metaEquals('$.resourceType', 'BULK_CONTACT_JOB');
     case 'ASSIGNMENT':
       return {
         action: AuditAction.UPDATE,

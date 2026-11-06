@@ -24,7 +24,8 @@ type AuditoriaTimelineProps = {
   onPageChange: (page: number) => void;
 };
 
-const STANDALONE_CATEGORIES = new Set(['ACCESS', 'EXPORT']);
+// Categorias cuja frase não precisa de cliente (o verbo já traz o alvo).
+const STANDALONE_CATEGORIES = new Set(['ACCESS', 'EXPORT', 'ADMIN', 'MESSAGE']);
 
 function ActorAvatar({ item }: { item: AuditLogItem }) {
   if (!item.actor && item.actorLabel) {
