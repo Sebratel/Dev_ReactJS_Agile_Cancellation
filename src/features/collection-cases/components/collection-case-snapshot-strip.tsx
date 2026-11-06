@@ -21,6 +21,15 @@ type CollectionCaseSnapshotStripProps = {
   items: CollectionCaseListItemResponse[];
   totalCases?: number;
   className?: string;
+  // 'compact': números em linha, sem cartões (para telas com pouco espaço).
+  variant?: 'cards' | 'compact';
+  // Contadores exatos (sobre todos os casos filtrados). Sem isto, os números
+  // são calculados só com os casos da página exibida.
+  counts?: {
+    notAssigned?: number;
+    noResponse?: number;
+    overdueSla?: number;
+  };
 };
 
 const toneStyles: Record<SnapshotItem['tone'], string> = {
@@ -34,6 +43,8 @@ export function CollectionCaseSnapshotStrip({
   items,
   totalCases,
   className,
+  variant = 'cards',
+  counts,
 }: CollectionCaseSnapshotStripProps) {
   const notAssigned = items.filter((item) => !item.assignedTo).length;
   const noResponseItems = items.filter((item) => item.status === 'NO_RESPONSE');
@@ -47,6 +58,13 @@ export function CollectionCaseSnapshotStrip({
     0,
   );
 
+  const exact = counts !== undefined;
+  const shownNotAssigned = exact ? counts.notAssigned : notAssigned;
+  const shownNoResponse = exact ? counts.noResponse : noResponse;
+  const shownOverdueSla = exact ? counts.overdueSla : overdueSla;
+  const formatCount = (value: number | undefined) =>
+    value === undefined ? '—' : formatInteger(value);
+
   const snapshot: SnapshotItem[] = [
     {
       label: 'Casos ativos',
@@ -57,35 +75,65 @@ export function CollectionCaseSnapshotStrip({
     },
     {
       label: 'Sem responsável',
-      value: formatInteger(notAssigned),
+      value: formatCount(shownNotAssigned),
       hint:
-        notAssigned > 0
+        (shownNotAssigned ?? 0) > 0
           ? 'Aguardam atribuição de atendente'
           : 'Todos com atendente definido',
-      tone: notAssigned > 0 ? 'warning' : 'success',
+      tone: (shownNotAssigned ?? 0) > 0 ? 'warning' : 'success',
       icon: CheckCircle2,
     },
     {
       label: 'Sem resposta',
-      value: formatInteger(noResponse),
+      value: formatCount(shownNoResponse),
       hint:
-        noResponse > 0
+        (shownNoResponse ?? 0) > 0
           ? 'Clientes que não responderam ao contato'
           : 'Nenhum caso neste status',
-      tone: noResponse > 0 ? 'danger' : 'neutral',
+      tone: (shownNoResponse ?? 0) > 0 ? 'danger' : 'neutral',
       icon: PhoneOff,
     },
     {
       label: 'SLA vencido',
-      value: formatInteger(overdueSla),
+      value: formatCount(shownOverdueSla),
       hint:
-        overdueSla > 0
-          ? `${formatCurrencyBRL(overdueSlaOutstanding)} em aberto nesses casos`
+        (shownOverdueSla ?? 0) > 0
+          ? exact
+            ? 'Prazo de atendimento vencido'
+            : `${formatCurrencyBRL(overdueSlaOutstanding)} em aberto nesses casos`
           : 'Nenhum prazo de atendimento vencido',
-      tone: overdueSla > 0 ? 'danger' : 'success',
+      tone: (shownOverdueSla ?? 0) > 0 ? 'danger' : 'success',
       icon: AlertTriangle,
     },
   ];
+
+  if (variant === 'compact') {
+    return (
+      <section
+        aria-label="Resumo operacional da carteira"
+        className={cn('flex flex-wrap items-center gap-y-2', className)}
+      >
+        {snapshot.map(({ label, value, hint, tone }) => (
+          <div
+            key={label}
+            title={hint}
+            className="flex flex-col border-r border-border px-4 first:pl-0 last:border-r-0"
+          >
+            <span
+              className={cn(
+                'text-xl font-semibold tabular-nums leading-tight',
+                value !== '0' && tone === 'danger' && 'text-danger',
+                value !== '0' && tone === 'warning' && 'text-warning',
+              )}
+            >
+              {value}
+            </span>
+            <span className="text-[11px] text-neutral">{label}</span>
+          </div>
+        ))}
+      </section>
+    );
+  }
 
   return (
     <section

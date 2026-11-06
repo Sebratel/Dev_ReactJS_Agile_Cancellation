@@ -82,7 +82,7 @@ function createRepository(
     updatePromiseStatus: jest.fn(),
     sendToCancellation: jest.fn(),
     revertCancellation: jest.fn(),
-    recoverCancelled: jest.fn(),
+    reopenCancelled: jest.fn(),
     assignCase: jest.fn(),
     bulkAssignCases: jest.fn(),
     autoDistributeCases: jest.fn(),
@@ -120,6 +120,79 @@ describe('CollectionCasesService', () => {
 
     expect(getOverdueDateSummary).toHaveBeenCalledWith({ page: 1, limit: 10 });
     expect(response.data).toEqual(summary);
+  });
+
+  it('exige observacao na tentativa de cancelado em recuperacao', async () => {
+    const createAttempt = jest.fn().mockResolvedValue({ id: 'att_1' });
+    const repository = createRepository({
+      createAttempt,
+      getCaseById: jest.fn().mockResolvedValue({
+        ...mockCollectionCaseDetails.case_0001,
+        status: 'CANCELLED_IN_RECOVERY',
+      }),
+    });
+    const { service } = createService(repository);
+
+    await expect(
+      service.createAttempt(
+        'case_0001',
+        { channel: 'WHATSAPP', result: 'CONTACTED', notes: '   ' },
+        'usr_1',
+      ),
+    ).rejects.toMatchObject({ status: HttpStatus.UNPROCESSABLE_ENTITY });
+    expect(createAttempt).not.toHaveBeenCalled();
+
+    await service.createAttempt(
+      'case_0001',
+      {
+        channel: 'WHATSAPP',
+        result: 'CONTACTED',
+        notes: 'Falei com o cliente',
+      },
+      'usr_1',
+    );
+    expect(createAttempt).toHaveBeenCalledTimes(1);
+  });
+
+  it('devolve cancelados a carteira e avisa o atendente', async () => {
+    const reopenCancelled = jest
+      .fn()
+      .mockResolvedValue({ outcome: 'success', reopened: 2, skipped: 1 });
+    const repository = createRepository({ reopenCancelled });
+
+    const { service, notificationMocks } = createService(repository);
+    const response = await service.reopenCancelled(
+      { caseIds: ['a', 'b', 'b', 'c'], assignedUserId: 'usr_marina' },
+      'usr_sup',
+    );
+
+    expect(reopenCancelled).toHaveBeenCalledWith(
+      expect.objectContaining({
+        caseIds: ['a', 'b', 'c'],
+        assignedUserId: 'usr_marina',
+      }),
+    );
+    expect(response.data).toEqual({ reopened: 2, skipped: 1 });
+    expect(notificationMocks.notify).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'usr_marina' }),
+    );
+  });
+
+  it('recusa devolver cancelados a atendente invalido', async () => {
+    const repository = createRepository({
+      reopenCancelled: jest
+        .fn()
+        .mockResolvedValue({ outcome: 'user_not_found' }),
+    });
+
+    const { service } = createService(repository);
+
+    await expect(
+      service.reopenCancelled(
+        { caseIds: ['a'], assignedUserId: 'usr_x' },
+        'usr_sup',
+      ),
+    ).rejects.toMatchObject({ status: HttpStatus.UNPROCESSABLE_ENTITY });
   });
 
   it('retorna 404 quando repository nao encontra caso', async () => {

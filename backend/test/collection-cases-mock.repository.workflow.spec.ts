@@ -203,47 +203,36 @@ describe('CollectionCasesMockRepository - fluxos de status e atribuicao', () => 
     });
   });
 
-  describe('recoverCancelled', () => {
-    it('trata caso inexistente, status invalido e falta de tentativa manual', async () => {
-      await expect(
-        repository.recoverCancelled({
-          caseId: 'nao_existe',
-          performedByUserId: null,
-        }),
-      ).resolves.toEqual({ outcome: 'case_not_found' });
+  describe('reopenCancelled', () => {
+    it('devolve caso encerrado a carteira como cancelado em recuperacao', async () => {
+      details().status = 'CLOSED';
+      const record = mockCollectionCaseListRecords.find((r) => r.id === caseId);
+      if (record) record.status = 'CLOSED';
 
-      await expect(
-        repository.recoverCancelled({ caseId, performedByUserId: null }),
-      ).resolves.toEqual({
-        outcome: 'status_not_allowed',
-        currentStatus: details().status,
+      const result = await repository.reopenCancelled({
+        caseIds: [caseId, 'nao_existe'],
+        assignedUserId: 'usr_marina',
+        performedByUserId: 'usr_sup',
       });
 
-      details().status = 'CLOSED';
-      details().attempts = details().attempts.map((a) => ({
-        ...a,
-        isAutomatic: true,
-      }));
-      await expect(
-        repository.recoverCancelled({ caseId, performedByUserId: null }),
-      ).resolves.toEqual({ outcome: 'no_manual_attempt' });
+      expect(result).toEqual({ outcome: 'success', reopened: 1, skipped: 1 });
+      expect(details().status).toBe('CANCELLED_IN_RECOVERY');
+      expect(details().assignedTo?.id).toBe('usr_marina');
     });
 
-    it('recupera caso fechado com tentativa manual', async () => {
-      details().status = 'CLOSED';
-      const [first, ...rest] = details().attempts;
-      if (!first) throw new Error('mock sem tentativas');
-      details().attempts = [{ ...first, isAutomatic: false }, ...rest];
-
-      const result = await repository.recoverCancelled({
-        caseId,
-        performedByUserId: 'usr_marina',
-      });
-
-      expect(result.outcome).toBe('success');
-      expect(details().status).toBe('RECOVERED');
+    it('ignora casos que nao estao encerrados', async () => {
+      details().status = 'IN_COLLECTION';
       const record = mockCollectionCaseListRecords.find((r) => r.id === caseId);
-      expect(record?.status).toBe('RECOVERED');
+      if (record) record.status = 'IN_COLLECTION';
+
+      await expect(
+        repository.reopenCancelled({
+          caseIds: [caseId],
+          assignedUserId: 'usr_marina',
+          performedByUserId: null,
+        }),
+      ).resolves.toEqual({ outcome: 'success', reopened: 0, skipped: 1 });
+      expect(details().status).toBe('IN_COLLECTION');
     });
   });
 

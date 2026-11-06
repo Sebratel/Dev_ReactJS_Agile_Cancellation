@@ -111,6 +111,64 @@ describe('collection-cases-list.utils', () => {
       expect(where.origin).toBe('PRE_COLLECTION');
     });
 
+    it('statusIn filtra por varios status e status unico tem prioridade', () => {
+      const many = buildCollectionCasesWhere(
+        { ...base, statusIn: ['CLOSED', 'CANCELLED_IN_RECOVERY'] },
+        now,
+      );
+      expect(many.status).toEqual({
+        in: ['CLOSED', 'CANCELLED_IN_RECOVERY'],
+      });
+
+      const single = buildCollectionCasesWhere(
+        {
+          ...base,
+          status: 'CLOSED',
+          statusIn: ['RECOVERED'],
+        },
+        now,
+      );
+      expect(single.status).toBe('CLOSED');
+    });
+
+    it('filtra pelo motivo do cancelamento (texto limpo do relatorio)', () => {
+      const where = buildCollectionCasesWhere(
+        {
+          ...base,
+          contractStatus: 'CANCELLED',
+          cancellationReason: 'Inadimplência',
+        },
+        now,
+      );
+      expect(where.contract).toEqual({
+        AND: [
+          { status: 'CANCELLED' },
+          {
+            OR: [
+              { cancellationReason: { equals: 'Inadimplência' } },
+              { cancellationReason: { endsWith: ' - Inadimplência' } },
+              { cancellationReason: { endsWith: ' – Inadimplência' } },
+              { cancellationReason: { endsWith: ': Inadimplência' } },
+            ],
+          },
+        ],
+      });
+
+      const none = buildCollectionCasesWhere(
+        { ...base, cancellationReason: 'Sem motivo registrado' },
+        now,
+      );
+      expect(none.contract).toEqual({
+        AND: [{ cancellationReason: null }],
+      });
+    });
+
+    it('a carteira ativa inclui cancelados em recuperacao', () => {
+      const where = buildCollectionCasesWhere({ ...base }, now);
+      const statuses = (where.status as { in: string[] }).in;
+      expect(statuses).toContain('CANCELLED_IN_RECOVERY');
+    });
+
     it('trata assignedToId=unassigned e origin=null', () => {
       const where = buildCollectionCasesWhere(
         { ...base, assignedToId: 'unassigned', origin: 'null' },

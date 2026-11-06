@@ -185,6 +185,8 @@ const FINALIZED_STATUSES: CollectionStatus[] = [
   'RECOVERED',
   'PAYMENT_MADE',
   'RENEGOTIATED',
+  'REACTIVATED',
+  'CANCELLED_IN_RECOVERY',
 ];
 
 @Injectable()

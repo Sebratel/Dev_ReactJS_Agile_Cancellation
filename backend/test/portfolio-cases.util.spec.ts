@@ -16,6 +16,7 @@ describe('portfolio-cases.util', () => {
       'NO_RESPONSE',
       'ELIGIBLE_FOR_CANCELLATION',
       'CANCELLATION_IN_PROGRESS',
+      'CANCELLED_IN_RECOVERY',
     ]);
   });
 
@@ -33,7 +34,7 @@ describe('portfolio-cases.util', () => {
     expect(result.get(null)).toBe(2);
 
     const sql = queryRaw.mock.calls[0][0] as Prisma.Sql;
-    expect(sql.sql).toContain('cc.status IN (?,?,?,?,?)');
+    expect(sql.sql).toContain('cc.status IN (?,?,?,?,?,?)');
     expect(sql.sql).toContain('a.isAutomatic = 0');
     expect(sql.sql).toContain(
       'cc.cycleStartedAt IS NULL OR a.attemptedAt >= cc.cycleStartedAt',

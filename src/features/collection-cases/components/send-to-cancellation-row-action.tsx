@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Forward } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { CancellationReasonDialog } from '@/features/collection-cases/components/cancellation-reason-dialog';
@@ -10,6 +11,8 @@ type SendToCancellationRowActionProps = {
   caseId: string;
   customerName: string;
   className?: string;
+  // Só o ícone (com tooltip e rótulo acessível), para linhas de tabela densas.
+  compact?: boolean;
 };
 
 // Ação compacta para encaminhar um caso ao cancelamento direto da lista da
@@ -18,6 +21,7 @@ export function SendToCancellationRowAction({
   caseId,
   customerName,
   className,
+  compact = false,
 }: SendToCancellationRowActionProps) {
   const [open, setOpen] = useState(false);
   const mutation = useSendCaseToCancellation(caseId);
@@ -35,8 +39,16 @@ export function SendToCancellationRowAction({
           className,
         )}
         onClick={() => setOpen(true)}
+        title={compact ? 'Encaminhar ao cancelamento' : undefined}
+        aria-label={
+          compact ? `Encaminhar ${customerName} ao cancelamento` : undefined
+        }
       >
-        Cancelamento
+        {compact ? (
+          <Forward className="h-4 w-4" aria-hidden="true" />
+        ) : (
+          'Cancelamento'
+        )}
       </Button>
 
       <CancellationReasonDialog

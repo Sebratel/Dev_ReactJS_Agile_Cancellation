@@ -11,6 +11,8 @@ const STATUS_LABELS: Record<string, string> = {
   RECOVERED: 'Retido',
   PAYMENT_MADE: 'Pagamento realizado',
   RENEGOTIATED: 'Renegociado',
+  CANCELLED_IN_RECOVERY: 'Cancelado em recuperação',
+  REACTIVATED: 'Reativado',
 };
 
 const PRIORITY_LABELS: Record<string, string> = {
@@ -22,11 +24,11 @@ const PRIORITY_LABELS: Record<string, string> = {
 
 const DANGER_STATUSES = new Set(['NO_RESPONSE', 'ELIGIBLE_FOR_CANCELLATION']);
 
-const SUCCESS_STATUSES = new Set(['RECOVERED', 'PAYMENT_MADE']);
+const SUCCESS_STATUSES = new Set(['RECOVERED', 'PAYMENT_MADE', 'REACTIVATED']);
 
 // Renegociado não é pagamento (o cliente ainda deve) — sinaliza como atenção,
 // não como sucesso.
-const WARNING_STATUSES = new Set(['RENEGOTIATED']);
+const WARNING_STATUSES = new Set(['RENEGOTIATED', 'CANCELLED_IN_RECOVERY']);
 
 export function getCollectionStatusLabel(status: string) {
   return STATUS_LABELS[status] ?? status;
@@ -207,6 +209,8 @@ const BLOCKED_SEND_TO_CANCELLATION_STATUSES = new Set([
   'PAYMENT_MADE',
   'RENEGOTIATED',
   'CANCELLATION_IN_PROGRESS',
+  'CANCELLED_IN_RECOVERY',
+  'REACTIVATED',
 ]);
 
 const CANCELLATION_STATUS_LABELS: Record<string, string> = {

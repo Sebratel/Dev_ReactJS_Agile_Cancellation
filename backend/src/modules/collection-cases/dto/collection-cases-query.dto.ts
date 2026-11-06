@@ -15,6 +15,7 @@ import {
   IsOptional,
   IsString,
   Max,
+  MaxLength,
   Min,
 } from 'class-validator';
 
@@ -110,6 +111,34 @@ export class CollectionCasesQueryDto {
   @IsOptional()
   @IsEnum(CollectionStatus)
   status?: CollectionStatus;
+
+  // Vários status de uma vez (separados por vírgula). Ignorado quando `status`
+  // é informado.
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string'
+      ? value
+          .split(',')
+          .map((item) => item.trim())
+          .filter(Boolean)
+      : value,
+  )
+  @IsEnum(CollectionStatus, { each: true })
+  statusIn?: CollectionStatus[];
+
+  // Motivo do cancelamento (texto limpo, como no relatório de motivos).
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  cancellationReason?: string;
+
+  // Só casos de cancelados que o ERP reativou (reactivatedAt preenchido).
+  @IsOptional()
+  @Transform(
+    ({ value }: { value: unknown }) => value === 'true' || value === true,
+  )
+  @IsBoolean()
+  reactivated?: boolean;
 
   @IsOptional()
   @IsEnum(Priority)

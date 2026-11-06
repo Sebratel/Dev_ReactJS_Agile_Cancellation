@@ -343,6 +343,16 @@ export type BulkAssignCasesPayload = {
   assignedUserId: string | null;
 };
 
+export type ReopenCancelledPayload = {
+  caseIds: string[];
+  assignedUserId: string;
+};
+
+export type ReopenCancelledResponse = {
+  reopened: number;
+  skipped: number;
+};
+
 export type BulkAssignCasesResponse = {
   assigned: number;
   skipped: number;
@@ -405,6 +415,12 @@ export type CollectionCasesListParams = {
   priority?: string;
   assignedToId?: string;
   contractStatus?: string;
+  // Vários status de uma vez (ex.: encerrados e cancelados em recuperação).
+  statusIn?: string[];
+  // Motivo do cancelamento (texto limpo, como no relatório de motivos).
+  cancellationReason?: string;
+  // Só casos de cancelados que o ERP reativou.
+  reactivated?: boolean;
   hsmDeliveryState?: string;
   search?: string;
   daysOverdueMin?: number;

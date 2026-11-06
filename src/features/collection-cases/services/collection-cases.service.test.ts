@@ -222,11 +222,15 @@ describe('collection-cases.service', () => {
       true,
     ],
     [
-      'recoverCancelledCase',
-      () => service.recoverCancelledCase('k1'),
-      '/collection-cases/k1/recover-cancelled',
+      'reopenCancelledCases',
+      () =>
+        service.reopenCancelledCases({
+          caseIds: ['k1'],
+          assignedUserId: 'usr_1',
+        }),
+      '/collection-cases/reopen-cancelled',
       'POST',
-      false,
+      true,
     ],
     [
       'bulkAssignCases',

@@ -16,12 +16,12 @@ import type { RevertCancellationDto } from '@/modules/collection-cases/dto/rever
 import type { AssignCaseDto } from '@/modules/collection-cases/dto/assign-case.dto';
 import type { BulkAssignCasesDto } from '@/modules/collection-cases/dto/bulk-assign-cases.dto';
 import type { AutoDistributeDto } from '@/modules/collection-cases/dto/auto-distribute.dto';
+import type { ReopenCancelledDto } from '@/modules/collection-cases/dto/reopen-cancelled.dto';
 import type { AuthenticatedUser } from '@/modules/auth/types/authenticated-user.type';
 import type {
   CollectionCasesListParams,
   CollectionCasesRepository,
   PaymentPromiseStatusAction,
-  RecoverCancelledResult,
   RevertCancellationResult,
   SendToCancellationResult,
   UpdatePaymentPromiseStatusResult,
@@ -204,6 +204,7 @@ export class CollectionCasesService {
     actor?: AuthenticatedUser,
   ) {
     await this.assertActorOwnsCase(caseId, actor);
+    await this.assertAttemptNotesForCancelledRecovery(caseId, dto);
 
     const resolvedPerformerId =
       this.performedByResolver.resolve(performedByUserId);
@@ -221,6 +222,27 @@ export class CollectionCasesService {
     }
 
     return createApiResponse(attempt);
+  }
+
+  // Cancelado em recuperação: a observação é obrigatória em toda tentativa,
+  // porque ela (junto com o contato efetivo) é a prova que credita a receita
+  // quando o ERP reativar o contrato.
+  private async assertAttemptNotesForCancelledRecovery(
+    caseId: string,
+    dto: CreateCollectionAttemptDto,
+  ) {
+    if (dto.notes?.trim()) {
+      return;
+    }
+
+    const current = await this.collectionCasesRepository.getCaseById(caseId);
+
+    if (current?.status === 'CANCELLED_IN_RECOVERY') {
+      throw new AppException(
+        'Informe a observação do contato: ela é obrigatória em clientes cancelados em recuperação.',
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    }
   }
 
   async contactCustomerByWhatsApp(
@@ -563,24 +585,38 @@ export class CollectionCasesService {
     });
   }
 
-  async recoverCancelled(caseId: string, performedByUserId: string) {
+  // Supervisão devolve clientes cancelados a uma carteira (novo ciclo). O caso
+  // continua cancelado; só vira recuperado quando o ERP reativar o contrato.
+  async reopenCancelled(dto: ReopenCancelledDto, performedByUserId: string) {
     const resolvedPerformerId =
       this.performedByResolver.resolve(performedByUserId);
-    const result = await this.collectionCasesRepository.recoverCancelled({
-      caseId,
+    const result = await this.collectionCasesRepository.reopenCancelled({
+      caseIds: [...new Set(dto.caseIds)],
+      assignedUserId: dto.assignedUserId,
       performedByUserId: resolvedPerformerId,
     });
 
-    this.assertRecoverCancelledResult(result, caseId);
-
-    if (result.outcome !== 'success') {
+    if (result.outcome === 'user_not_found') {
       throw new AppException(
-        'Falha ao marcar o caso como recuperado.',
-        HttpStatus.INTERNAL_SERVER_ERROR,
+        'Atendente não encontrado, inativo ou sem perfil operacional.',
+        HttpStatus.UNPROCESSABLE_ENTITY,
       );
     }
 
-    return createApiResponse(result.case);
+    if (result.reopened > 0) {
+      await this.notificationsService.notify({
+        userId: dto.assignedUserId,
+        type: 'CASES_BULK_ASSIGNED',
+        title: 'Clientes cancelados na sua carteira',
+        body: `${result.reopened} ${result.reopened === 1 ? 'cliente cancelado foi devolvido' : 'clientes cancelados foram devolvidos'} à sua carteira para tentar a reativação.`,
+        entityType: 'collection_case',
+      });
+    }
+
+    return createApiResponse({
+      reopened: result.reopened,
+      skipped: result.skipped,
+    });
   }
 
   async revertCancellation(
@@ -769,32 +805,6 @@ export class CollectionCasesService {
     if (result.outcome === 'assignee_invalid') {
       throw new AppException(
         'Selecione um agente de cancelamento ativo para receber o caso.',
-        HttpStatus.UNPROCESSABLE_ENTITY,
-      );
-    }
-  }
-
-  private assertRecoverCancelledResult(
-    result: RecoverCancelledResult,
-    caseId: string,
-  ) {
-    if (result.outcome === 'case_not_found') {
-      throw new AppException(
-        `Caso de cobrança ${caseId} não encontrado.`,
-        HttpStatus.NOT_FOUND,
-      );
-    }
-
-    if (result.outcome === 'status_not_allowed') {
-      throw new AppException(
-        `Caso de cobrança ${caseId} não pode ser recuperado a partir do status ${result.currentStatus}.`,
-        HttpStatus.CONFLICT,
-      );
-    }
-
-    if (result.outcome === 'no_manual_attempt') {
-      throw new AppException(
-        'O caso precisa ter ao menos uma tentativa de contato manual registrada para ser marcado como recuperado.',
         HttpStatus.UNPROCESSABLE_ENTITY,
       );
     }

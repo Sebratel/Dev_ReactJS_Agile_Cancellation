@@ -24,6 +24,7 @@ const REOPENABLE_FINALIZED_STATUSES: CollectionStatus[] = [
   CollectionStatus.PAYMENT_MADE,
   CollectionStatus.CLOSED,
   CollectionStatus.RENEGOTIATED,
+  CollectionStatus.REACTIVATED,
 ];
 
 @Injectable()
@@ -149,7 +150,12 @@ export class WebhooksPrismaRepository implements WebhooksRepository {
             update: {
               contractId: contract.id,
               customerId: customer.id,
-              status: event.case.status ?? undefined,
+              // Cancelado em recuperação mantém o status: quem o encerra é a
+              // reconciliação com o ERP (reativação), não o ingest.
+              status:
+                existingCase?.status === CollectionStatus.CANCELLED_IN_RECOVERY
+                  ? undefined
+                  : (event.case.status ?? undefined),
               priority: event.case.priority ?? undefined,
               outstandingAmount: event.case.outstandingAmount,
               daysOverdue: event.case.daysOverdue ?? 0,
@@ -158,6 +164,7 @@ export class WebhooksPrismaRepository implements WebhooksRepository {
                     cycleStartedAt: now,
                     recoveredAt: null,
                     recoveredAmount: null,
+                    reactivatedAt: null,
                     assignedUserId: null,
                     matrixAwaitingReply: false,
                     matrixLastOutboundAt: null,

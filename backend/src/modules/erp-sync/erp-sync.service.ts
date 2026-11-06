@@ -1,10 +1,16 @@
 import { Injectable, Logger, type OnModuleDestroy } from '@nestjs/common';
+import {
+  CANCELLED_RECOVERY_PAYMENT_WINDOW_DAYS,
+  resolveCancelledRecoveryOutcome,
+  type CancelledRecoveryErpState,
+} from '@/modules/erp-sync/cancelled-recovery';
 import type { RenegotiationSummaryResponse } from '@/modules/erp-sync/dto/renegotiation-summary.response';
 import { Cron } from '@nestjs/schedule';
 import {
   AuditAction,
   CancellationStatus,
   CollectionStatus,
+  ContractStatus,
   IntegrationEventStatus,
   InvoiceStatus,
   PaymentPromiseStatus,
@@ -302,6 +308,57 @@ WHERE c.public_id = ANY($1::uuid[])
 GROUP BY c.public_id, c.id, c.v_status;
 `;
 
+// Cancelados devolvidos à carteira: status atual do contrato no ERP e data do
+// último evento "Reativação de Contrato".
+const CANCELLED_RECOVERY_STATE_QUERY = `
+SELECT
+  c.public_id::text AS contract_external_id,
+  c.v_status::text  AS erp_contract_status,
+  (
+    SELECT MAX(ce.date)
+    FROM erp.contract_events ce
+    JOIN erp.contract_event_types cet ON cet.id = ce.contract_event_type_id
+    WHERE ce.contract_id = c.id
+      AND ce.deleted IS false
+      AND cet.title = 'Reativação de Contrato'
+  ) AS reactivated_at
+FROM erp.contracts c
+WHERE c.public_id = ANY($1::uuid[]);
+`;
+
+type CancelledRecoveryStateRow = {
+  contract_external_id: string;
+  erp_contract_status: string | null;
+  reactivated_at: Date | null;
+};
+
+// Valor efetivamente PAGO por contrato desde a reativação (baixas reais, não
+// deletadas, com forma de pagamento e data até hoje — há baixas futuras
+// programadas que ainda não são pagamento).
+const CANCELLED_RECOVERY_PAID_SINCE_QUERY = `
+SELECT
+  t.public_id::text AS contract_external_id,
+  COALESCE(SUM(x.total_amount), 0)::text AS paid_amount
+FROM unnest($1::uuid[], $2::date[]) AS t(public_id, since)
+JOIN erp.contracts c ON c.public_id = t.public_id
+JOIN erp.financial_receivable_titles fr ON fr.contract_id = c.id
+JOIN erp.financial_receipt_titles x ON x.financial_receivable_title_id = fr.id
+WHERE fr.deleted IS false
+  AND fr.renegotiated IS false
+  AND fr.bill_title_id IS NULL
+  AND x.deleted IS false
+  AND x.client_paid_date IS NOT NULL
+  AND x.payment_form_id IS NOT NULL
+  AND x.client_paid_date >= t.since
+  AND x.client_paid_date <= CURRENT_DATE
+GROUP BY t.public_id;
+`;
+
+type CancelledRecoveryPaidRow = {
+  contract_external_id: string;
+  paid_amount: string;
+};
+
 type ErpContractReconcileStatusRow = {
   contract_external_id: string;
   erp_contract_status: string | null;
@@ -424,6 +481,7 @@ export class ErpSyncService implements OnModuleDestroy {
 
     if (payload.events.length > 0 && validEvents.length === 0) {
       await this.reconcileRecoveredCases();
+      await this.reconcileCancelledRecovery();
       this.logger.warn(
         'Nenhum evento valido apos validacao — rodada encerrada.',
       );
@@ -442,6 +500,282 @@ export class ErpSyncService implements OnModuleDestroy {
     }
 
     await this.reconcileRecoveredCases();
+    await this.reconcileCancelledRecovery();
+  }
+
+  /**
+   * Clientes cancelados devolvidos à carteira (CANCELLED_IN_RECOVERY): só viram
+   * RECOVERED quando o ERP mostra o contrato "Normal" de novo E houve contato
+   * efetivo com observação antes da reativação; sem isso, REACTIVATED (sem
+   * receita). A receita do atendente é o que o cliente PAGAR depois da
+   * reativação (recalculado a cada rodada durante a janela de pagamentos).
+   */
+  private async reconcileCancelledRecovery(): Promise<void> {
+    const config = getErpSyncConfig();
+
+    if (!config.db) {
+      return;
+    }
+
+    const now = new Date();
+    const windowStart = new Date(
+      now.getTime() -
+        CANCELLED_RECOVERY_PAYMENT_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+    );
+
+    const cases = await this.prisma.collectionCase.findMany({
+      where: {
+        OR: [
+          { status: CollectionStatus.CANCELLED_IN_RECOVERY },
+          {
+            status: CollectionStatus.RECOVERED,
+            reactivatedAt: { not: null, gte: windowStart },
+          },
+        ],
+        contract: { externalId: { not: null } },
+      },
+      select: {
+        id: true,
+        status: true,
+        cycleStartedAt: true,
+        reactivatedAt: true,
+        recoveredAmount: true,
+        contractId: true,
+        contract: { select: { externalId: true } },
+        collectionAttempts: {
+          where: { isAutomatic: false },
+          select: {
+            attemptedAt: true,
+            result: true,
+            notes: true,
+            isAutomatic: true,
+          },
+        },
+      },
+    });
+
+    if (cases.length === 0) {
+      return;
+    }
+
+    const contractExternalIds = [
+      ...new Set(
+        cases
+          .map((item) => item.contract.externalId)
+          .filter((id): id is string => id !== null),
+      ),
+    ];
+
+    const erpState = new Map<string, CancelledRecoveryErpState>();
+
+    try {
+      const pool = this.getPool(config.db);
+      const result = await pool.query<CancelledRecoveryStateRow>(
+        CANCELLED_RECOVERY_STATE_QUERY,
+        [contractExternalIds],
+      );
+
+      for (const row of result.rows) {
+        erpState.set(row.contract_external_id, {
+          erpContractStatus: row.erp_contract_status,
+          reactivatedAt: row.reactivated_at
+            ? new Date(row.reactivated_at)
+            : null,
+        });
+      }
+    } catch (error) {
+      this.logger.error(
+        'Falha ao ler a reativacao dos cancelados no ERP. Reconciliacao de cancelados abortada nesta rodada.',
+        error instanceof Error ? error.stack : String(error),
+      );
+      return;
+    }
+
+    type Transition = {
+      caseId: string;
+      contractId: string;
+      kind: 'recovered' | 'reactivated';
+      reactivatedAt: Date;
+    };
+    const transitions: Transition[] = [];
+
+    for (const item of cases) {
+      if (item.status !== CollectionStatus.CANCELLED_IN_RECOVERY) {
+        continue;
+      }
+
+      const outcome = resolveCancelledRecoveryOutcome({
+        erp: erpState.get(item.contract.externalId ?? ''),
+        cycleStartedAt: item.cycleStartedAt,
+        attempts: item.collectionAttempts,
+        now,
+      });
+
+      if (outcome.kind !== 'waiting') {
+        transitions.push({
+          caseId: item.id,
+          contractId: item.contractId,
+          kind: outcome.kind,
+          reactivatedAt: outcome.reactivatedAt,
+        });
+      }
+    }
+
+    if (transitions.length > 0) {
+      await retryOnWriteConflict(() =>
+        this.prisma.$transaction(async (tx) => {
+          for (const transition of transitions) {
+            const recovered = transition.kind === 'recovered';
+            const nextStatus = recovered
+              ? CollectionStatus.RECOVERED
+              : CollectionStatus.REACTIVATED;
+
+            await tx.collectionCase.update({
+              where: { id: transition.caseId },
+              data: {
+                status: nextStatus,
+                reactivatedAt: transition.reactivatedAt,
+                recoveredAt: recovered ? transition.reactivatedAt : null,
+                // Receita = pagamentos após a reativação (atualizada abaixo).
+                recoveredAmount: recovered ? '0.00' : null,
+                outstandingAmount: 0,
+                daysOverdue: 0,
+                updatedAt: now,
+              },
+            });
+
+            await tx.contract.update({
+              where: { id: transition.contractId },
+              data: {
+                status: ContractStatus.ACTIVE,
+                erpStatus: 'Normal',
+                updatedAt: now,
+              },
+            });
+
+            await tx.auditLog.create({
+              data: {
+                entityType: 'COLLECTION_CASE',
+                entityId: transition.caseId,
+                action: AuditAction.STATUS_CHANGE,
+                beforeSnapshot: {
+                  status: CollectionStatus.CANCELLED_IN_RECOVERY,
+                },
+                afterSnapshot: {
+                  status: nextStatus,
+                  reactivatedAt: transition.reactivatedAt.toISOString(),
+                },
+                metadata: {
+                  resourceType: 'COLLECTION_CASE',
+                  action: recovered
+                    ? 'CANCELLED_RECOVERY_RECOVERED'
+                    : 'CANCELLED_RECOVERY_REACTIVATED',
+                  source: ERP_SYNC_SOURCE,
+                  reason: recovered
+                    ? 'Contrato reativado no ERP com contato efetivo e observacao registrados antes da reativacao.'
+                    : 'Contrato reativado no ERP sem contato qualificado antes (nao credita receita).',
+                },
+              },
+            });
+          }
+        }),
+      );
+
+      this.logger.log(
+        `Cancelados reativados: ${transitions.filter((item) => item.kind === 'recovered').length} recuperado(s), ${transitions.filter((item) => item.kind === 'reactivated').length} sem credito.`,
+      );
+    }
+
+    await this.refreshCancelledRecoveryRevenue(
+      config.db,
+      cases,
+      transitions,
+      now,
+    );
+  }
+
+  // Receita dos recuperados = soma do que foi pago desde a reativação.
+  private async refreshCancelledRecoveryRevenue(
+    db: NonNullable<ReturnType<typeof getErpSyncConfig>['db']>,
+    cases: Array<{
+      id: string;
+      status: CollectionStatus;
+      reactivatedAt: Date | null;
+      recoveredAmount: { toString(): string } | null;
+      contract: { externalId: string | null };
+    }>,
+    transitions: Array<{
+      caseId: string;
+      kind: 'recovered' | 'reactivated';
+      reactivatedAt: Date;
+    }>,
+    now: Date,
+  ): Promise<void> {
+    const recoveredNow = new Map(
+      transitions
+        .filter((transition) => transition.kind === 'recovered')
+        .map((transition) => [transition.caseId, transition.reactivatedAt]),
+    );
+
+    const targets = cases
+      .map((item) => ({
+        id: item.id,
+        externalId: item.contract.externalId,
+        since:
+          recoveredNow.get(item.id) ??
+          (item.status === CollectionStatus.RECOVERED
+            ? item.reactivatedAt
+            : null),
+        current: Number(item.recoveredAmount?.toString() ?? '0'),
+      }))
+      .filter(
+        (
+          target,
+        ): target is typeof target & { externalId: string; since: Date } =>
+          target.externalId !== null && target.since !== null,
+      );
+
+    if (targets.length === 0) {
+      return;
+    }
+
+    let paidByContract: Map<string, number>;
+
+    try {
+      const pool = this.getPool(db);
+      const result = await pool.query<CancelledRecoveryPaidRow>(
+        CANCELLED_RECOVERY_PAID_SINCE_QUERY,
+        [
+          targets.map((target) => target.externalId),
+          targets.map((target) => target.since.toISOString().slice(0, 10)),
+        ],
+      );
+      paidByContract = new Map(
+        result.rows.map((row) => [
+          row.contract_external_id,
+          Number(row.paid_amount),
+        ]),
+      );
+    } catch (error) {
+      this.logger.error(
+        'Falha ao ler os pagamentos dos cancelados recuperados no ERP. Receita nao atualizada nesta rodada.',
+        error instanceof Error ? error.stack : String(error),
+      );
+      return;
+    }
+
+    for (const target of targets) {
+      const paid = paidByContract.get(target.externalId) ?? 0;
+
+      if (Math.abs(paid - target.current) < 0.005) {
+        continue;
+      }
+
+      await this.prisma.collectionCase.update({
+        where: { id: target.id },
+        data: { recoveredAmount: paid.toFixed(2), updatedAt: now },
+      });
+    }
   }
 
   private async reconcileRecoveredCases(): Promise<void> {
@@ -458,6 +792,10 @@ export class ErpSyncService implements OnModuleDestroy {
             CollectionStatus.RECOVERED,
             CollectionStatus.PAYMENT_MADE,
             CollectionStatus.RENEGOTIATED,
+            // Cancelados devolvidos à carteira têm reconciliação própria
+            // (reconcileCancelledRecovery); aqui virariam "cancelados" de novo.
+            CollectionStatus.CANCELLED_IN_RECOVERY,
+            CollectionStatus.REACTIVATED,
           ],
         },
         contract: {

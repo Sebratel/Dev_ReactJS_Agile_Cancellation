@@ -13,7 +13,7 @@ import { useContactCustomerWhatsApp } from '@/features/collection-cases/hooks/us
 import { useCreateCaseNote } from '@/features/collection-cases/hooks/use-create-case-note';
 import { useCreateElevenCancellationRequest } from '@/features/collection-cases/hooks/use-create-eleven-cancellation-request';
 import { useRevertCancellation } from '@/features/collection-cases/hooks/use-revert-cancellation';
-import { useRecoverCancelled } from '@/features/cancelled-clients/hooks/use-recover-cancelled';
+import { useReopenCancelled } from '@/features/cancelled-clients/hooks/use-reopen-cancelled';
 import * as casesService from '@/features/collection-cases/services/collection-cases.service';
 import * as caseNotesService from '@/features/collection-cases/services/case-notes.service';
 import * as cancellationsService from '@/features/cancellations/services/cancellations.service';
@@ -29,7 +29,7 @@ vi.mock(
     cancelPaymentPromise: vi.fn(),
     contactCustomerByWhatsApp: vi.fn(),
     revertCancellation: vi.fn(),
-    recoverCancelledCase: vi.fn(),
+    reopenCancelledCases: vi.fn(),
   }),
 );
 vi.mock('@/features/collection-cases/services/case-notes.service', () => ({
@@ -231,15 +231,24 @@ describe('hooks de mutacao de casos de cobranca', () => {
     });
   });
 
-  it('useRecoverCancelled recupera o caso e invalida a lista', async () => {
-    vi.mocked(casesService.recoverCancelledCase).mockResolvedValue({} as never);
-    const { result, invalidate } = setup(() => useRecoverCancelled());
+  it('useReopenCancelled devolve cancelados a carteira e invalida a lista', async () => {
+    vi.mocked(casesService.reopenCancelledCases).mockResolvedValue({
+      reopened: 1,
+      skipped: 0,
+    });
+    const { result, invalidate } = setup(() => useReopenCancelled());
 
     await act(async () => {
-      await result.current.mutateAsync('k9');
+      await result.current.mutateAsync({
+        caseIds: ['k9'],
+        assignedUserId: 'usr_1',
+      });
     });
 
-    expect(casesService.recoverCancelledCase).toHaveBeenCalledWith('k9');
+    expect(casesService.reopenCancelledCases).toHaveBeenCalledWith({
+      caseIds: ['k9'],
+      assignedUserId: 'usr_1',
+    });
     await waitFor(() => {
       expect(invalidate).toHaveBeenCalledTimes(1);
     });

@@ -8,6 +8,9 @@
 //    insatisfação...) — não é falha da cobrança.
 //  - OUTRO: motivo não informado ou não classificável.
 
+// Valor do filtro/rótulo para contratos cancelados sem motivo informado.
+export const NO_CANCELLATION_REASON_LABEL = 'Sem motivo registrado';
+
 export type CancellationReasonCategory = 'INADIMPLENCIA' | 'EXTERNO' | 'OUTRO';
 
 const INADIMPLENCIA_HINTS = ['inadimpl', 'dificuldade financeira'];

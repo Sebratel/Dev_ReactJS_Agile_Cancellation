@@ -6,6 +6,7 @@ import {
   type Priority,
   type Prisma,
 } from '@prisma/client';
+import { NO_CANCELLATION_REASON_LABEL } from '@/common/cancellation-reason';
 import type { CollectionCaseListItemResponse } from '@/modules/collection-cases/dto/collection-case-list-item.response';
 import { PORTFOLIO_ACTIVE_STATUSES } from '@/modules/collection-cases/utils/portfolio-cases.util';
 import type {
@@ -19,7 +20,28 @@ const FINALIZED_STATUSES: CollectionStatus[] = [
   CollectionStatus.RECOVERED,
   CollectionStatus.PAYMENT_MADE,
   CollectionStatus.RENEGOTIATED,
+  CollectionStatus.REACTIVATED,
 ];
+
+// O motivo vem do ERP com prefixo ("Cancelamento - Inadimplência"); o filtro usa
+// o texto limpo exibido na tela, então casa o valor exato ou o sufixo após o
+// separador.
+function buildCancellationReasonCondition(
+  reason: string,
+): Prisma.ContractWhereInput {
+  if (reason === NO_CANCELLATION_REASON_LABEL) {
+    return { cancellationReason: null };
+  }
+
+  return {
+    OR: [
+      { cancellationReason: { equals: reason } },
+      { cancellationReason: { endsWith: ` - ${reason}` } },
+      { cancellationReason: { endsWith: ` – ${reason}` } },
+      { cancellationReason: { endsWith: `: ${reason}` } },
+    ],
+  };
+}
 
 export const OPEN_INVOICE_STATUSES: InvoiceStatus[] = [
   InvoiceStatus.OPEN,
@@ -169,9 +191,17 @@ export function buildCollectionCasesWhere(
   // base do card de carteira). Status finalizado escolhido no filtro continua
   // funcionando (historico/auditoria). A busca por texto (nome/documento/
   // contrato) tambem nao restringe: acha o cliente em qualquer status.
+  if (params.reactivated) {
+    where.reactivatedAt = { not: null };
+  }
+
+  // Reativados (RECOVERED/REACTIVATED) não estão na carteira ativa: sem status
+  // explícito, o filtro `reactivated` não aplica a restrição de carteira.
   if (params.status) {
     where.status = params.status as CollectionStatus;
-  } else if (!params.search) {
+  } else if (params.statusIn && params.statusIn.length > 0) {
+    where.status = { in: params.statusIn as CollectionStatus[] };
+  } else if (!params.search && !params.reactivated) {
     where.status = { in: PORTFOLIO_ACTIVE_STATUSES };
   }
 
@@ -196,6 +226,12 @@ export function buildCollectionCasesWhere(
     contractConditions.push({
       status: params.contractStatus as ContractStatus,
     });
+  }
+
+  if (params.cancellationReason?.trim()) {
+    contractConditions.push(
+      buildCancellationReasonCondition(params.cancellationReason.trim()),
+    );
   }
 
   if (params.search) {
@@ -453,6 +489,10 @@ export function filterMockCollectionCases(
   return records.filter((record) => {
     if (params.status) {
       if (record.status !== params.status) {
+        return false;
+      }
+    } else if (params.statusIn && params.statusIn.length > 0) {
+      if (!params.statusIn.includes(record.status)) {
         return false;
       }
     } else if (
