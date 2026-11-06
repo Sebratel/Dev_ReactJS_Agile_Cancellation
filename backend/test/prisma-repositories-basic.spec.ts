@@ -563,6 +563,8 @@ describe('PaymentPromisesPrismaRepository', () => {
     cancelledAt: null,
     createdAt: new Date('2019-12-01T00:00:00.000Z'),
     collectionCase: {
+      status: 'IN_COLLECTION',
+      recoveredAt: null,
       customer: { id: 'cus1', name: 'Ana', document: '123' },
       contract: { id: 'ctr1', code: 'CTR', status: 'ACTIVE' },
       assignedUser: { id: 'u1', name: 'Op' },
@@ -578,6 +580,8 @@ describe('PaymentPromisesPrismaRepository', () => {
         status: 'FULFILLED',
         fulfilledAt: new Date('2020-01-02T00:00:00.000Z'),
         collectionCase: {
+          status: 'RECOVERED',
+          recoveredAt: new Date('2020-01-03T00:00:00.000Z'),
           customer: { id: 'cus1', name: 'Ana', document: '123' },
           contract: { id: 'ctr1', code: 'CTR', status: 'ACTIVE' },
           assignedUser: null,
@@ -623,6 +627,53 @@ describe('PaymentPromisesPrismaRepository', () => {
         isOverdue: false,
         assignedTo: null,
         fulfilledAt: '2020-01-02T00:00:00.000Z',
+        caseStatus: 'RECOVERED',
+        caseRecoveredAt: '2020-01-03T00:00:00.000Z',
+      }),
+    );
+    expect(result.items[0]).toEqual(
+      expect.objectContaining({
+        caseStatus: 'IN_COLLECTION',
+        caseRecoveredAt: null,
+      }),
+    );
+  });
+
+  it('filtra pela situacao do caso (quem ja pagou)', async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const repository = new PaymentPromisesPrismaRepository(
+      asPrisma({
+        paymentPromise: { findMany, count: jest.fn().mockResolvedValue(0) },
+      }),
+    );
+
+    await repository.list({ page: 1, limit: 10, caseSituation: 'PAID' });
+    expect(findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: {
+          collectionCase: { status: { in: ['RECOVERED', 'PAYMENT_MADE'] } },
+        },
+      }),
+    );
+
+    await repository.list({
+      page: 1,
+      limit: 10,
+      caseSituation: 'CANCELLATION',
+    });
+    expect(findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: {
+          collectionCase: {
+            status: {
+              in: [
+                'ELIGIBLE_FOR_CANCELLATION',
+                'CANCELLATION_IN_PROGRESS',
+                'CANCELLED_IN_RECOVERY',
+              ],
+            },
+          },
+        },
       }),
     );
   });
@@ -647,6 +698,7 @@ describe('PaymentPromisesPrismaRepository', () => {
       .fn()
       .mockResolvedValueOnce(10)
       .mockResolvedValueOnce(3)
+      .mockResolvedValueOnce(1)
       .mockResolvedValueOnce(5)
       .mockResolvedValueOnce(2);
     const repository = new PaymentPromisesPrismaRepository(
@@ -655,6 +707,7 @@ describe('PaymentPromisesPrismaRepository', () => {
     await expect(repository.getSummary()).resolves.toEqual({
       active: 10,
       overdue: 3,
+      overduePaid: 1,
       fulfilledThisMonth: 5,
       brokenThisMonth: 2,
     });

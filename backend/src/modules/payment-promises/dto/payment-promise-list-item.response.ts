@@ -10,6 +10,9 @@ export type PaymentPromiseListItemResponse = {
   cancelledAt: string | null;
   createdAt: string;
   isOverdue: boolean;
+  // Situação atual do caso e quando foi regularizado/retido (se foi).
+  caseStatus: string;
+  caseRecoveredAt: string | null;
   customer: {
     id: string;
     name: string;
@@ -29,6 +32,8 @@ export type PaymentPromiseListItemResponse = {
 export type PaymentPromisesSummaryResponse = {
   active: number;
   overdue: number;
+  // Dentre as vencidas, as de clientes que já pagaram (caso retido ou pago).
+  overduePaid: number;
   fulfilledThisMonth: number;
   brokenThisMonth: number;
 };

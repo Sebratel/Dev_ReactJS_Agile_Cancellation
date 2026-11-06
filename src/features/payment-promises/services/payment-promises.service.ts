@@ -11,6 +11,7 @@ export function buildPaymentPromisesPath(
 ): string {
   const query = new URLSearchParams();
   if (params?.status) query.set('status', params.status);
+  if (params?.caseSituation) query.set('caseSituation', params.caseSituation);
   if (params?.from) query.set('from', params.from);
   if (params?.to) query.set('to', params.to);
   if (params?.assignedUserId)

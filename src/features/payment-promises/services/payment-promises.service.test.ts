@@ -33,6 +33,7 @@ describe('payment-promises.service', () => {
   it('inclui filtros e remove espacos da busca', () => {
     const path = buildPaymentPromisesPath({
       status: 'ACTIVE',
+      caseSituation: 'PAID',
       from: '2026-01-01',
       to: '2026-01-31',
       assignedUserId: 'u1',

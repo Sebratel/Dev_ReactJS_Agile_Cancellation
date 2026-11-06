@@ -9,6 +9,7 @@ export type ListPaymentPromisesParams = {
   from?: string;
   to?: string;
   assignedUserId?: string;
+  caseSituation?: string;
   search?: string;
   page: number;
   limit: number;
