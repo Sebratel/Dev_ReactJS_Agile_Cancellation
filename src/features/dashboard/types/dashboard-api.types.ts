@@ -4,6 +4,7 @@ export type DashboardMetricKey =
   | 'inCollection'
   | 'eligibleForCancellation'
   | 'recoveredMonth'
+  | 'recoveredAfterContactMonth'
   | 'activePromises'
   | 'overduePromises'
   | 'cancellationsInProgress'
@@ -104,6 +105,8 @@ export type CancellationReasonsResponse = {
   withReason: number;
   byCategory: CancellationReasonCategoryBreakdown[];
   topReasons: CancellationReasonBreakdown[];
+  // Todos os motivos (sem corte), para filtros.
+  allReasons?: CancellationReasonBreakdown[];
   // CLOSED cujo contrato nao esta Cancelado no ERP (fora do total).
   excludedNotCancelled: number;
 };

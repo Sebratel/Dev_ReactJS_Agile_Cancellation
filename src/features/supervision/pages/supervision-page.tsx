@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Download,
+  Info,
   LayoutGrid,
   List,
   RefreshCw,
@@ -14,9 +15,14 @@ import { PageContainer } from '@/components/navigation/page-container';
 import { EmptyState } from '@/components/feedback/empty-state';
 import { ErrorState } from '@/components/feedback/error-state';
 import { TableSkeleton } from '@/components/feedback/table-skeleton';
+import {
+  ActionsMenu,
+  type ActionsMenuItem,
+} from '@/components/ui/actions-menu';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/features/auth/auth-context';
 import { useCollectionCases } from '@/features/collection-cases/hooks/use-collection-cases';
+import { useSnapshotCounts } from '@/features/collection-cases/hooks/use-snapshot-counts';
 import { CollectionCaseSnapshotStrip } from '@/features/collection-cases/components/collection-case-snapshot-strip';
 import { useBulkAssignCases } from '@/features/collection-cases/hooks/use-bulk-assign-cases';
 import { useAutoDistribute } from '@/features/collection-cases/hooks/use-auto-distribute';
@@ -28,6 +34,7 @@ import { RecoveryNotificationsInfo } from '@/features/supervision/components/rec
 import { SupervisionPortfolios } from '@/features/supervision/components/supervision-portfolios';
 import { SupervisionRenegotiated } from '@/features/supervision/components/supervision-renegotiated';
 import { SupervisionFilters } from '@/features/supervision/components/supervision-filters';
+import { HsmDeliverySummary } from '@/features/supervision/components/hsm-delivery-summary';
 import { useCollectionCasePortfolios } from '@/features/collection-cases/hooks/use-collection-case-portfolios';
 import { useRenegotiatedHistory } from '@/features/collection-cases/hooks/use-renegotiated-history';
 import { useSupervisionSearchParams } from '@/features/supervision/hooks/use-supervision-search-params';
@@ -56,6 +63,7 @@ export default function SupervisionPage() {
 
   const { filters, updateFilters, clearFilters } = useSupervisionSearchParams();
   const [searchInput, setSearchInput] = useState(filters.search);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const debouncedSearch = useDebouncedValue(searchInput, 400);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -98,6 +106,14 @@ export default function SupervisionPage() {
   }, [filters, debouncedSearch, selectedAgentId]);
 
   const casesQuery = useCollectionCases(listParams, { autoRefresh: true });
+  const snapshotCounts = useSnapshotCounts(listParams);
+
+  // Filtros da lista sem o estado do HSM: base do minigráfico de entrega, que
+  // precisa contar cada estado respeitando os demais filtros.
+  const hsmBaseParams = useMemo(
+    () => ({ ...listParams, hsmDeliveryState: undefined }),
+    [listParams],
+  );
 
   const portfoliosQuery = useCollectionCasePortfolios(canDistribute);
   const renegotiatedQuery = useRenegotiatedHistory(
@@ -246,6 +262,39 @@ export default function SupervisionPage() {
     }
   }
 
+  const menuItems: ActionsMenuItem[] = [
+    ...(canDistribute
+      ? [
+          {
+            key: 'notifications',
+            label: 'Sobre as notificações',
+            icon: <Info className="h-4 w-4" aria-hidden="true" />,
+            onSelect: () => setNotificationsOpen(true),
+          },
+          {
+            key: 'distribute',
+            label: autoDistributeMutation.isPending
+              ? 'Distribuindo...'
+              : 'Distribuir automaticamente',
+            icon: <Shuffle className="h-4 w-4" aria-hidden="true" />,
+            onSelect: () => {
+              void handleAutoDistribute();
+            },
+            disabled: autoDistributeMutation.isPending,
+          },
+        ]
+      : []),
+    {
+      key: 'export',
+      label: isExporting ? 'Exportando...' : 'Exportar CSV',
+      icon: <Download className="h-4 w-4" aria-hidden="true" />,
+      onSelect: () => {
+        void exportCsv({ ...listParams });
+      },
+      disabled: isExporting || casesQuery.isLoading,
+    },
+  ];
+
   return (
     <PageContainer>
       <PageHeader
@@ -253,31 +302,7 @@ export default function SupervisionPage() {
         description="Painel de distribuição, acompanhamento e governança operacional da carteira de cobrança."
         actions={
           <>
-            {canDistribute ? <RecoveryNotificationsInfo /> : null}
-            {canDistribute ? (
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  void handleAutoDistribute();
-                }}
-                disabled={autoDistributeMutation.isPending}
-              >
-                <Shuffle className="h-4 w-4" />
-                {autoDistributeMutation.isPending
-                  ? 'Distribuindo...'
-                  : 'Distribuir automaticamente'}
-              </Button>
-            ) : null}
-            <Button
-              variant="secondary"
-              onClick={() => {
-                void exportCsv({ ...listParams });
-              }}
-              disabled={isExporting || casesQuery.isLoading}
-            >
-              <Download className="h-4 w-4" />
-              {isExporting ? 'Exportando...' : 'Exportar CSV'}
-            </Button>
+            <ActionsMenu items={menuItems} />
             <Button onClick={handleRetry} disabled={isRefreshing}>
               <RefreshCw
                 className={cn('h-4 w-4', isRefreshing && 'animate-spin')}
@@ -288,51 +313,74 @@ export default function SupervisionPage() {
         }
       />
 
-      {canDistribute ? <SyncHealthBanner /> : null}
-
-      {canDistribute ? <SupervisionIntakeSummary /> : null}
+      {canDistribute ? (
+        <RecoveryNotificationsInfo
+          open={notificationsOpen}
+          onOpenChange={setNotificationsOpen}
+        />
+      ) : null}
 
       {canDistribute ? (
-        <div className="flex self-start rounded-lg border border-border bg-card p-1">
-          <button
-            type="button"
-            onClick={() => setView('portfolios')}
-            className={cn(
-              'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-              effectiveView === 'portfolios'
-                ? 'bg-primary text-primary-foreground'
-                : 'text-neutral hover:text-foreground',
-            )}
-          >
-            <LayoutGrid className="h-4 w-4" />
-            Carteiras
-          </button>
-          <button
-            type="button"
-            onClick={() => setView('list')}
-            className={cn(
-              'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-              effectiveView === 'list'
-                ? 'bg-primary text-primary-foreground'
-                : 'text-neutral hover:text-foreground',
-            )}
-          >
-            <List className="h-4 w-4" />
-            Lista
-          </button>
-          <button
-            type="button"
-            onClick={() => setView('renegotiated')}
-            className={cn(
-              'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-              effectiveView === 'renegotiated'
-                ? 'bg-primary text-primary-foreground'
-                : 'text-neutral hover:text-foreground',
-            )}
-          >
-            <Repeat className="h-4 w-4" />
-            Renegociados
-          </button>
+        <SyncHealthBanner trailing={<SupervisionIntakeSummary />} />
+      ) : null}
+
+      {canDistribute ? (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex self-start rounded-lg border border-border bg-card p-1">
+            <button
+              type="button"
+              onClick={() => setView('portfolios')}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                effectiveView === 'portfolios'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-neutral hover:text-foreground',
+              )}
+            >
+              <LayoutGrid className="h-4 w-4" />
+              Carteiras
+            </button>
+            <button
+              type="button"
+              onClick={() => setView('list')}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                effectiveView === 'list'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-neutral hover:text-foreground',
+              )}
+            >
+              <List className="h-4 w-4" />
+              Lista
+            </button>
+            <button
+              type="button"
+              onClick={() => setView('renegotiated')}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                effectiveView === 'renegotiated'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-neutral hover:text-foreground',
+              )}
+            >
+              <Repeat className="h-4 w-4" />
+              Renegociados
+            </button>
+          </div>
+          {effectiveView === 'list' && selectedAgentName ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 py-1 pl-3 pr-1.5 text-xs">
+              Carteira de{' '}
+              <span className="font-semibold">{selectedAgentName}</span>
+              <button
+                type="button"
+                onClick={clearPortfolioSelection}
+                aria-label="Ver todas as carteiras"
+                className="inline-flex h-5 w-5 items-center justify-center rounded-full text-neutral transition-colors hover:bg-primary/20 hover:text-foreground"
+              >
+                <X className="h-3 w-3" aria-hidden="true" />
+              </button>
+            </span>
+          ) : null}
         </div>
       ) : null}
 
@@ -369,23 +417,6 @@ export default function SupervisionPage() {
 
       {effectiveView === 'list' ? (
         <>
-          {selectedAgentName ? (
-            <div className="flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5">
-              <span className="text-sm">
-                Mostrando a carteira de{' '}
-                <span className="font-semibold">{selectedAgentName}</span>
-              </span>
-              <button
-                type="button"
-                onClick={clearPortfolioSelection}
-                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
-              >
-                <X className="h-3.5 w-3.5" />
-                Ver todos
-              </button>
-            </div>
-          ) : null}
-
           <SupervisionFilters
             filters={filters}
             searchInput={searchInput}
@@ -395,54 +426,69 @@ export default function SupervisionPage() {
             hasActiveFilters={hasActiveFilters}
           />
 
-          {!casesQuery.isLoading &&
-          !casesQuery.isError &&
-          casesQuery.data &&
-          casesQuery.data.pagination.total > 0 ? (
-            <p className="text-sm text-neutral">
-              {casesQuery.data.pagination.total === 1
-                ? '1 caso encontrado'
-                : `${casesQuery.data.pagination.total.toLocaleString('pt-BR')} casos encontrados`}
-            </p>
-          ) : null}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            {!casesQuery.isLoading &&
+            !casesQuery.isError &&
+            casesQuery.data &&
+            casesQuery.data.pagination.total > 0 ? (
+              <p className="text-sm text-neutral">
+                {casesQuery.data.pagination.total === 1
+                  ? '1 caso encontrado'
+                  : `${casesQuery.data.pagination.total.toLocaleString('pt-BR')} casos encontrados`}
+              </p>
+            ) : (
+              <span />
+            )}
 
-          <div
-            role="tablist"
-            aria-label="Segmento por contato do atendente"
-            className="flex flex-wrap gap-2"
-          >
-            {INTERACTION_SEGMENTS.map((option) => {
-              const active = filters.interactionStatus === option.value;
-              return (
-                <button
-                  key={option.value || 'all'}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() =>
-                    updateFilters({
-                      interactionStatus: option.value,
-                      page: 1,
-                    })
-                  }
-                  className={cn(
-                    'rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors',
-                    active
-                      ? 'border-primary bg-primary/10 text-foreground'
-                      : 'border-border bg-card text-neutral hover:border-primary/40 hover:text-foreground',
-                  )}
-                >
-                  {option.label}
-                </button>
-              );
-            })}
+            <div
+              role="tablist"
+              aria-label="Segmento por contato do atendente"
+              className="inline-flex rounded-lg border border-border bg-card p-0.5"
+            >
+              {INTERACTION_SEGMENTS.map((option) => {
+                const active = filters.interactionStatus === option.value;
+                return (
+                  <button
+                    key={option.value || 'all'}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() =>
+                      updateFilters({
+                        interactionStatus: option.value,
+                        page: 1,
+                      })
+                    }
+                    className={cn(
+                      'rounded-md px-3 py-1 text-xs font-medium transition-colors',
+                      active
+                        ? 'bg-primary/15 text-foreground'
+                        : 'text-neutral hover:text-foreground',
+                    )}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {!casesQuery.isLoading && !casesQuery.isError ? (
-            <CollectionCaseSnapshotStrip
-              items={items}
-              totalCases={casesQuery.data?.pagination.total}
-            />
+            <section className="flex flex-wrap items-center gap-x-8 gap-y-3 rounded-xl border border-border bg-card px-4 py-3 shadow-card">
+              <CollectionCaseSnapshotStrip
+                variant="compact"
+                counts={snapshotCounts}
+                items={items}
+                totalCases={casesQuery.data?.pagination.total}
+              />
+              <HsmDeliverySummary
+                baseParams={hsmBaseParams}
+                activeState={filters.hsmDeliveryState}
+                onSelectState={(state) =>
+                  updateFilters({ hsmDeliveryState: state, page: 1 })
+                }
+              />
+            </section>
           ) : null}
 
           {casesQuery.isLoading ? <TableSkeleton rows={6} columns={5} /> : null}

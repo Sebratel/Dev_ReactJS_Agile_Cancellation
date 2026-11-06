@@ -1,5 +1,6 @@
 import { useRef, useEffect, useLayoutEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { ChevronRight } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { SectionCard } from '@/components/data-display/section-card';
 import { StatusBadge } from '@/components/data-display/status-badge';
 import { buttonVariants } from '@/components/ui/button';
@@ -20,6 +21,7 @@ import {
   type CollectionCasesSortBy,
   type CollectionCasesSortDirection,
 } from '@/features/collection-cases/types/collection-cases-api.types';
+import { HsmDeliveryBadge } from '@/features/collection-cases/components/hsm-delivery-badge';
 import { ContactCustomerWhatsAppAction } from '@/features/collection-cases/components/contact-customer-whatsapp-action';
 import {
   canSendCaseToCancellation,
@@ -35,6 +37,13 @@ import {
   getContractStatusVariant,
 } from '@/features/customers/utils/customer-labels';
 import { SendToCancellationRowAction } from '@/features/collection-cases/components/send-to-cancellation-row-action';
+import {
+  SEVERITY_ROW_CLASS,
+  SEVERITY_TEXT_CLASS,
+  getOverdueSeverity,
+  getVisibleSla,
+  isInteractiveTarget,
+} from '@/features/collection-cases/utils/case-row-presentation';
 import { InlineAssigneeSelect } from '@/features/supervision/components/inline-assignee-select';
 import { type UserResponse } from '@/features/users/types/users-api.types';
 import {
@@ -42,6 +51,7 @@ import {
   formatDateTimePtBR,
   formatCurrencyFromDecimalString,
   formatInteger,
+  formatRelativeTimePtBR,
 } from '@/utils/formatters';
 
 type SupervisionCasesTableProps = {
@@ -393,6 +403,7 @@ export function SupervisionCasesTable({
   onToggleSelect,
   onToggleSelectAll,
 }: SupervisionCasesTableProps) {
+  const navigate = useNavigate();
   const tableShellRef = useRef<HTMLDivElement>(null);
   const lastPageChangePosition = useRef<{
     windowY: number;
@@ -496,15 +507,15 @@ export function SupervisionCasesTable({
             className="max-h-[70vh] overflow-y-auto"
             data-supervision-table-scroll
           >
-            <Table className="min-w-[1000px] table-fixed">
+            <Table className="table-fixed">
               <colgroup>
                 {canDistribute ? <col className="w-10" /> : null}
-                <col className="w-[24%]" />
+                <col className="w-[25%]" />
+                <col className="w-[13%]" />
+                <col className="w-[21%]" />
                 <col className="w-[16%]" />
-                <col className="w-[20%]" />
                 <col className="w-[16%]" />
-                <col className="w-[16%]" />
-                <col className="w-[8%]" />
+                <col className="w-[88px]" />
               </colgroup>
               <TableHead sticky>
                 <tr>
@@ -518,11 +529,11 @@ export function SupervisionCasesTable({
                     </th>
                   ) : null}
                   <TableHeaderCell>Cliente</TableHeaderCell>
-                  <TableHeaderCell align="center">
+                  <TableHeaderCell>
                     <button
                       type="button"
                       onClick={handleDaysOverdueSort}
-                      className="inline-flex items-center justify-center gap-1 rounded px-1 py-0.5 text-[11px] font-bold uppercase tracking-[0.1em] text-neutral transition-colors hover:bg-primary/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                      className="inline-flex items-center gap-1 rounded px-1 py-0.5 text-[11px] font-bold uppercase tracking-[0.1em] text-neutral transition-colors hover:bg-primary/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                       aria-label={`Dias em atraso ${
                         sortBy === 'daysOverdue'
                           ? sortDirection === 'desc'
@@ -531,7 +542,7 @@ export function SupervisionCasesTable({
                           : 'sem ordenação'
                       }`}
                     >
-                      Financeiro
+                      Atraso
                       <span aria-hidden="true">
                         {sortBy === 'daysOverdue'
                           ? sortDirection === 'desc'
@@ -566,33 +577,41 @@ export function SupervisionCasesTable({
                     </button>
                   </TableHeaderCell>
                   <TableHeaderCell>Responsável</TableHeaderCell>
-                  <TableHeaderCell align="center">Ação</TableHeaderCell>
+                  <TableHeaderCell align="center">
+                    <span className="sr-only">Ações</span>
+                  </TableHeaderCell>
                 </tr>
               </TableHead>
               <TableBody>
                 {items.map((item) => {
-                  const sla = getSlaPresentation(item.slaDueAt);
+                  const sla = getVisibleSla(item.slaDueAt);
                   const matrixReply = getMatrixReplyPresentation(item);
-                  const hsmDelivery = getHsmDeliveryPresentation(
-                    item.hsmDeliveryState,
-                    item.hsmDeliveryDetail,
-                  );
                   const isSelected = selectedIds.has(item.id);
                   const isCritical =
                     CRITICAL_STATUSES.has(item.status) ||
                     item.priority === 'CRITICAL' ||
-                    sla.variant === 'danger';
+                    sla?.variant === 'danger';
+                  const severity = getOverdueSeverity(
+                    item.daysOverdue,
+                    isCritical,
+                  );
                   const attemptsLabel =
                     item.totalAttempts === 1 ? 'tentativa' : 'tentativas';
+                  const detailPath = `/supervisao/${item.id}`;
 
                   return (
                     <TableRow
                       key={item.id}
                       className={cn(
-                        isCritical &&
-                          'border-l-2 border-l-danger bg-danger/[0.025] hover:bg-danger/[0.045]',
+                        'cursor-pointer',
+                        SEVERITY_ROW_CLASS[severity],
                         isSelected && 'bg-primary/5',
                       )}
+                      onClick={(event) => {
+                        if (!isInteractiveTarget(event.target)) {
+                          void navigate(detailPath);
+                        }
+                      }}
                     >
                       {canDistribute ? (
                         <TableCell className="w-10">
@@ -617,26 +636,30 @@ export function SupervisionCasesTable({
                           />
                         </div>
                         <div className="mt-0.5 text-xs font-normal text-neutral">
-                          Contrato {item.contractCode} ·{' '}
-                          {formatInteger(item.totalAttempts)} {attemptsLabel}
+                          Contrato {item.contractCode}
                         </div>
                       </TableCell>
-                      <TableCell align="center">
-                        <div className="space-y-1">
-                          <div className="font-semibold tabular-nums">
+                      <TableCell>
+                        <div className="space-y-0.5">
+                          <div
+                            className={cn(
+                              'font-semibold tabular-nums',
+                              SEVERITY_TEXT_CLASS[severity],
+                            )}
+                          >
+                            {formatInteger(item.daysOverdue)} dias
+                          </div>
+                          <div className="text-xs tabular-nums text-neutral">
                             {formatCurrencyFromDecimalString(
                               item.outstandingAmount,
                             )}
                           </div>
-                          <div className="text-xs text-neutral">
-                            {formatInteger(item.daysOverdue)} dias em atraso
-                          </div>
-                          <div className="flex justify-center">
+                          {sla ? (
                             <StatusBadge
                               label={sla.label}
                               variant={sla.variant}
                             />
-                          </div>
+                          ) : null}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -648,24 +671,37 @@ export function SupervisionCasesTable({
                             </span>
                           </div>
                           <div className="text-xs text-neutral">
-                            {matrixReply.label} ·{' '}
                             {item.contractErpStatus ??
                               getContractStatusLabel(item.contractStatus)}
+                            {item.matrixAwaitingReply
+                              ? ` · ${matrixReply.label}`
+                              : ''}
                           </div>
-                          {hsmDelivery ? (
-                            <div className="pt-0.5" title={hsmDelivery.title}>
-                              <StatusBadge
-                                label={hsmDelivery.label}
-                                variant={hsmDelivery.variant}
-                              />
-                            </div>
-                          ) : null}
                         </div>
                       </TableCell>
-                      <TableCell className="text-xs text-neutral">
-                        {item.lastContactAt
-                          ? formatDateTimePtBR(item.lastContactAt)
-                          : '—'}
+                      <TableCell>
+                        <div className="space-y-0.5">
+                          <div
+                            className="text-sm text-foreground"
+                            title={
+                              item.lastContactAt
+                                ? formatDateTimePtBR(item.lastContactAt)
+                                : undefined
+                            }
+                          >
+                            {item.lastContactAt
+                              ? formatRelativeTimePtBR(item.lastContactAt)
+                              : 'Sem contato'}
+                          </div>
+                          <div className="text-xs text-neutral">
+                            {formatInteger(item.totalAttempts)} {attemptsLabel}
+                            <HsmDeliveryBadge
+                              inline
+                              state={item.hsmDeliveryState}
+                              detail={item.hsmDeliveryDetail}
+                            />
+                          </div>
+                        </div>
                       </TableCell>
                       <TableCell className="text-neutral">
                         {canDistribute ? (
@@ -681,19 +717,7 @@ export function SupervisionCasesTable({
                         )}
                       </TableCell>
                       <TableCell align="center">
-                        <div className="mx-auto flex w-[132px] flex-col gap-1.5">
-                          <Link
-                            to={`/supervisao/${item.id}`}
-                            className={cn(
-                              buttonVariants({
-                                variant: 'secondary',
-                                size: 'sm',
-                              }),
-                              'w-full justify-center',
-                            )}
-                          >
-                            Ver detalhes
-                          </Link>
+                        <div className="flex items-center justify-center gap-1">
                           {canDistribute &&
                           canSendCaseToCancellation({
                             status: item.status,
@@ -702,9 +726,24 @@ export function SupervisionCasesTable({
                             <SendToCancellationRowAction
                               caseId={item.id}
                               customerName={item.customerName}
-                              className="w-full"
+                              compact
+                              className="px-2"
                             />
                           ) : null}
+                          <Link
+                            to={detailPath}
+                            title="Ver detalhes"
+                            aria-label={`Ver detalhes de ${item.customerName}`}
+                            className={cn(
+                              buttonVariants({ variant: 'ghost', size: 'sm' }),
+                              'px-2',
+                            )}
+                          >
+                            <ChevronRight
+                              className="h-4 w-4"
+                              aria-hidden="true"
+                            />
+                          </Link>
                         </div>
                       </TableCell>
                     </TableRow>

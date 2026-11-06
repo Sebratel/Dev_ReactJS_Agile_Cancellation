@@ -109,11 +109,12 @@ describe('SupervisionPortfolios', () => {
     ).toBeInTheDocument();
     // Barra de progresso: 8 de 12 interagidos = 67% contatados.
     expect(within(marinaCard).getByText(/67% contatados/)).toBeInTheDocument();
+    // Só o que exige atenção aparece em destaque.
+    expect(within(marinaCard).getByText('3 SLA vencido')).toBeInTheDocument();
+    expect(within(marinaCard).getByText('4 sem interação')).toBeInTheDocument();
     expect(
-      within(marinaCard).getByText('Aguardando resposta'),
+      within(marinaCard).getByText('2 aguardando resposta'),
     ).toBeInTheDocument();
-    expect(within(marinaCard).getByText('Sem interação')).toBeInTheDocument();
-    expect(within(marinaCard).getByText('SLA vencido')).toBeInTheDocument();
     expect(within(marinaCard).getByText('Em aberto')).toBeInTheDocument();
 
     // Card "Sem responsável" tem o botão de distribuir.
@@ -145,5 +146,63 @@ describe('SupervisionPortfolios', () => {
       screen.getByRole('button', { name: 'Ver casos sem responsável' }),
     );
     expect(onSelectAgent).toHaveBeenCalledWith(null);
+  });
+
+  it('mostra a barra de distribuicao e filtra ao clicar num trecho', async () => {
+    const user = userEvent.setup();
+    const onSelectAgent = vi.fn();
+
+    render(
+      <SupervisionPortfolios
+        portfolios={portfolios}
+        agents={agents}
+        isLoading={false}
+        onSelectAgent={onSelectAgent}
+      />,
+    );
+
+    expect(
+      screen.getByRole('region', { name: 'Distribuição da carteira ativa' }),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Filtrar pela carteira de Marina Lopes',
+      }),
+    );
+    expect(onSelectAgent).toHaveBeenCalledWith('usr_marina');
+  });
+
+  it('mostra um balao com os dados do trecho ao passar o mouse', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <SupervisionPortfolios
+        portfolios={portfolios}
+        agents={agents}
+        isLoading={false}
+        onSelectAgent={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole('tooltip')).toBeNull();
+
+    await user.hover(
+      screen.getByRole('button', {
+        name: 'Filtrar pela carteira de Marina Lopes',
+      }),
+    );
+
+    const tooltip = screen.getByRole('tooltip');
+    expect(within(tooltip).getByText('Marina Lopes')).toBeInTheDocument();
+    expect(within(tooltip).getByText('Contatados')).toBeInTheDocument();
+    expect(within(tooltip).getByText('SLA vencido')).toBeInTheDocument();
+
+    await user.unhover(
+      screen.getByRole('button', {
+        name: 'Filtrar pela carteira de Marina Lopes',
+      }),
+    );
+    expect(screen.queryByRole('tooltip')).toBeNull();
   });
 });

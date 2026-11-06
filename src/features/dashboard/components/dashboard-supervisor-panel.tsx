@@ -1,21 +1,27 @@
 import { Link } from 'react-router-dom';
 import {
   ArrowRight,
-  ChevronRight,
-  Headphones,
   Hourglass,
   Inbox,
   Repeat,
   ShieldAlert,
   TrendingUp,
   Users,
-  Wallet,
   UserX,
+  Wallet,
+  Clock,
 } from 'lucide-react';
 import { MetricCard } from '@/components/data-display/metric-card';
-import { SectionCard } from '@/components/data-display/section-card';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import {
+  SupervisorActionsCard,
+  type SupervisorAction,
+} from '@/features/dashboard/components/supervisor-actions-card';
+import { SupervisorHsmCard } from '@/features/dashboard/components/supervisor-hsm-card';
+import { SupervisorLoadCard } from '@/features/dashboard/components/supervisor-load-card';
+import { SupervisorRecoveryCard } from '@/features/dashboard/components/supervisor-recovery-card';
+import { SupervisorTopRecoverersCard } from '@/features/dashboard/components/supervisor-top-recoverers-card';
 import { useRenegotiationSummary } from '@/features/dashboard/hooks/use-renegotiation-summary';
 import { type DashboardSummaryResponse } from '@/features/dashboard/types/dashboard-api.types';
 import { type CollectionCasePortfolioSummary } from '@/features/collection-cases/types/collection-cases-api.types';
@@ -30,91 +36,63 @@ type DashboardSupervisorPanelProps = {
   portfoliosLoading: boolean;
 };
 
-type SupervisorActionTone = 'danger' | 'warning' | 'neutral';
+function toNumber(value: number | string | undefined) {
+  const parsed = Number(value ?? 0);
 
-const ACTION_TONE_CLASSES: Record<SupervisorActionTone, string> = {
-  danger: 'bg-danger/10 text-danger',
-  warning: 'bg-warning/10 text-warning',
-  neutral: 'border border-border text-foreground',
-};
+  return Number.isFinite(parsed) ? parsed : 0;
+}
 
 export function DashboardSupervisorPanel({
   summary,
   portfolios,
   portfoliosLoading,
 }: DashboardSupervisorPanelProps) {
+  const { metrics } = summary;
   const unassigned = portfolios.find((portfolio) => portfolio.agent === null);
-  const agentLoads = portfolios
-    .filter(
-      (portfolio) => portfolio.agent !== null && portfolio.totalActive > 0,
-    )
-    .map((portfolio) => ({
-      label: portfolio.agent?.name ?? 'Sem responsável',
-      count: portfolio.totalActive,
-      unassigned: false,
-    }));
-
-  if (unassigned && unassigned.totalActive > 0) {
-    agentLoads.push({
-      label: 'Sem responsável',
-      count: unassigned.totalActive,
-      unassigned: true,
-    });
-  }
-
-  agentLoads.sort((a, b) => b.count - a.count);
-  const maxLoad = agentLoads.reduce(
-    (max, item) => Math.max(max, item.count),
-    0,
-  );
-
   const inactiveAgents =
     summary.operationalAlerts.find((alert) => alert.key === 'inactiveAgents')
       ?.count ?? 0;
 
-  // Mesma fonte da aba Renegociados (ERP). Indisponivel != 0.
+  // Mesma fonte da aba Renegociados (ERP). Indisponível != 0.
   const renegotiationQuery = useRenegotiationSummary();
   const renegotiationData = renegotiationQuery.data;
-  const renegotiatedOpen: number | string =
+  const renegotiatedOpen: SupervisorAction['value'] =
     renegotiationData?.available === true
       ? renegotiationData.count
       : renegotiationQuery.isLoading
-        ? '…'
-        : 'Indisponível';
+        ? 'loading'
+        : 'unavailable';
 
-  const actions: Array<{
-    label: string;
-    helper: string;
-    value: number | string;
-    tone: SupervisorActionTone;
-    icon: typeof ShieldAlert;
-    href: string;
-  }> = [
+  const actions: SupervisorAction[] = [
     {
+      key: 'eligible',
       label: 'Elegíveis p/ cancelamento',
       helper: 'esforço de recuperação esgotado',
-      value: Number(summary.metrics.eligibleForCancellation),
+      value: toNumber(metrics.eligibleForCancellation),
       tone: 'danger',
       icon: ShieldAlert,
       href: '/supervisao?status=ELIGIBLE_FOR_CANCELLATION',
     },
     {
+      key: 'overduePromises',
       label: 'Promessas vencidas',
       helper: 'acordo furado, sem recontato',
-      value: Number(summary.metrics.overduePromises),
-      tone: 'warning',
+      value: toNumber(metrics.overduePromises),
+      tone: 'danger',
       icon: Hourglass,
       href: '/supervisao?promiseStatus=BROKEN',
     },
     {
-      label: 'Atendentes sem movimento',
-      helper: 'sem contato registrado hoje',
-      value: inactiveAgents,
-      tone: 'neutral',
-      icon: UserX,
-      href: '/supervisao',
+      key: 'unassigned',
+      label: 'Sem responsável',
+      helper: 'fila esperando distribuição',
+      value: unassigned?.totalActive ?? 0,
+      tone: 'warning',
+      icon: Inbox,
+      href: '/supervisao?assignedToId=unassigned',
     },
     {
+      key: 'renegotiated',
       label: 'Renegociados em aberto',
       helper: 'renegociaram e ainda devem',
       value: renegotiatedOpen,
@@ -123,14 +101,27 @@ export function DashboardSupervisorPanel({
       href: '/supervisao',
     },
     {
-      label: 'Sem responsável',
-      helper: 'fila esperando distribuição',
-      value: unassigned?.totalActive ?? 0,
+      key: 'inactiveAgents',
+      label: 'Atendentes sem movimento hoje',
+      helper: 'sem contato registrado hoje',
+      value: inactiveAgents,
       tone: 'neutral',
-      icon: Inbox,
-      href: '/supervisao?assignedToId=unassigned',
+      icon: UserX,
+      href: '/supervisao',
     },
   ];
+
+  const activeCases = toNumber(metrics.assignedActiveCases);
+  const paidMonth = toNumber(metrics.recoveredMonth);
+  // Backend antigo (durante um deploy) pode não enviar o campo: mostra "—" em
+  // vez de R$ 0,00, que seria um dado falso.
+  const hasContactBreakdown = metrics.recoveredAfterContactMonth !== undefined;
+  const recoveredAfterContact = toNumber(metrics.recoveredAfterContactMonth);
+  // O restante das faturas pagas no mês pagou sem contato de atendente.
+  const paidOnOwn = Math.max(paidMonth - recoveredAfterContact, 0);
+  const waitingTriage =
+    summary.statusDistribution.find((item) => item.status === 'WAITING_TRIAGE')
+      ?.count ?? 0;
 
   return (
     <div className="space-y-4">
@@ -164,124 +155,65 @@ export function DashboardSupervisorPanel({
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <MetricCard
           title="Em aberto"
-          value={formatCurrencyFromDecimalString(
-            String(summary.metrics.openAmount),
-          )}
-          description="aguardando regularização"
+          value={formatCurrencyFromDecimalString(String(metrics.openAmount))}
+          description={`saldo dos ${formatInteger(activeCases)} casos ativos`}
           icon={Wallet}
-          variant="warning"
-          emphasis="primary"
+          variant="neutral"
           density="compact"
         />
         <MetricCard
-          title="Retido no mês"
-          value={formatCurrencyFromDecimalString(
-            String(summary.metrics.recoveredMonth),
-          )}
-          description="confirmado no ciclo"
+          title="Recuperado no mês"
+          value={
+            hasContactBreakdown
+              ? formatCurrencyFromDecimalString(
+                  String(metrics.recoveredAfterContactMonth),
+                )
+              : '—'
+          }
+          description={
+            hasContactBreakdown
+              ? `pago após contato · ${formatCurrencyFromDecimalString(String(paidOnOwn))} pagaram sozinhos`
+              : 'pago após contato'
+          }
           icon={TrendingUp}
           variant="success"
           density="compact"
         />
         <MetricCard
           title="Clientes em atraso"
-          value={formatInteger(Number(summary.metrics.delinquentCustomers))}
-          description="carteira monitorada"
+          value={formatInteger(toNumber(metrics.delinquentCustomers))}
+          description={`clientes com caso ativo (${formatInteger(activeCases)} casos)`}
           icon={Users}
           variant="neutral"
           density="compact"
         />
         <MetricCard
-          title="Em cobrança"
-          value={formatInteger(Number(summary.metrics.inCollection))}
-          description="em tratativa ativa"
-          icon={Headphones}
+          title="Aguardando triagem"
+          value={formatInteger(waitingTriage)}
+          description={`${formatInteger(toNumber(metrics.inCollection))} em cobrança · ${formatInteger(toNumber(metrics.cancellationsInProgress))} em cancelamento`}
+          icon={Clock}
           variant="neutral"
           density="compact"
         />
       </div>
 
-      <div className="grid gap-4 2xl:grid-cols-2">
-        <SectionCard title="Precisa de ação" contentClassName="space-y-2 p-4">
-          {actions.map((action) => {
-            const Icon = action.icon;
-            return (
-              <Link
-                key={action.label}
-                to={action.href}
-                className="flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-muted/50"
-              >
-                <span
-                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${ACTION_TONE_CLASSES[action.tone]}`}
-                >
-                  <Icon className="h-5 w-5" aria-hidden="true" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-medium">
-                    {action.label}
-                  </span>
-                  <span className="block truncate text-xs text-neutral">
-                    {action.helper}
-                  </span>
-                </span>
-                <span className="shrink-0 text-base font-bold tabular-nums">
-                  {typeof action.value === 'number'
-                    ? formatInteger(action.value)
-                    : action.value}
-                </span>
-                <ChevronRight
-                  className="h-4 w-4 shrink-0 text-neutral"
-                  aria-hidden="true"
-                />
-              </Link>
-            );
-          })}
-        </SectionCard>
+      <div className="grid gap-4 xl:grid-cols-2">
+        <SupervisorActionsCard
+          actions={actions}
+          onRetry={() => {
+            void renegotiationQuery.refetch();
+          }}
+        />
+        <SupervisorLoadCard
+          portfolios={portfolios}
+          isLoading={portfoliosLoading}
+        />
+      </div>
 
-        <SectionCard
-          title="Carga por atendente"
-          description="Casos ativos por atendente (e sem responsável)."
-          contentClassName="p-4"
-        >
-          {portfoliosLoading ? (
-            <div className="space-y-2.5">
-              {Array.from({ length: 4 }).map((_, index) => (
-                <div
-                  key={index}
-                  className="h-6 animate-pulse rounded bg-muted/50"
-                />
-              ))}
-            </div>
-          ) : agentLoads.length === 0 ? (
-            <p className="py-8 text-center text-sm text-neutral">
-              Sem carteira ativa para exibir.
-            </p>
-          ) : (
-            <div className="space-y-2.5">
-              {agentLoads.map((item) => (
-                <div key={item.label} className="flex items-center gap-3">
-                  <span className="w-28 shrink-0 truncate text-xs text-neutral">
-                    {item.label}
-                  </span>
-                  <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-muted">
-                    <div
-                      className={cn(
-                        'h-full rounded-full',
-                        item.unassigned ? 'bg-warning' : 'bg-primary',
-                      )}
-                      style={{
-                        width: `${maxLoad > 0 ? Math.round((item.count / maxLoad) * 100) : 0}%`,
-                      }}
-                    />
-                  </div>
-                  <span className="w-8 shrink-0 text-right text-xs font-medium tabular-nums">
-                    {formatInteger(item.count)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </SectionCard>
+      <div className="grid gap-4 lg:grid-cols-3">
+        <SupervisorRecoveryCard trend={summary.recoveryTrend} />
+        <SupervisorTopRecoverersCard />
+        <SupervisorHsmCard />
       </div>
     </div>
   );

@@ -4,6 +4,9 @@ export type DashboardMetricKey =
   | 'inCollection'
   | 'eligibleForCancellation'
   | 'recoveredMonth'
+  // Parte do recuperado no mês que veio de contato de atendente antes do
+  // pagamento (RECOVERED). O restante de `recoveredMonth` pagou sozinho.
+  | 'recoveredAfterContactMonth'
   | 'activePromises'
   | 'overduePromises'
   | 'cancellationsInProgress'

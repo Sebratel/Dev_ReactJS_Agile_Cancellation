@@ -1,3 +1,4 @@
+import { type ReactNode } from 'react';
 import { AlertTriangle, CheckCircle2, RefreshCw } from 'lucide-react';
 import { useSyncHealth } from '@/features/integrations/hooks/use-integration-events';
 import { cn } from '@/lib/utils';
@@ -19,7 +20,8 @@ function relativeFromNow(iso: string | null): string {
   return `há ${days} ${days === 1 ? 'dia' : 'dias'}`;
 }
 
-export function SyncHealthBanner() {
+// `trailing` entra no fim da mesma linha (ex.: entradas do dia).
+export function SyncHealthBanner({ trailing }: { trailing?: ReactNode }) {
   const query = useSyncHealth();
 
   if (query.isLoading || query.isError || !query.data) {
@@ -41,7 +43,7 @@ export function SyncHealthBanner() {
   return (
     <div
       className={cn(
-        'flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border px-4 py-2.5 text-sm',
+        'flex flex-wrap items-center gap-x-5 gap-y-1 rounded-lg border px-4 py-2 text-sm',
         tone === 'danger' && 'border-danger/40 bg-danger/5',
         tone === 'warning' && 'border-warning/40 bg-warning/5',
         tone === 'ok' && 'border-border bg-card',
@@ -100,6 +102,8 @@ export function SyncHealthBanner() {
             : 'sem registro'}
         </span>
       </div>
+
+      {trailing}
 
       {noRecentInflow ? (
         <span className="text-xs text-warning">

@@ -1,17 +1,14 @@
 import { useMemo, useState } from 'react';
 import {
-  Activity,
   AlertTriangle,
   ArrowRight,
+  Check,
   ChevronRight,
   Clock,
   MessageSquareDashed,
   UserRound,
-  Users,
-  UserX,
-  Wallet,
 } from 'lucide-react';
-import { MetricCard } from '@/components/data-display/metric-card';
+import { PortfolioDistributionBar } from '@/features/supervision/components/portfolio-distribution-bar';
 import { SectionCard } from '@/components/data-display/section-card';
 import { cn } from '@/lib/utils';
 import { type CollectionCasePortfolioSummary } from '@/features/collection-cases/types/collection-cases-api.types';
@@ -80,41 +77,28 @@ function PortfolioAvatar({
   );
 }
 
-function Indicator({
+// Só o que exige atenção ganha destaque; zeros não disputam o olhar.
+function AttentionPill({
   icon: Icon,
-  label,
-  value,
+  text,
   tone,
 }: {
   icon: React.ElementType;
-  label: string;
-  value: string;
-  tone: 'neutral' | 'danger' | 'warning';
+  text: string;
+  tone: 'danger' | 'warning' | 'info';
 }) {
   return (
-    <div className="flex items-center gap-2">
-      <span
-        className={cn(
-          'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg',
-          tone === 'danger' && 'bg-danger/10 text-danger',
-          tone === 'warning' && 'bg-warning/10 text-warning',
-          tone === 'neutral' && 'bg-muted text-neutral',
-        )}
-      >
-        <Icon className="h-3.5 w-3.5" aria-hidden="true" />
-      </span>
-      <div className="min-w-0">
-        <div
-          className={cn(
-            'text-sm font-semibold tabular-nums leading-none',
-            tone === 'danger' && value !== '0' && 'text-danger',
-          )}
-        >
-          {value}
-        </div>
-        <div className="mt-0.5 truncate text-[11px] text-neutral">{label}</div>
-      </div>
-    </div>
+    <span
+      className={cn(
+        'inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium',
+        tone === 'danger' && 'bg-danger/10 text-danger',
+        tone === 'warning' && 'bg-warning/15 text-warning',
+        tone === 'info' && 'bg-primary/15 text-foreground',
+      )}
+    >
+      <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+      {text}
+    </span>
   );
 }
 
@@ -174,12 +158,19 @@ function PortfolioCard({
   onSelect: () => void;
 }) {
   const name = portfolio.agent?.name ?? 'Sem responsável';
+  const noInteraction = noInteractionCount(portfolio);
+  const needsAttention = portfolio.slaOverdue > 0 || noInteraction > 0;
 
   return (
     <button
       type="button"
       onClick={onSelect}
-      className="group flex flex-col gap-3 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-primary/40 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+      className={cn(
+        'group flex flex-col gap-3.5 rounded-xl border bg-card p-4 text-left transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+        needsAttention
+          ? 'border-warning/50 hover:border-warning'
+          : 'border-border hover:border-primary/40',
+      )}
       aria-label={`Ver casos de ${name}`}
     >
       <div className="flex items-center gap-3">
@@ -207,31 +198,40 @@ function PortfolioCard({
         total={portfolio.totalAssigned}
       />
 
-      <div className="grid grid-cols-2 gap-x-3 gap-y-3 border-t border-border pt-3">
-        <Indicator
-          icon={MessageSquareDashed}
-          label="Sem interação"
-          value={formatInteger(noInteractionCount(portfolio))}
-          tone="neutral"
-        />
-        <Indicator
-          icon={Clock}
-          label="Aguardando resposta"
-          value={formatInteger(portfolio.awaitingReply)}
-          tone="warning"
-        />
-        <Indicator
-          icon={AlertTriangle}
-          label="SLA vencido"
-          value={formatInteger(portfolio.slaOverdue)}
-          tone="danger"
-        />
-        <Indicator
-          icon={Wallet}
-          label="Em aberto"
-          value={formatCurrencyFromDecimalString(portfolio.totalOutstanding)}
-          tone="neutral"
-        />
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-2 border-t border-border pt-3.5">
+        {portfolio.slaOverdue > 0 ? (
+          <AttentionPill
+            icon={AlertTriangle}
+            tone="danger"
+            text={`${formatInteger(portfolio.slaOverdue)} SLA vencido`}
+          />
+        ) : null}
+        {noInteraction > 0 ? (
+          <AttentionPill
+            icon={MessageSquareDashed}
+            tone="warning"
+            text={`${formatInteger(noInteraction)} sem interação`}
+          />
+        ) : null}
+        {portfolio.awaitingReply > 0 ? (
+          <AttentionPill
+            icon={Clock}
+            tone="info"
+            text={`${formatInteger(portfolio.awaitingReply)} aguardando resposta`}
+          />
+        ) : null}
+        {!needsAttention ? (
+          <p className="flex items-center gap-1.5 text-xs text-neutral">
+            <Check className="h-3.5 w-3.5" aria-hidden="true" />
+            Sem pendências
+          </p>
+        ) : null}
+        <span className="mt-1 flex w-full items-baseline justify-between border-t border-border pt-2.5">
+          <span className="text-xs text-neutral">Em aberto</span>
+          <span className="text-base font-semibold tabular-nums">
+            {formatCurrencyFromDecimalString(portfolio.totalOutstanding)}
+          </span>
+        </span>
       </div>
     </button>
   );
@@ -248,7 +248,7 @@ function UnassignedCard({
     <button
       type="button"
       onClick={onSelect}
-      className="group flex w-full flex-col gap-3 rounded-xl border border-warning/50 border-l-4 border-l-warning bg-card p-4 text-left transition-colors hover:bg-warning/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-warning/40"
+      className="group flex w-full flex-col gap-3 rounded-xl border border-warning/50 border-l-4 border-l-warning bg-card px-4 py-4 text-left transition-colors hover:bg-warning/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-warning/40"
       aria-label="Ver casos sem responsável"
     >
       <div className="flex items-center gap-3">
@@ -257,40 +257,40 @@ function UnassignedCard({
         </span>
         <div className="min-w-0 flex-1">
           <span className="font-semibold">Sem responsável</span>
-          <div className="mt-0.5 text-xs text-neutral">
-            {formatInteger(portfolio.totalActive)}{' '}
-            {portfolio.totalActive === 1 ? 'caso ativo' : 'casos ativos'} · fila
-            esperando distribuição
+          <div className="mt-0.5 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-neutral">
+            <span>
+              {formatInteger(portfolio.totalActive)}{' '}
+              {portfolio.totalActive === 1 ? 'caso ativo' : 'casos ativos'} ·
+              aguardando distribuição
+            </span>
+            <span>
+              <strong className="font-semibold tabular-nums text-foreground">
+                {formatInteger(portfolio.noManualInteraction)}
+              </strong>{' '}
+              sem interação
+            </span>
+            <span>
+              <strong
+                className={cn(
+                  'font-semibold tabular-nums',
+                  portfolio.slaOverdue > 0 ? 'text-danger' : 'text-foreground',
+                )}
+              >
+                {formatInteger(portfolio.slaOverdue)}
+              </strong>{' '}
+              SLA vencido
+            </span>
+            <span>
+              <strong className="font-semibold tabular-nums text-foreground">
+                {formatCurrencyFromDecimalString(portfolio.totalOutstanding)}
+              </strong>{' '}
+              em aberto
+            </span>
           </div>
         </div>
         <span className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-warning px-3 py-1.5 text-sm font-semibold text-white">
           Distribuir
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
-        </span>
-      </div>
-      <div className="flex flex-wrap gap-x-6 gap-y-1.5 border-t border-border pt-3 text-xs text-neutral">
-        <span>
-          <strong className="font-semibold text-foreground tabular-nums">
-            {formatInteger(portfolio.noManualInteraction)}
-          </strong>{' '}
-          sem interação
-        </span>
-        <span>
-          <strong
-            className={cn(
-              'font-semibold tabular-nums',
-              portfolio.slaOverdue > 0 ? 'text-danger' : 'text-foreground',
-            )}
-          >
-            {formatInteger(portfolio.slaOverdue)}
-          </strong>{' '}
-          SLA vencido
-        </span>
-        <span>
-          <strong className="font-semibold text-foreground tabular-nums">
-            {formatCurrencyFromDecimalString(portfolio.totalOutstanding)}
-          </strong>{' '}
-          em aberto
         </span>
       </div>
     </button>
@@ -387,10 +387,7 @@ export function SupervisionPortfolios({
   }, [merged, unassigned]);
 
   return (
-    <SectionCard
-      title="Carteiras por atendente"
-      description="Visão consolidada da carga de cada atendente. Clique numa carteira para ver os casos."
-    >
+    <SectionCard title="Carteiras por atendente">
       {isLoading ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 6 }).map((_, index) => (
@@ -405,50 +402,30 @@ export function SupervisionPortfolios({
           Nenhuma carteira para exibir.
         </p>
       ) : (
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <MetricCard
-              title="Carteira ativa"
-              value={formatInteger(totals.activeTotal)}
-              description="casos ativos na operação"
-              icon={Users}
-              variant="neutral"
-              density="compact"
-            />
-            <MetricCard
-              title="Interagidos"
-              value={`${totals.interactedPct}%`}
-              description="da carteira com contato"
-              icon={Activity}
-              variant="success"
-              density="compact"
-            />
-            <MetricCard
-              title="Em aberto"
-              value={formatCurrencyFromDecimalString(
-                totals.outstandingTotal.toFixed(2),
-              )}
-              description="valor total da carteira"
-              icon={Wallet}
-              variant="warning"
-              density="compact"
-            />
-            <MetricCard
-              title="Sem responsável"
-              value={formatInteger(totals.unassignedActive)}
-              description="aguardando distribuição"
-              icon={UserX}
-              variant={totals.unassignedActive > 0 ? 'warning' : 'neutral'}
-              density="compact"
-            />
-          </div>
-
+        <div className="space-y-5">
           {unassigned && unassigned.totalActive > 0 ? (
             <UnassignedCard
               portfolio={unassigned}
               onSelect={() => onSelectAgent(null)}
             />
           ) : null}
+
+          <PortfolioDistributionBar
+            portfolios={merged}
+            onSelectAgent={onSelectAgent}
+            stats={[
+              {
+                label: 'Interagidos',
+                value: `${totals.interactedPct}%`,
+              },
+              {
+                label: 'Em aberto',
+                value: formatCurrencyFromDecimalString(
+                  totals.outstandingTotal.toFixed(2),
+                ),
+              },
+            ]}
+          />
 
           <div className="flex items-center justify-between gap-3">
             <span className="text-sm font-semibold">Atendentes</span>

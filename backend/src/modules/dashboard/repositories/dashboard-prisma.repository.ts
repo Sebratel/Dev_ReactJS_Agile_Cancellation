@@ -12,6 +12,7 @@ import {
   cancellationReasonCategoryLabel,
   categorizeCancellationReason,
   cleanCancellationReasonLabel,
+  NO_CANCELLATION_REASON_LABEL,
   type CancellationReasonCategory,
 } from '@/common/cancellation-reason';
 import { formatDecimal } from '@/common/utils/decimal.util';
@@ -54,6 +55,8 @@ const STATUS_LABELS: Record<CollectionStatus, string> = {
   RECOVERED: 'Recuperado',
   PAYMENT_MADE: 'Pagamento realizado',
   RENEGOTIATED: 'Renegociado',
+  CANCELLED_IN_RECOVERY: 'Cancelado em recuperacao',
+  REACTIVATED: 'Reativado',
 };
 
 const ACTIVE_CANCELLATION_STATUSES: CancellationStatus[] = [
@@ -64,7 +67,7 @@ const ACTIVE_CANCELLATION_STATUSES: CancellationStatus[] = [
 ];
 
 const CANCELLED_ERP_STATUS = 'Cancelado';
-const NO_REASON_LABEL = 'Sem motivo registrado';
+const NO_REASON_LABEL = NO_CANCELLATION_REASON_LABEL;
 
 @Injectable()
 export class DashboardPrismaRepository implements DashboardRepository {
@@ -105,6 +108,7 @@ export class DashboardPrismaRepository implements DashboardRepository {
       inCollection,
       eligibleForCancellation,
       recoveredMonthAggregate,
+      recoveredAfterContactAggregate,
       activePromises,
       overduePromises,
       cancellationsInProgress,
@@ -153,6 +157,15 @@ export class DashboardPrismaRepository implements DashboardRepository {
             },
             _sum: { paidAmount: true },
           }),
+      // So o que foi recuperado com contato de atendente antes do pagamento.
+      this.prisma.collectionCase.aggregate({
+        where: {
+          ...scopedCaseWhere,
+          status: CollectionStatus.RECOVERED,
+          recoveredAt: { gte: monthStart, lt: monthEnd },
+        },
+        _sum: { recoveredAmount: true },
+      }),
       this.prisma.paymentPromise.count({
         where: { ...scopedPromiseWhere, status: PaymentPromiseStatus.ACTIVE },
       }),
@@ -266,11 +279,7 @@ export class DashboardPrismaRepository implements DashboardRepository {
     );
     const slaConfigured = Number(slaConfiguredCases) > 0;
 
-    const recoveryTrend = await this.buildRecoveryTrend(
-      monthStart,
-      monthEnd,
-      scopedCaseWhere,
-    );
+    const recoveryTrend = await this.buildRecoveryTrend(now, scopedCaseWhere);
 
     const recoveredMonthSum = recoveredMonthAggregate._sum as {
       recoveredAmount?: Prisma.Decimal | null;
@@ -333,6 +342,9 @@ export class DashboardPrismaRepository implements DashboardRepository {
         eligibleForCancellation,
         recoveredMonth: formatDecimal(
           recoveredMonthSum.paidAmount ?? recoveredMonthSum.recoveredAmount,
+        ),
+        recoveredAfterContactMonth: formatDecimal(
+          recoveredAfterContactAggregate._sum.recoveredAmount,
         ),
         activePromises,
         overduePromises,
@@ -521,16 +533,18 @@ export class DashboardPrismaRepository implements DashboardRepository {
       userIds.length > 0
         ? await this.prisma.user.findMany({
             where: { id: { in: userIds } },
-            select: { id: true, name: true },
+            select: { id: true, name: true, avatarUrl: true },
           })
         : [];
 
     const nameById = new Map(users.map((user) => [user.id, user.name]));
+    const avatarById = new Map(users.map((user) => [user.id, user.avatarUrl]));
 
     const ranking: DashboardRecoveryRankingItem[] = grouped
       .map((group) => ({
         userId: group.assignedUserId as string,
         name: nameById.get(group.assignedUserId as string) ?? 'Sem nome',
+        avatarUrl: avatarById.get(group.assignedUserId as string) ?? null,
         recoveredAmountValue: Number(
           group._sum.recoveredAmount?.toString() ?? '0',
         ),
@@ -541,6 +555,7 @@ export class DashboardPrismaRepository implements DashboardRepository {
         rank: index + 1,
         userId: item.userId,
         name: item.name,
+        avatarUrl: item.avatarUrl,
         recoveredAmount: item.recoveredAmountValue.toFixed(2),
         recoveredCases: item.recoveredCases,
       }));
@@ -563,19 +578,29 @@ export class DashboardPrismaRepository implements DashboardRepository {
     };
   }
 
+  // Recuperação dos últimos 7 dias (terminando hoje), por dia de recuperação.
   private async buildRecoveryTrend(
-    monthStart: Date,
-    monthEnd: Date,
+    now: Date,
     caseWhere: Prisma.CollectionCaseWhereInput = {},
   ): Promise<DashboardRecoveryTrendItem[]> {
+    const todayStart = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+    );
+    const windowStart = new Date(todayStart);
+    windowStart.setDate(windowStart.getDate() - 6);
+    const windowEnd = new Date(todayStart);
+    windowEnd.setDate(windowEnd.getDate() + 1);
+
     const recoveredCases = await this.prisma.collectionCase.findMany({
       where: {
         ...caseWhere,
         status: CollectionStatus.RECOVERED,
-        updatedAt: { gte: monthStart, lt: monthEnd },
+        recoveredAt: { gte: windowStart, lt: windowEnd },
       },
       select: {
-        updatedAt: true,
+        recoveredAt: true,
         recoveredAmount: true,
       },
     });
@@ -583,13 +608,16 @@ export class DashboardPrismaRepository implements DashboardRepository {
     const trend: DashboardRecoveryTrendItem[] = [];
 
     for (let dayIndex = 0; dayIndex < 7; dayIndex += 1) {
-      const dayStart = new Date(monthStart);
-      dayStart.setDate(monthStart.getDate() + dayIndex);
+      const dayStart = new Date(windowStart);
+      dayStart.setDate(windowStart.getDate() + dayIndex);
       const dayEnd = new Date(dayStart);
       dayEnd.setDate(dayEnd.getDate() + 1);
 
       const dayCases = recoveredCases.filter(
-        (item) => item.updatedAt >= dayStart && item.updatedAt < dayEnd,
+        (item) =>
+          item.recoveredAt !== null &&
+          item.recoveredAt >= dayStart &&
+          item.recoveredAt < dayEnd,
       );
 
       const recoveredAmount = dayCases.reduce(
@@ -599,7 +627,7 @@ export class DashboardPrismaRepository implements DashboardRepository {
       );
 
       trend.push({
-        dayLabel: `Dia ${dayIndex + 1}`,
+        dayLabel: `${String(dayStart.getDate()).padStart(2, '0')}/${String(dayStart.getMonth() + 1).padStart(2, '0')}`,
         recoveredAmount: recoveredAmount.toFixed(2),
         recoveredCases: dayCases.length,
       });
@@ -685,15 +713,17 @@ export class DashboardPrismaRepository implements DashboardRepository {
       };
     });
 
-    const topReasons = [...reasonCount.values()]
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 12);
+    const allReasons = [...reasonCount.values()].sort(
+      (a, b) => b.count - a.count,
+    );
+    const topReasons = allReasons.slice(0, 12);
 
     return {
       totalClosed,
       withReason,
       byCategory,
       topReasons,
+      allReasons,
       excludedNotCancelled,
     };
   }
