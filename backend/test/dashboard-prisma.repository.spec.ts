@@ -78,4 +78,49 @@ describe('DashboardPrismaRepository operations', () => {
     expect(operations.financial.recoveredAmount).toBe('300.00');
     expect(operations.financial.cancelledAmount).toBe('150.00');
   });
+
+  it('ranking soma o valor pago (recoveredAmount), nao o saldo em aberto zerado', async () => {
+    const groupBy = jest.fn().mockResolvedValue([
+      {
+        assignedUserId: 'usr_deb',
+        _sum: { recoveredAmount: { toString: () => '299.70' } },
+        _count: { _all: 2 },
+      },
+      {
+        assignedUserId: 'usr_ste',
+        // Recuperado sem valor gravado (ex.: reativação manual) conta como zero.
+        _sum: { recoveredAmount: null },
+        _count: { _all: 1 },
+      },
+    ]);
+    const findMany = jest.fn().mockResolvedValue([
+      { id: 'usr_deb', name: 'Debora' },
+      { id: 'usr_ste', name: 'Stephany' },
+    ]);
+    const prisma = {
+      collectionCase: { groupBy },
+      user: { findMany },
+    } as unknown as PrismaService;
+
+    const repository = new DashboardPrismaRepository(prisma);
+    const result = await repository.getRecoveryRanking({
+      from: new Date('2026-11-01T00:00:00.000Z'),
+      to: new Date('2026-12-01T00:00:00.000Z'),
+    });
+
+    expect(groupBy).toHaveBeenCalledWith(
+      expect.objectContaining({ _sum: { recoveredAmount: true } }),
+    );
+    expect(result.ranking[0]).toMatchObject({
+      name: 'Debora',
+      recoveredAmount: '299.70',
+      recoveredCases: 2,
+    });
+    expect(result.ranking[1]).toMatchObject({
+      name: 'Stephany',
+      recoveredAmount: '0.00',
+    });
+    expect(result.totalRecoveredAmount).toBe('299.70');
+    expect(result.totalRecoveredCases).toBe(3);
+  });
 });

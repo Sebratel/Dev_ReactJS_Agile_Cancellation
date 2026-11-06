@@ -864,6 +864,42 @@ export class ErpSyncService implements OnModuleDestroy {
               });
             }
 
+            // Valor efetivamente pago por contrato = soma dos títulos-gatilho pagos
+            // no ERP (inclui os que já tinham sido baixados antes). É a receita que
+            // o ranking credita: o saldo em aberto é zerado ao recuperar.
+            const paidInvoices =
+              paidTitleIds.size > 0
+                ? await tx.invoice.findMany({
+                    where: {
+                      contractId: { in: contractIds },
+                      externalId: { in: [...paidTitleIds] },
+                      status: InvoiceStatus.PAID,
+                    },
+                    select: { contractId: true, amount: true },
+                  })
+                : [];
+            const paidCentsByContract = new Map<string, number>();
+            for (const invoice of paidInvoices) {
+              paidCentsByContract.set(
+                invoice.contractId,
+                (paidCentsByContract.get(invoice.contractId) ?? 0) +
+                  Math.round(Number(invoice.amount.toString()) * 100),
+              );
+            }
+            const contractIdByCase = new Map(
+              paidCases.map((collectionCase) => [
+                collectionCase.id,
+                collectionCase.contractId,
+              ]),
+            );
+            const paidAmountFor = (caseId: string) => {
+              const contractId = contractIdByCase.get(caseId);
+              const cents = contractId
+                ? (paidCentsByContract.get(contractId) ?? 0)
+                : 0;
+              return (cents / 100).toFixed(2);
+            };
+
             // Distingue quem foi RECUPERADO por um atendente (teve pelo menos 1
             // tentativa manual antes de pagar) de quem so PAGOU sem atendimento
             // (PAYMENT_MADE). Assim a supervisao/ranking nao credita ao atendente um
@@ -917,12 +953,14 @@ export class ErpSyncService implements OnModuleDestroy {
             );
             const paidCaseIds = caseIds.filter((id) => !recoveredIds.has(id));
 
-            if (recoveredCaseIds.length > 0) {
-              await tx.collectionCase.updateMany({
-                where: { id: { in: recoveredCaseIds } },
+            // Um update por caso: cada um grava o valor pago do próprio contrato.
+            for (const caseId of recoveredCaseIds) {
+              await tx.collectionCase.update({
+                where: { id: caseId },
                 data: {
                   status: CollectionStatus.RECOVERED,
                   recoveredAt: now,
+                  recoveredAmount: paidAmountFor(caseId),
                   outstandingAmount: 0,
                   daysOverdue: 0,
                   updatedAt: now,
@@ -930,12 +968,13 @@ export class ErpSyncService implements OnModuleDestroy {
               });
             }
 
-            if (paidCaseIds.length > 0) {
-              await tx.collectionCase.updateMany({
-                where: { id: { in: paidCaseIds } },
+            for (const caseId of paidCaseIds) {
+              await tx.collectionCase.update({
+                where: { id: caseId },
                 data: {
                   status: CollectionStatus.PAYMENT_MADE,
                   recoveredAt: now,
+                  recoveredAmount: paidAmountFor(caseId),
                   outstandingAmount: 0,
                   daysOverdue: 0,
                   updatedAt: now,

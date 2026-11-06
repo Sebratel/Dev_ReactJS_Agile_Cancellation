@@ -789,6 +789,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
         data: {
           status: CollectionStatus.IN_COLLECTION,
           recoveredAt: null,
+          recoveredAmount: null,
           assignedUserId,
           assignedAt: now,
           updatedAt: now,

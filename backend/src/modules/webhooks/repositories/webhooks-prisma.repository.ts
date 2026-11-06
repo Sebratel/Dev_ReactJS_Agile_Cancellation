@@ -157,6 +157,7 @@ export class WebhooksPrismaRepository implements WebhooksRepository {
                 ? {
                     cycleStartedAt: now,
                     recoveredAt: null,
+                    recoveredAmount: null,
                     assignedUserId: null,
                     matrixAwaitingReply: false,
                     matrixLastOutboundAt: null,

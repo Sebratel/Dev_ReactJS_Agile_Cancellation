@@ -144,7 +144,7 @@ export class DashboardPrismaRepository implements DashboardRepository {
               status: CollectionStatus.RECOVERED,
               recoveredAt: { gte: monthStart, lt: monthEnd },
             },
-            _sum: { outstandingAmount: true },
+            _sum: { recoveredAmount: true },
           })
         : this.prisma.invoice.aggregate({
             where: {
@@ -273,7 +273,7 @@ export class DashboardPrismaRepository implements DashboardRepository {
     );
 
     const recoveredMonthSum = recoveredMonthAggregate._sum as {
-      outstandingAmount?: Prisma.Decimal | null;
+      recoveredAmount?: Prisma.Decimal | null;
       paidAmount?: Prisma.Decimal | null;
     };
 
@@ -332,7 +332,7 @@ export class DashboardPrismaRepository implements DashboardRepository {
         inCollection,
         eligibleForCancellation,
         recoveredMonth: formatDecimal(
-          recoveredMonthSum.paidAmount ?? recoveredMonthSum.outstandingAmount,
+          recoveredMonthSum.paidAmount ?? recoveredMonthSum.recoveredAmount,
         ),
         activePromises,
         overduePromises,
@@ -509,7 +509,7 @@ export class DashboardPrismaRepository implements DashboardRepository {
         recoveredAt: { gte: from, lt: to },
         assignedUserId: { not: null },
       },
-      _sum: { outstandingAmount: true },
+      _sum: { recoveredAmount: true },
       _count: { _all: true },
     });
 
@@ -532,7 +532,7 @@ export class DashboardPrismaRepository implements DashboardRepository {
         userId: group.assignedUserId as string,
         name: nameById.get(group.assignedUserId as string) ?? 'Sem nome',
         recoveredAmountValue: Number(
-          group._sum.outstandingAmount?.toString() ?? '0',
+          group._sum.recoveredAmount?.toString() ?? '0',
         ),
         recoveredCases: group._count._all,
       }))
@@ -576,7 +576,7 @@ export class DashboardPrismaRepository implements DashboardRepository {
       },
       select: {
         updatedAt: true,
-        outstandingAmount: true,
+        recoveredAmount: true,
       },
     });
 
@@ -593,7 +593,8 @@ export class DashboardPrismaRepository implements DashboardRepository {
       );
 
       const recoveredAmount = dayCases.reduce(
-        (total, item) => total + Number(item.outstandingAmount.toString()),
+        (total, item) =>
+          total + Number(item.recoveredAmount?.toString() ?? '0'),
         0,
       );
 
