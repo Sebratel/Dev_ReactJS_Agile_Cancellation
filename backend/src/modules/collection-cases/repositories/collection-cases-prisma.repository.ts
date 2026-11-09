@@ -9,7 +9,8 @@ import {
   UserStatus,
   IntegrationEventStatus,
 } from '@prisma/client';
-import { Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { AppException } from '@/common/exceptions/app.exception';
 import { createPaginatedResponse } from '@/common/pagination/paginated-response';
 import {
   cancellationReasonCategoryLabel,
@@ -1065,6 +1066,25 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
     const now = new Date();
 
     const promise = await this.prisma.$transaction(async (tx) => {
+      // Evita promessa repetida (duplo clique, reenvio): mesma data e mesmo
+      // valor ainda ativos no caso. Para mudar o acordo, cancele a anterior.
+      const duplicate = await tx.paymentPromise.findFirst({
+        where: {
+          collectionCaseId: caseId,
+          status: PaymentPromiseStatus.ACTIVE,
+          promisedDate: new Date(input.promisedDate),
+          promisedAmount: new Prisma.Decimal(input.promisedAmount),
+        },
+        select: { id: true },
+      });
+
+      if (duplicate) {
+        throw new AppException(
+          'Este caso já tem uma promessa ativa com a mesma data e o mesmo valor. Cancele a anterior se quiser alterar o acordo.',
+          HttpStatus.CONFLICT,
+        );
+      }
+
       const createdPromise = await tx.paymentPromise.create({
         data: {
           collectionCaseId: caseId,

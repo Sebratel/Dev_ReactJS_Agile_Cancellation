@@ -651,6 +651,7 @@ describe('PaymentPromisesPrismaRepository', () => {
     expect(findMany).toHaveBeenLastCalledWith(
       expect.objectContaining({
         where: {
+          status: { not: 'CANCELLED' },
           collectionCase: { status: { in: ['RECOVERED', 'PAYMENT_MADE'] } },
         },
       }),
@@ -664,6 +665,7 @@ describe('PaymentPromisesPrismaRepository', () => {
     expect(findMany).toHaveBeenLastCalledWith(
       expect.objectContaining({
         where: {
+          status: { not: 'CANCELLED' },
           collectionCase: {
             status: {
               in: [
@@ -688,7 +690,22 @@ describe('PaymentPromisesPrismaRepository', () => {
     await repository.list({ page: 1, limit: 10 });
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { collectionCase: {} },
+        where: { status: { not: 'CANCELLED' }, collectionCase: {} },
+      }),
+    );
+  });
+
+  it('so lista canceladas quando o filtro de status pede', async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const repository = new PaymentPromisesPrismaRepository(
+      asPrisma({
+        paymentPromise: { findMany, count: jest.fn().mockResolvedValue(0) },
+      }),
+    );
+    await repository.list({ page: 1, limit: 10, status: 'CANCELLED' });
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { status: 'CANCELLED', collectionCase: {} },
       }),
     );
   });

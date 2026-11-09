@@ -237,7 +237,7 @@ export default function PaymentPromisesPage() {
                 updateFilters({ status: e.target.value, page: 1 })
               }
             >
-              <option value="">Todos os status</option>
+              <option value="">Todos (sem canceladas)</option>
               <option value="ACTIVE">Ativas</option>
               <option value="FULFILLED">Cumpridas</option>
               <option value="BROKEN">Descumpridas</option>

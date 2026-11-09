@@ -306,3 +306,38 @@ describe('CollectionCasesPrismaRepository', () => {
     );
   });
 });
+
+describe('CollectionCasesPrismaRepository.createPromise (duplicada)', () => {
+  function build(duplicate: { id: string } | null) {
+    const create = jest.fn().mockResolvedValue({ id: 'p_new' });
+    const findFirst = jest.fn().mockResolvedValue(duplicate);
+    const tx = {
+      paymentPromise: { findFirst, create },
+      collectionCase: { update: jest.fn() },
+      auditLog: { create: jest.fn() },
+    };
+    const prisma = {
+      collectionCase: {
+        findUnique: jest.fn().mockResolvedValue({ id: 'c1' }),
+      },
+      $transaction: jest.fn((fn: (t: typeof tx) => unknown) => fn(tx)),
+    } as unknown as PrismaService;
+
+    return { repository: new CollectionCasesPrismaRepository(prisma), create };
+  }
+
+  const input = { promisedAmount: '100.00', promisedDate: '2026-11-20' };
+
+  it('recusa promessa ativa igual (mesma data e valor) e nao grava', async () => {
+    const { repository, create } = build({ id: 'p_old' });
+
+    await expect(
+      repository.createPromise({
+        caseId: 'c1',
+        input,
+        createdByUserId: 'u1',
+      }),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(create).not.toHaveBeenCalled();
+  });
+});

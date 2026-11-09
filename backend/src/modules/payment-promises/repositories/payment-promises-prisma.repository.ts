@@ -63,7 +63,11 @@ export class PaymentPromisesPrismaRepository implements PaymentPromisesRepositor
     const toDate = to ? new Date(to) : undefined;
 
     const where: Prisma.PaymentPromiseWhereInput = {
-      ...(status && { status: status as PaymentPromiseStatus }),
+      // Sem filtro de status, esconde as canceladas (não entram no relatório);
+      // escolhendo "Canceladas" elas continuam acessíveis.
+      status: status
+        ? (status as PaymentPromiseStatus)
+        : { not: PaymentPromiseStatus.CANCELLED },
       ...(fromDate || toDate
         ? {
             promisedDate: {
