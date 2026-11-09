@@ -9,6 +9,8 @@ export type DashboardMetricKey =
   | 'recoveredAfterContactMonth'
   | 'activePromises'
   | 'overduePromises'
+  // Promessas vencidas de casos em que o cliente já pagou (fora de overduePromises).
+  | 'overduePromisesPaid'
   | 'cancellationsInProgress'
   // Carteira ativa (não finalizada) no escopo — para o atendente, a dele.
   | 'assignedActiveCases'

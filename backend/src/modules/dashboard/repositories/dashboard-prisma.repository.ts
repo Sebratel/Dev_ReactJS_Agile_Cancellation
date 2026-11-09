@@ -66,6 +66,18 @@ const ACTIVE_CANCELLATION_STATUSES: CancellationStatus[] = [
   CancellationStatus.AWAITING_PICKUP,
 ];
 
+// Cliente já pagou (retido ou pagou sozinho): promessa vencida aqui não é
+// acordo furado.
+const PAID_CASE_STATUSES: CollectionStatus[] = [
+  CollectionStatus.RECOVERED,
+  CollectionStatus.PAYMENT_MADE,
+];
+// Casos sem mais nada a cobrar: pagos, encerrados ou reativados sozinhos.
+const SETTLED_CASE_STATUSES: CollectionStatus[] = [
+  ...PAID_CASE_STATUSES,
+  CollectionStatus.CLOSED,
+  CollectionStatus.REACTIVATED,
+];
 const CANCELLED_ERP_STATUS = 'Cancelado';
 const NO_REASON_LABEL = NO_CANCELLATION_REASON_LABEL;
 
@@ -97,6 +109,19 @@ export class DashboardPrismaRepository implements DashboardRepository {
       params.assignedUserId
         ? { collectionCase: { assignedUserId: params.assignedUserId } }
         : {};
+    // Promessa vencida = ativa com data passada, ou já marcada como quebrada/
+    // expirada. Só pede recontato quando o caso ainda está em aberto: se o
+    // cliente já pagou (ou o caso foi encerrado), não é "acordo furado".
+    const overdueCondition: Prisma.PaymentPromiseWhereInput = {
+      OR: [
+        { status: PaymentPromiseStatus.ACTIVE, promisedDate: { lt: now } },
+        {
+          status: {
+            in: [PaymentPromiseStatus.BROKEN, PaymentPromiseStatus.EXPIRED],
+          },
+        },
+      ],
+    };
     const scopedCancellationWhere: Prisma.CancellationProcessWhereInput =
       params.assignedUserId
         ? { collectionCase: { assignedUserId: params.assignedUserId } }
@@ -111,6 +136,7 @@ export class DashboardPrismaRepository implements DashboardRepository {
       recoveredAfterContactAggregate,
       activePromises,
       overduePromises,
+      overduePromisesPaid,
       cancellationsInProgress,
       statusGroups,
       slaConfiguredCases,
@@ -171,17 +197,19 @@ export class DashboardPrismaRepository implements DashboardRepository {
       }),
       this.prisma.paymentPromise.count({
         where: {
-          ...scopedPromiseWhere,
-          OR: [
-            {
-              status: PaymentPromiseStatus.ACTIVE,
-              promisedDate: { lt: now },
-            },
-            {
-              status: {
-                in: [PaymentPromiseStatus.BROKEN, PaymentPromiseStatus.EXPIRED],
-              },
-            },
+          AND: [
+            scopedPromiseWhere,
+            overdueCondition,
+            { collectionCase: { status: { notIn: SETTLED_CASE_STATUSES } } },
+          ],
+        },
+      }),
+      this.prisma.paymentPromise.count({
+        where: {
+          AND: [
+            scopedPromiseWhere,
+            overdueCondition,
+            { collectionCase: { status: { in: PAID_CASE_STATUSES } } },
           ],
         },
       }),
@@ -348,6 +376,7 @@ export class DashboardPrismaRepository implements DashboardRepository {
         ),
         activePromises,
         overduePromises,
+        overduePromisesPaid,
         cancellationsInProgress,
         assignedActiveCases,
         contactedCases,

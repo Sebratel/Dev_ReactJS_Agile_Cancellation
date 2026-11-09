@@ -14,7 +14,11 @@ export type DashboardMetricKey =
 export type DashboardSummaryMetrics = Record<
   DashboardMetricKey,
   number | string
->;
+> & {
+  // Vencidas de casos em que o cliente já pagou (fora de overduePromises).
+  // Opcional: backend antigo, durante um deploy, pode não enviar.
+  overduePromisesPaid?: number | string;
+};
 
 export type DashboardStatusDistributionItem = {
   status: string;

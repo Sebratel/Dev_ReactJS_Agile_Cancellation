@@ -63,6 +63,8 @@ export function DashboardSupervisorPanel({
         ? 'loading'
         : 'unavailable';
 
+  const overduePromisesPaid = toNumber(metrics.overduePromisesPaid);
+
   const actions: SupervisorAction[] = [
     {
       key: 'eligible',
@@ -76,11 +78,14 @@ export function DashboardSupervisorPanel({
     {
       key: 'overduePromises',
       label: 'Promessas vencidas',
-      helper: 'acordo furado, sem recontato',
+      helper:
+        overduePromisesPaid > 0
+          ? `acordo furado · ${formatInteger(overduePromisesPaid)} já pagaram`
+          : 'acordo furado, sem recontato',
       value: toNumber(metrics.overduePromises),
       tone: 'danger',
       icon: Hourglass,
-      href: '/supervisao?promiseStatus=BROKEN',
+      href: '/promessas?status=ACTIVE&caseSituation=IN_COLLECTION',
     },
     {
       key: 'unassigned',

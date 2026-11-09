@@ -12,6 +12,7 @@ export const mockDashboardSummary: DashboardSummaryResponse = {
     recoveredAfterContactMonth: '12480.00',
     activePromises: 34,
     overduePromises: 9,
+    overduePromisesPaid: 2,
     cancellationsInProgress: 15,
     assignedActiveCases: 54,
     contactedCases: 31,
