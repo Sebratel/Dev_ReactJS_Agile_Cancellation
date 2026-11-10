@@ -131,6 +131,7 @@ export type AssignCaseParams = {
 export type AssignCaseResult =
   | { outcome: 'success'; case: CollectionCaseDetailsResponse }
   | { outcome: 'case_not_found' }
+  | { outcome: 'case_locked' }
   | { outcome: 'user_not_found' };
 
 export type BulkAssignCasesParams = {

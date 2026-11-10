@@ -1,3 +1,4 @@
+import { ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SectionCard } from '@/components/data-display/section-card';
 import {
@@ -19,9 +20,14 @@ import {
 
 type RecoveryRankingTableProps = {
   rows: RankingRow[];
+  // Quando informado, cada linha ganha o botão "Ver conferência".
+  onOpenAudit?: (agent: { userId: string; name: string }) => void;
 };
 
-export function RecoveryRankingTable({ rows }: RecoveryRankingTableProps) {
+export function RecoveryRankingTable({
+  rows,
+  onOpenAudit,
+}: RecoveryRankingTableProps) {
   return (
     <SectionCard
       title="Ranking completo"
@@ -42,6 +48,9 @@ export function RecoveryRankingTable({ rows }: RecoveryRankingTableProps) {
               <TableHeaderCell className="hidden w-56 lg:table-cell">
                 Participação
               </TableHeaderCell>
+              {onOpenAudit ? (
+                <TableHeaderCell align="right">Conferência</TableHeaderCell>
+              ) : null}
             </TableRow>
           </TableHead>
           <TableBody>
@@ -94,6 +103,21 @@ export function RecoveryRankingTable({ rows }: RecoveryRankingTableProps) {
                     </span>
                   </div>
                 </TableCell>
+                {onOpenAudit ? (
+                  <TableCell numeric>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onOpenAudit({ userId: row.userId, name: row.name });
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-muted"
+                      aria-label={`Ver conferência de ${row.name}`}
+                    >
+                      <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                      Ver conferência
+                    </button>
+                  </TableCell>
+                ) : null}
               </TableRow>
             ))}
           </TableBody>

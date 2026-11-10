@@ -393,3 +393,9 @@ export function getHsmDeliveryFilterLabel(state: string): string {
           ? 'Lido'
           : state;
 }
+
+// Recuperado/pago já gerou crédito no ranking: o backend recusa reatribuir,
+// então a tela mostra só o nome da atendente (sem seletor).
+export function isCreditLockedStatus(status: string) {
+  return status === 'RECOVERED' || status === 'PAYMENT_MADE';
+}

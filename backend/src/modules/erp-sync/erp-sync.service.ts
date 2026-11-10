@@ -143,6 +143,15 @@ import {
 import { NotificationsService } from '@/modules/notifications/notifications.service';
 import { RecoveryNotifierService } from '@/modules/erp-sync/recovery-notifier.service';
 import {
+  buildMockRecoveryAudit,
+  buildRecoveryAuditCase,
+  type RecoveryAuditResponse,
+} from '@/modules/erp-sync/recovery-audit';
+import {
+  resolveRecoveryRankingRange,
+  type RecoveryRankingPeriod,
+} from '@/modules/dashboard/utils/dashboard-ranking.utils';
+import {
   buildRecoveryNotifications,
   buildRecoveryWebhookPayload,
   type RecoveredCaseForNotification,
@@ -180,6 +189,38 @@ WHERE fr.id = ANY($1::bigint[])
   AND x.deleted IS false
 GROUP BY fr.id;
 `;
+
+// Detalhe dos títulos pagos de um caso recuperado (conferência do ranking):
+// dia da baixa, quando foi lançada no ERP, valor do título, valor recebido e
+// forma de pagamento. Mesmo critério de PAID_TITLES_QUERY (baixa real).
+const RECOVERY_AUDIT_PAYMENTS_QUERY = `
+SELECT
+  fr.id::text AS title_id,
+  fr.title AS title_number,
+  fr.title_amount::text AS title_amount,
+  MIN(x.client_paid_date) AS paid_date,
+  MIN(x.created) AS registered_at,
+  SUM(x.total_amount)::text AS received_amount,
+  STRING_AGG(DISTINCT pf.title, ', ') AS payment_form
+FROM erp.financial_receivable_titles fr
+JOIN erp.financial_receipt_titles x ON x.financial_receivable_title_id = fr.id
+LEFT JOIN erp.payment_forms pf ON pf.id = x.payment_form_id
+WHERE fr.id = ANY($1::bigint[])
+  AND x.client_paid_date IS NOT NULL
+  AND x.payment_form_id IS NOT NULL
+  AND x.deleted IS false
+GROUP BY fr.id, fr.title, fr.title_amount;
+`;
+
+type RecoveryAuditPaymentRow = {
+  title_id: string;
+  title_number: string | null;
+  title_amount: string | null;
+  paid_date: Date;
+  registered_at: Date | null;
+  received_amount: string | null;
+  payment_form: string | null;
+};
 
 /**
  * Elegibilidade: contratos com 2 vencimentos consecutivos em aberto (ontem e
@@ -1796,6 +1837,147 @@ export class ErpSyncService implements OnModuleDestroy {
         openRenegotiationTotal,
         totalOutstanding,
       },
+    };
+  }
+
+  // Conferência do ranking (supervisão): para cada caso RECOVERED do atendente
+  // no período, mostra o pagamento no ERP (ao vivo), os contatos registrados e
+  // as verificações que sustentam o crédito. Se o ERP não responder, devolve os
+  // contatos mas marca o pagamento como não conferido (nunca assume ok).
+  async getRecoveryAudit(
+    userId: string,
+    period: RecoveryRankingPeriod,
+  ): Promise<RecoveryAuditResponse> {
+    const range = resolveRecoveryRankingRange(period, new Date());
+
+    // Modo mock (desenvolvimento): sem banco nem ERP, devolve um exemplo para
+    // a tela poder ser exercitada.
+    if (getDataSourceMode() !== 'database') {
+      return buildMockRecoveryAudit(userId, range.from, range.to);
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true, avatarUrl: true },
+    });
+
+    const cases = await this.prisma.collectionCase.findMany({
+      where: {
+        status: CollectionStatus.RECOVERED,
+        assignedUserId: userId,
+        recoveredAt: { gte: range.from, lt: range.to },
+      },
+      orderBy: { recoveredAt: 'desc' },
+      select: {
+        id: true,
+        recoveredAt: true,
+        recoveredAmount: true,
+        cycleStartedAt: true,
+        customer: { select: { name: true } },
+        contract: {
+          select: {
+            code: true,
+            invoices: {
+              where: { externalId: { not: null } },
+              select: { externalId: true },
+            },
+          },
+        },
+        assignedUser: { select: { id: true, name: true } },
+        collectionAttempts: {
+          where: { isAutomatic: false },
+          orderBy: { attemptedAt: 'asc' },
+          select: {
+            id: true,
+            attemptedAt: true,
+            result: true,
+            channel: true,
+            notes: true,
+            performedBy: { select: { id: true, name: true } },
+          },
+        },
+      },
+    });
+
+    const titleIds = [
+      ...new Set(
+        cases.flatMap((item) =>
+          item.contract.invoices
+            .map((invoice) => invoice.externalId)
+            .filter((id): id is string => !!id && /^[0-9]+$/.test(id)),
+        ),
+      ),
+    ];
+
+    // null = ERP indisponível (não dá para reconferir o pagamento agora).
+    let paymentsByTitle: Map<string, RecoveryAuditPaymentRow> | null = null;
+    const config = getErpSyncConfig();
+    if (titleIds.length === 0) {
+      paymentsByTitle = new Map();
+    } else if (config.db) {
+      try {
+        const pool = this.getPool(config.db);
+        const result = await pool.query<RecoveryAuditPaymentRow>(
+          RECOVERY_AUDIT_PAYMENTS_QUERY,
+          [titleIds],
+        );
+        paymentsByTitle = new Map(
+          result.rows.map((row) => [row.title_id, row]),
+        );
+      } catch (error) {
+        this.logger.error(
+          'Falha ao buscar pagamentos no ERP para a conferência do ranking.',
+          error instanceof Error ? error.stack : String(error),
+        );
+      }
+    }
+
+    const auditCases = cases.map((item) => {
+      const payments = paymentsByTitle
+        ? item.contract.invoices
+            .map((invoice) =>
+              invoice.externalId
+                ? paymentsByTitle?.get(invoice.externalId)
+                : undefined,
+            )
+            .filter((row): row is RecoveryAuditPaymentRow => !!row)
+            .map((row) => ({
+              titleNumber: row.title_number,
+              paidDate: new Date(row.paid_date),
+              registeredAt: row.registered_at
+                ? new Date(row.registered_at)
+                : null,
+              amount: Number(row.title_amount ?? 0),
+              receivedAmount: Number(row.received_amount ?? 0),
+              paymentForm: row.payment_form,
+            }))
+        : null;
+
+      return buildRecoveryAuditCase({
+        caseId: item.id,
+        customerName: item.customer.name,
+        contractCode: item.contract.code,
+        recoveredAt: item.recoveredAt ?? new Date(0),
+        recoveredAmount: Number(item.recoveredAmount?.toString() ?? '0'),
+        cycleStartedAt: item.cycleStartedAt,
+        assignedUser: item.assignedUser,
+        attempts: item.collectionAttempts,
+        payments,
+      });
+    });
+
+    return {
+      periodFrom: range.from.toISOString(),
+      periodTo: range.to.toISOString(),
+      user: user
+        ? { id: user.id, name: user.name, avatarUrl: user.avatarUrl }
+        : null,
+      erpAvailable: paymentsByTitle !== null,
+      totalAmount: auditCases
+        .reduce((sum, item) => sum + Number(item.recoveredAmount), 0)
+        .toFixed(2),
+      verifiedCases: auditCases.filter((item) => item.verified).length,
+      cases: auditCases,
     };
   }
 

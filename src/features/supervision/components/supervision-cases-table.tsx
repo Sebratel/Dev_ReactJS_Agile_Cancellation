@@ -31,6 +31,7 @@ import {
   getPriorityLabel,
   getPriorityVariant,
   getSlaPresentation,
+  isCreditLockedStatus,
 } from '@/features/collection-cases/utils/collection-case-labels';
 import {
   getContractStatusLabel,
@@ -352,7 +353,7 @@ function SupervisionCaseCards({
                 <div className="min-w-0 flex-1">
                   <FieldLabel>Responsável</FieldLabel>
                   <div className="mt-0.5">
-                    {canDistribute ? (
+                    {canDistribute && !isCreditLockedStatus(item.status) ? (
                       <InlineAssigneeSelect
                         caseId={item.id}
                         currentAssignee={item.assignedTo}
@@ -704,7 +705,7 @@ export function SupervisionCasesTable({
                         </div>
                       </TableCell>
                       <TableCell className="text-neutral">
-                        {canDistribute ? (
+                        {canDistribute && !isCreditLockedStatus(item.status) ? (
                           <InlineAssigneeSelect
                             caseId={item.id}
                             currentAssignee={item.assignedTo}

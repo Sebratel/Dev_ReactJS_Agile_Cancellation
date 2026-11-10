@@ -5,6 +5,7 @@ import { EmptyState } from '@/components/feedback/empty-state';
 import { ErrorState } from '@/components/feedback/error-state';
 import { TableSkeleton } from '@/components/feedback/table-skeleton';
 import { cn } from '@/lib/utils';
+import { RecoveryAuditDrawer } from '@/features/ranking/components/recovery-audit-drawer';
 import { RecoveryRankingKpis } from '@/features/ranking/components/recovery-ranking-kpis';
 import { RecoveryRankingPodium } from '@/features/ranking/components/recovery-ranking-podium';
 import { RecoveryRankingTable } from '@/features/ranking/components/recovery-ranking-table';
@@ -15,6 +16,10 @@ import { buildRankingRows } from '@/features/ranking/utils/ranking-stats';
 
 export default function RankingPage() {
   const [period, setPeriod] = useState<RecoveryRankingPeriod>('current_month');
+  const [auditAgent, setAuditAgent] = useState<{
+    userId: string;
+    name: string;
+  } | null>(null);
   const rankingQuery = useRecoveryRanking(period);
   // O mês anterior só serve de referência para o mês atual.
   const previousQuery = useRecoveryRanking('last_month', {
@@ -95,7 +100,7 @@ export default function RankingPage() {
               }
             />
             <RecoveryRankingPodium items={rows} />
-            <RecoveryRankingTable rows={rows} />
+            <RecoveryRankingTable rows={rows} onOpenAudit={setAuditAgent} />
           </div>
         ) : (
           <EmptyState
@@ -104,6 +109,13 @@ export default function RankingPage() {
           />
         )
       ) : null}
+      <RecoveryAuditDrawer
+        agent={auditAgent}
+        period={period}
+        onClose={() => {
+          setAuditAgent(null);
+        }}
+      />
     </PageContainer>
   );
 }

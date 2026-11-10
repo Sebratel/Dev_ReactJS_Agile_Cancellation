@@ -25,6 +25,7 @@ import {
   getCollectionStatusLabel,
   getPriorityLabel,
   getPriorityVariant,
+  isCreditLockedStatus,
 } from '@/features/collection-cases/utils/collection-case-labels';
 import { getContractStatusLabel } from '@/features/customers/utils/customer-labels';
 import {
@@ -306,7 +307,7 @@ export function CancellationsTable({
                     </div>
                   </TableCell>
                   <TableCell className="text-neutral">
-                    {canDistribute ? (
+                    {canDistribute && !isCreditLockedStatus(item.status) ? (
                       <InlineAssigneeSelect
                         caseId={item.id}
                         currentAssignee={item.assignedTo}

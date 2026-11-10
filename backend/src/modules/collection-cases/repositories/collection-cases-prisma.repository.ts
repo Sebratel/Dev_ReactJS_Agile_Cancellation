@@ -11,6 +11,7 @@ import {
 } from '@prisma/client';
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { AppException } from '@/common/exceptions/app.exception';
+import { CREDIT_LOCKED_CASE_STATUSES } from '@/modules/collection-cases/utils/credit-locked-statuses';
 import { createPaginatedResponse } from '@/common/pagination/paginated-response';
 import {
   cancellationReasonCategoryLabel,
@@ -1242,11 +1243,15 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
   }: AssignCaseParams): Promise<AssignCaseResult> {
     const existingCase = await this.prisma.collectionCase.findUnique({
       where: { id: caseId },
-      select: { id: true, assignedUserId: true },
+      select: { id: true, assignedUserId: true, status: true },
     });
 
     if (!existingCase) {
       return { outcome: 'case_not_found' };
+    }
+
+    if (CREDIT_LOCKED_CASE_STATUSES.includes(existingCase.status)) {
+      return { outcome: 'case_locked' };
     }
 
     if (assignedUserId) {
@@ -1333,10 +1338,15 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
 
     const existing = await this.prisma.collectionCase.findMany({
       where: { id: { in: caseIds } },
-      select: { id: true, assignedUserId: true },
+      select: { id: true, assignedUserId: true, status: true },
     });
 
-    const existingMap = new Map(existing.map((c) => [c.id, c]));
+    // Recuperados/pagos ficam de fora: reatribuir moveria o crédito do ranking.
+    const existingMap = new Map(
+      existing
+        .filter((c) => !CREDIT_LOCKED_CASE_STATUSES.includes(c.status))
+        .map((c) => [c.id, c]),
+    );
     const validIds = caseIds.filter((id) => existingMap.has(id));
     const now = new Date();
 

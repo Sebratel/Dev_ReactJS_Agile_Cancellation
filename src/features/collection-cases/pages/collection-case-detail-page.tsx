@@ -55,6 +55,7 @@ import {
   getPriorityVariant,
   getPromiseStatusLabel,
   getPromiseStatusVariant,
+  isCreditLockedStatus,
 } from '@/features/collection-cases/utils/collection-case-labels';
 import {
   SEVERITY_TEXT_CLASS,
@@ -584,7 +585,7 @@ export default function CollectionCaseDetailPage() {
                 </dl>
               </SectionCard>
 
-              {canDistribute ? (
+              {canDistribute && !isCreditLockedStatus(caseQuery.data.status) ? (
                 <AssignCaseAction
                   caseId={caseQuery.data.id}
                   currentAssigneeId={caseQuery.data.assignedTo?.id ?? null}

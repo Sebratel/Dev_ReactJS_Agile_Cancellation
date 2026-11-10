@@ -13,6 +13,7 @@ import {
   isRestrictedToOwnCases,
 } from '@/modules/collection-cases/utils/case-ownership.util';
 import { AppException } from '@/common/exceptions/app.exception';
+import { CREDIT_LOCKED_MESSAGE } from '@/modules/collection-cases/utils/credit-locked-statuses';
 import { createApiResponse } from '@/common/responses/api-response';
 import type { CreateCollectionAttemptDto } from '@/modules/collection-cases/dto/create-collection-attempt.dto';
 import type { CreatePaymentPromiseDto } from '@/modules/collection-cases/dto/create-payment-promise.dto';
@@ -690,6 +691,13 @@ export class CollectionCasesService {
       throw new AppException(
         `Caso de cobrança ${caseId} não encontrado.`,
         HttpStatus.NOT_FOUND,
+      );
+    }
+
+    if (result.outcome === 'case_locked') {
+      throw new AppException(
+        CREDIT_LOCKED_MESSAGE,
+        HttpStatus.UNPROCESSABLE_ENTITY,
       );
     }
 

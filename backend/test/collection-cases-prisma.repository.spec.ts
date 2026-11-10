@@ -326,7 +326,7 @@ describe('CollectionCasesPrismaRepository.createPromise (duplicada)', () => {
     return { repository: new CollectionCasesPrismaRepository(prisma), create };
   }
 
-  const input = { promisedAmount: '100.00', promisedDate: '2026-11-20' };
+  const input = { promisedAmount: 100, promisedDate: '2026-11-20' };
 
   it('recusa promessa ativa igual (mesma data e valor) e nao grava', async () => {
     const { repository, create } = build({ id: 'p_old' });
@@ -339,5 +339,71 @@ describe('CollectionCasesPrismaRepository.createPromise (duplicada)', () => {
       }),
     ).rejects.toMatchObject({ status: 409 });
     expect(create).not.toHaveBeenCalled();
+  });
+});
+
+describe('CollectionCasesPrismaRepository (reatribuicao de casos pagos)', () => {
+  it('assignCase recusa caso RECOVERED e nao altera nada', async () => {
+    const update = jest.fn();
+    const prisma = {
+      collectionCase: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({
+            id: 'c1',
+            assignedUserId: 'u1',
+            status: 'RECOVERED',
+          }),
+        update,
+      },
+      $transaction: jest.fn(),
+    } as unknown as PrismaService;
+
+    const result = await new CollectionCasesPrismaRepository(prisma).assignCase(
+      {
+        caseId: 'c1',
+        assignedUserId: 'u2',
+        performedByUserId: 'sup',
+      },
+    );
+
+    expect(result).toEqual({ outcome: 'case_locked' });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('bulkAssignCases pula recuperados/pagos e atribui os demais', async () => {
+    const updateMany = jest.fn().mockReturnValue('upd');
+    const prisma = {
+      user: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'u2',
+          status: 'ACTIVE',
+          userRoles: [{ role: { code: 'COLLECTION_AGENT' } }],
+        }),
+      },
+      collectionCase: {
+        findMany: jest.fn().mockResolvedValue([
+          { id: 'a', assignedUserId: 'u1', status: 'IN_COLLECTION' },
+          { id: 'b', assignedUserId: 'u1', status: 'RECOVERED' },
+          { id: 'c', assignedUserId: 'u1', status: 'PAYMENT_MADE' },
+        ]),
+        updateMany,
+      },
+      auditLog: { create: jest.fn().mockReturnValue('log') },
+      $transaction: jest.fn().mockResolvedValue([]),
+    } as unknown as PrismaService;
+
+    const result = await new CollectionCasesPrismaRepository(
+      prisma,
+    ).bulkAssignCases({
+      caseIds: ['a', 'b', 'c'],
+      assignedUserId: 'u2',
+      performedByUserId: 'sup',
+    });
+
+    expect(result).toEqual({ assigned: 1, skipped: 2 });
+    expect(updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: { in: ['a'] } } }),
+    );
   });
 });

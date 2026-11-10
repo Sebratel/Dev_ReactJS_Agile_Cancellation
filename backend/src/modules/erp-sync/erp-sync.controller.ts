@@ -1,6 +1,7 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 import { createApiResponse } from '@/common/responses/api-response';
 import { Roles } from '@/modules/auth/decorators/roles.decorator';
+import { DashboardRankingQueryDto } from '@/modules/dashboard/dto/dashboard-ranking-query.dto';
 import { ErpSyncService } from '@/modules/erp-sync/erp-sync.service';
 
 @Controller('erp')
@@ -25,6 +26,22 @@ export class ErpSyncController {
     const history = await this.erpSyncService.getRenegotiationHistory();
 
     return createApiResponse(history);
+  }
+
+  // Conferência do ranking: como cada recuperação de um atendente chegou ao
+  // valor creditado (pagamento no ERP, contatos e verificações).
+  @Roles('ADMIN', 'SUPERVISOR')
+  @Get('recovery-audit/:userId')
+  async getRecoveryAudit(
+    @Param('userId') userId: string,
+    @Query() query: DashboardRankingQueryDto,
+  ) {
+    const audit = await this.erpSyncService.getRecoveryAudit(
+      userId,
+      query.period ?? 'current_month',
+    );
+
+    return createApiResponse(audit);
   }
 
   // Detalhe de renegociacao de um contrato (supervisao): titulos renegociados

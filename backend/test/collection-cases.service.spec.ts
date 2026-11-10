@@ -505,6 +505,22 @@ describe('CollectionCasesService', () => {
     });
   });
 
+  it('recusa reatribuir caso recuperado ou pago (credito do ranking)', async () => {
+    const repository = createRepository({
+      assignCase: jest.fn().mockResolvedValue({ outcome: 'case_locked' }),
+    });
+
+    const { service } = createService(repository);
+
+    await expect(
+      service.assignCase(
+        'case_0001',
+        { assignedUserId: 'usr_carlos' },
+        'usr_marina',
+      ),
+    ).rejects.toMatchObject({ status: HttpStatus.UNPROCESSABLE_ENTITY });
+  });
+
   it('retorna 404 ao atribuir caso inexistente', async () => {
     const repository = createRepository({
       assignCase: jest.fn().mockResolvedValue({ outcome: 'case_not_found' }),
