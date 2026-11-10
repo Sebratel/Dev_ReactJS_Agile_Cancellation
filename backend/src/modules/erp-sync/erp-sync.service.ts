@@ -145,6 +145,7 @@ import { RecoveryNotifierService } from '@/modules/erp-sync/recovery-notifier.se
 import {
   buildMockRecoveryAudit,
   buildRecoveryAuditCase,
+  type RecoveryAuditCase,
   type RecoveryAuditResponse,
 } from '@/modules/erp-sync/recovery-audit';
 import {
@@ -1840,39 +1841,20 @@ export class ErpSyncService implements OnModuleDestroy {
     };
   }
 
-  // Conferência do ranking (supervisão): para cada caso RECOVERED do atendente
-  // no período, mostra o pagamento no ERP (ao vivo), os contatos registrados e
-  // as verificações que sustentam o crédito. Se o ERP não responder, devolve os
-  // contatos mas marca o pagamento como não conferido (nunca assume ok).
-  async getRecoveryAudit(
-    userId: string,
-    period: RecoveryRankingPeriod,
-  ): Promise<RecoveryAuditResponse> {
-    const range = resolveRecoveryRankingRange(period, new Date());
-
-    // Modo mock (desenvolvimento): sem banco nem ERP, devolve um exemplo para
-    // a tela poder ser exercitada.
-    if (getDataSourceMode() !== 'database') {
-      return buildMockRecoveryAudit(userId, range.from, range.to);
-    }
-
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true, name: true, avatarUrl: true },
-    });
-
+  // Monta a conferência dos casos que atendem ao filtro: contatos do banco e
+  // pagamento lido ao vivo do ERP (null = ERP indisponível).
+  private async buildRecoveryAuditCases(
+    where: Prisma.CollectionCaseWhereInput,
+  ): Promise<{ cases: RecoveryAuditCase[]; erpAvailable: boolean }> {
     const cases = await this.prisma.collectionCase.findMany({
-      where: {
-        status: CollectionStatus.RECOVERED,
-        assignedUserId: userId,
-        recoveredAt: { gte: range.from, lt: range.to },
-      },
+      where,
       orderBy: { recoveredAt: 'desc' },
       select: {
         id: true,
         recoveredAt: true,
         recoveredAmount: true,
         cycleStartedAt: true,
+        reactivatedAt: true,
         customer: { select: { name: true } },
         contract: {
           select: {
@@ -1960,11 +1942,43 @@ export class ErpSyncService implements OnModuleDestroy {
         recoveredAt: item.recoveredAt ?? new Date(0),
         recoveredAmount: Number(item.recoveredAmount?.toString() ?? '0'),
         cycleStartedAt: item.cycleStartedAt,
+        reactivatedAt: item.reactivatedAt,
         assignedUser: item.assignedUser,
         attempts: item.collectionAttempts,
         payments,
       });
     });
+
+    return { cases: auditCases, erpAvailable: paymentsByTitle !== null };
+  }
+
+  // Conferência do ranking (supervisão): para cada caso RECOVERED do atendente
+  // no período, mostra o pagamento no ERP (ao vivo), os contatos registrados e
+  // as verificações que sustentam o crédito. Se o ERP não responder, devolve os
+  // contatos mas marca o pagamento como não conferido (nunca assume ok).
+  async getRecoveryAudit(
+    userId: string,
+    period: RecoveryRankingPeriod,
+  ): Promise<RecoveryAuditResponse> {
+    const range = resolveRecoveryRankingRange(period, new Date());
+
+    // Modo mock (desenvolvimento): sem banco nem ERP, devolve um exemplo para
+    // a tela poder ser exercitada.
+    if (getDataSourceMode() !== 'database') {
+      return buildMockRecoveryAudit(userId, range.from, range.to);
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true, avatarUrl: true },
+    });
+
+    const { cases: auditCases, erpAvailable } =
+      await this.buildRecoveryAuditCases({
+        status: CollectionStatus.RECOVERED,
+        assignedUserId: userId,
+        recoveredAt: { gte: range.from, lt: range.to },
+      });
 
     return {
       periodFrom: range.from.toISOString(),
@@ -1972,13 +1986,37 @@ export class ErpSyncService implements OnModuleDestroy {
       user: user
         ? { id: user.id, name: user.name, avatarUrl: user.avatarUrl }
         : null,
-      erpAvailable: paymentsByTitle !== null,
+      erpAvailable,
       totalAmount: auditCases
         .reduce((sum, item) => sum + Number(item.recoveredAmount), 0)
         .toFixed(2),
       verifiedCases: auditCases.filter((item) => item.verified).length,
       cases: auditCases,
     };
+  }
+
+  // Conferência de UM caso recuperado (página de detalhe do caso, supervisão).
+  async getCaseRecoveryAudit(
+    caseId: string,
+  ): Promise<{ erpAvailable: boolean; audit: RecoveryAuditCase | null }> {
+    if (getDataSourceMode() !== 'database') {
+      const sample = buildMockRecoveryAudit(
+        'usr_marina',
+        new Date(0),
+        new Date(),
+      ).cases[0];
+      return {
+        erpAvailable: true,
+        audit: sample ? { ...sample, caseId } : null,
+      };
+    }
+
+    const { cases, erpAvailable } = await this.buildRecoveryAuditCases({
+      id: caseId,
+      status: CollectionStatus.RECOVERED,
+    });
+
+    return { erpAvailable, audit: cases[0] ?? null };
   }
 
   // Busca AO VIVO no ERP os titulos renegociados e o saldo em aberto de um

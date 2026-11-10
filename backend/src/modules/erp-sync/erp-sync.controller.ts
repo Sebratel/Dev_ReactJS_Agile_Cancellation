@@ -44,6 +44,15 @@ export class ErpSyncController {
     return createApiResponse(audit);
   }
 
+  // Conferência de um caso recuperado (página de detalhe do caso).
+  @Roles('ADMIN', 'SUPERVISOR')
+  @Get('case-recovery-audit/:caseId')
+  async getCaseRecoveryAudit(@Param('caseId') caseId: string) {
+    const result = await this.erpSyncService.getCaseRecoveryAudit(caseId);
+
+    return createApiResponse(result);
+  }
+
   // Detalhe de renegociacao de um contrato (supervisao): titulos renegociados
   // e saldo em aberto, buscados ao vivo no ERP.
   @Roles('ADMIN', 'SUPERVISOR')

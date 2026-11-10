@@ -27,6 +27,7 @@ const audit: RecoveryAuditResponse = {
       recoveredAmount: '99.90',
       assignedTo: { id: 'u1', name: 'Débora' },
       paymentDay: '2026-11-04',
+      reactivatedAt: null,
       paymentsAvailable: true,
       payments: [
         {

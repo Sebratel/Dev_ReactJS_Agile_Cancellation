@@ -19,6 +19,7 @@ import {
 } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { SectionCard } from '@/components/data-display/section-card';
+import { CaseRecoveryAuditSection } from '@/features/ranking/components/case-recovery-audit-section';
 import { StatusBadge } from '@/components/data-display/status-badge';
 import { PageContainer } from '@/components/navigation/page-container';
 import { HsmDeliveryBadge } from '@/features/collection-cases/components/hsm-delivery-badge';
@@ -599,6 +600,11 @@ export default function CollectionCaseDetailPage() {
             </div>
 
             <div className="flex min-w-0 flex-1 flex-col gap-6">
+              <CaseRecoveryAuditSection
+                caseId={caseQuery.data.id}
+                enabled={canDistribute && caseQuery.data.status === 'RECOVERED'}
+              />
+
               <CaseWorkspaceTabs
                 activeModule={activeWorkspaceModule}
                 items={workspaceItems}

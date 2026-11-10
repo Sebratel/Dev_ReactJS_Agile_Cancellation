@@ -153,3 +153,51 @@ describe('buildRecoveryAuditCase', () => {
     expect(result.verified).toBe(false);
   });
 });
+
+describe('buildRecoveryAuditCase (cancelado reativado)', () => {
+  const reactivated = (overrides: Partial<RecoveryAuditCaseInput> = {}) =>
+    build({
+      reactivatedAt: new Date('2026-11-05T00:00:00.000Z'),
+      payments: [],
+      attempts: [
+        {
+          ...attempt('r1', '2026-11-03T10:00:00.000Z', 'CONTACTED'),
+          notes: 'Cliente quer voltar',
+        },
+      ],
+      ...overrides,
+    });
+
+  it('contato efetivo COM observacao ate a reativacao sustenta o credito', () => {
+    const result = reactivated();
+
+    expect(status(result, 'payment_confirmed')).toBe('ok');
+    expect(status(result, 'contact_before_payment')).toBe('ok');
+    expect(status(result, 'credit_to_contact_agent')).toBe('ok');
+    expect(result.reactivatedAt).toBe('2026-11-05');
+    // O valor pago apos a reativacao vem do ERP a cada rodada: nao reconferido.
+    expect(status(result, 'amount_match')).toBe('unknown');
+  });
+
+  it('contato sem observacao nao conta para cancelado', () => {
+    const result = reactivated({
+      attempts: [attempt('r1', '2026-11-03T10:00:00.000Z', 'CONTACTED')],
+    });
+
+    expect(status(result, 'contact_before_payment')).toBe('fail');
+    expect(result.verified).toBe(false);
+  });
+
+  it('contato depois da reativacao nao conta', () => {
+    const result = reactivated({
+      attempts: [
+        {
+          ...attempt('r1', '2026-11-07T10:00:00.000Z', 'CONTACTED'),
+          notes: 'ligou depois',
+        },
+      ],
+    });
+
+    expect(status(result, 'contact_before_payment')).toBe('fail');
+  });
+});

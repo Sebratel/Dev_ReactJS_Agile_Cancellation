@@ -59,6 +59,7 @@ export type RecoveryAuditCase = {
   recoveredAmount: string;
   assignedTo: { id: string; name: string } | null;
   paymentDay: string | null;
+  reactivatedAt: string | null;
   payments: RecoveryAuditPayment[];
   paymentsAvailable: boolean;
   contacts: RecoveryAuditContact[];
@@ -74,4 +75,10 @@ export type RecoveryAuditResponse = {
   totalAmount: string;
   verifiedCases: number;
   cases: RecoveryAuditCase[];
+};
+
+export type CaseRecoveryAuditResponse = {
+  erpAvailable: boolean;
+  // null = o caso não está recuperado (nada a conferir).
+  audit: RecoveryAuditCase | null;
 };

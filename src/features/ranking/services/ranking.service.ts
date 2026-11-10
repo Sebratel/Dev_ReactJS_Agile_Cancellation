@@ -1,5 +1,6 @@
 import { httpClient } from '@/services/api/http-client';
 import {
+  type CaseRecoveryAuditResponse,
   type RecoveryAuditResponse,
   type RecoveryRankingPeriod,
   type RecoveryRankingResponse,
@@ -23,6 +24,15 @@ export async function getRecoveryAudit(
   const searchParams = new URLSearchParams({ period });
   const response = await httpClient.request<RecoveryAuditResponse>({
     path: `/erp/recovery-audit/${encodeURIComponent(userId)}?${searchParams.toString()}`,
+  });
+
+  return response.data;
+}
+
+// Conferência de um caso recuperado (página de detalhe, só supervisão/admin).
+export async function getCaseRecoveryAudit(caseId: string) {
+  const response = await httpClient.request<CaseRecoveryAuditResponse>({
+    path: `/erp/case-recovery-audit/${encodeURIComponent(caseId)}`,
   });
 
   return response.data;

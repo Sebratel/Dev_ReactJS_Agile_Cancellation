@@ -34,6 +34,10 @@ export type RecoveryAuditCaseInput = {
   recoveredAmount: number;
   cycleStartedAt: Date | null;
   assignedUser: { id: string; name: string } | null;
+  // Cliente cancelado devolvido à carteira e reativado: o crédito é pelo pago
+  // DEPOIS da reativação (não por título-gatilho), e o contato precisa de
+  // observação e ser até o dia da reativação.
+  reactivatedAt?: Date | null;
   attempts: RecoveryAuditAttemptInput[];
   // null = ERP indisponível (não foi possível confirmar o pagamento agora).
   payments: RecoveryAuditPaymentInput[] | null;
@@ -84,6 +88,7 @@ export type RecoveryAuditCase = {
   recoveredAmount: string;
   assignedTo: { id: string; name: string } | null;
   paymentDay: string | null;
+  reactivatedAt: string | null;
   payments: RecoveryAuditPayment[];
   paymentsAvailable: boolean;
   contacts: RecoveryAuditContact[];
@@ -136,11 +141,19 @@ export function buildRecoveryAuditCase(
 
   const isEffective = (attempt: RecoveryAuditAttemptInput) =>
     EFFECTIVE_ATTEMPT_RESULTS.has(attempt.result);
+  const reactivatedAt = input.reactivatedAt ?? null;
+  // Dia de corte do contato: o pagamento (cobrança) ou a reativação (cancelado).
+  const anchorDay = reactivatedAt ?? paymentDay;
   const beforePayment = (attempt: RecoveryAuditAttemptInput): boolean | null =>
-    paymentDay ? toDayUtc(attempt.attemptedAt) <= toDayUtc(paymentDay) : null;
+    anchorDay ? toDayUtc(attempt.attemptedAt) <= toDayUtc(anchorDay) : null;
+  const hasNotes = (attempt: RecoveryAuditAttemptInput) =>
+    Boolean(attempt.notes && attempt.notes.trim().length > 0);
 
   const qualifying = manualInCycle.filter(
-    (attempt) => isEffective(attempt) && beforePayment(attempt) !== false,
+    (attempt) =>
+      isEffective(attempt) &&
+      beforePayment(attempt) !== false &&
+      (!reactivatedAt || hasNotes(attempt)),
   );
   const credited =
     qualifying.length > 0 ? qualifying[qualifying.length - 1] : null;
@@ -159,11 +172,11 @@ export function buildRecoveryAuditCase(
 
   const effectiveCount = manualInCycle.filter(isEffective).length;
 
-  const checks: RecoveryAuditCheck[] = [];
+  const paymentChecks: RecoveryAuditCheck[] = [];
 
   // 1. Pagamento confirmado no ERP (baixa real, com forma de pagamento).
   if (!paymentsAvailable) {
-    checks.push({
+    paymentChecks.push({
       key: 'payment_confirmed',
       label: 'Pagamento confirmado no ERP',
       status: 'unknown',
@@ -171,7 +184,7 @@ export function buildRecoveryAuditCase(
         'ERP indisponível agora — não foi possível reconferir o pagamento.',
     });
   } else if (paidPayments.length === 0) {
-    checks.push({
+    paymentChecks.push({
       key: 'payment_confirmed',
       label: 'Pagamento confirmado no ERP',
       status: 'fail',
@@ -183,7 +196,7 @@ export function buildRecoveryAuditCase(
         paidPayments.map((p) => p.paymentForm).filter((f): f is string => !!f),
       ),
     ];
-    checks.push({
+    paymentChecks.push({
       key: 'payment_confirmed',
       label: 'Pagamento confirmado no ERP',
       status: 'ok',
@@ -192,7 +205,7 @@ export function buildRecoveryAuditCase(
   }
 
   // 2. Houve contato efetivo no ciclo atual.
-  checks.push(
+  paymentChecks.push(
     effectiveCount > 0
       ? {
           key: 'effective_contact',
@@ -210,21 +223,21 @@ export function buildRecoveryAuditCase(
 
   // 3. Contato efetivo feito ATÉ o dia do pagamento.
   if (!paymentDay) {
-    checks.push({
+    paymentChecks.push({
       key: 'contact_before_payment',
       label: 'Contato feito até o dia do pagamento',
       status: 'unknown',
       detail: 'Sem a data da baixa não dá para comparar com o contato.',
     });
   } else if (credited) {
-    checks.push({
+    paymentChecks.push({
       key: 'contact_before_payment',
       label: 'Contato feito até o dia do pagamento',
       status: 'ok',
       detail: `Contato efetivo em ${formatDayBr(credited.attemptedAt)}, pagamento em ${formatDayBr(paymentDay)}.`,
     });
   } else {
-    checks.push({
+    paymentChecks.push({
       key: 'contact_before_payment',
       label: 'Contato feito até o dia do pagamento',
       status: 'fail',
@@ -234,21 +247,21 @@ export function buildRecoveryAuditCase(
 
   // 4. O valor creditado é a soma das baixas.
   if (!paymentsAvailable || paidPayments.length === 0) {
-    checks.push({
+    paymentChecks.push({
       key: 'amount_match',
       label: 'Valor creditado = soma dos títulos pagos',
       status: 'unknown',
       detail: 'Sem baixas para somar.',
     });
   } else if (Math.abs(totalPaid - input.recoveredAmount) < 0.01) {
-    checks.push({
+    paymentChecks.push({
       key: 'amount_match',
       label: 'Valor creditado = soma dos títulos pagos',
       status: 'ok',
       detail: `R$ ${brl(totalPaid)} nos títulos pagos e R$ ${brl(input.recoveredAmount)} creditados.`,
     });
   } else {
-    checks.push({
+    paymentChecks.push({
       key: 'amount_match',
       label: 'Valor creditado = soma dos títulos pagos',
       status: 'fail',
@@ -258,26 +271,87 @@ export function buildRecoveryAuditCase(
 
   // 5. Quem recebe o crédito é quem fez o contato.
   if (!credited) {
-    checks.push({
+    paymentChecks.push({
       key: 'credit_to_contact_agent',
       label: 'Crédito está com quem fez o contato',
       status: 'unknown',
       detail: 'Sem contato qualificado para comparar.',
     });
   } else if (credited.performedBy?.id === input.assignedUser?.id) {
-    checks.push({
+    paymentChecks.push({
       key: 'credit_to_contact_agent',
       label: 'Crédito está com quem fez o contato',
       status: 'ok',
       detail: `Contato e crédito são de ${input.assignedUser?.name ?? '—'}.`,
     });
   } else {
-    checks.push({
+    paymentChecks.push({
       key: 'credit_to_contact_agent',
       label: 'Crédito está com quem fez o contato',
       status: 'fail',
       detail: `O último contato foi de ${credited.performedBy?.name ?? 'usuário removido'}, mas o crédito está com ${input.assignedUser?.name ?? 'ninguém'}.`,
     });
+  }
+
+  const checks: RecoveryAuditCheck[] = [];
+  // Cancelado reativado: as verificações de título/baixa não se aplicam.
+  if (reactivatedAt) {
+    checks.push(
+      {
+        key: 'payment_confirmed',
+        label: 'Contrato reativado no ERP',
+        status: 'ok',
+        detail: `Reativação em ${formatDayBr(reactivatedAt)}.`,
+      },
+      {
+        key: 'effective_contact',
+        label: 'Contato efetivo registrado no ciclo',
+        status: effectiveCount > 0 ? 'ok' : 'fail',
+        detail:
+          effectiveCount > 0
+            ? `${effectiveCount} contato(s) efetivo(s) registrado(s) pela atendente.`
+            : 'Nenhum contato efetivo (falou com o cliente) no ciclo.',
+      },
+      {
+        key: 'contact_before_payment',
+        label: 'Contato com observação até o dia da reativação',
+        status: credited ? 'ok' : 'fail',
+        detail: credited
+          ? `Contato efetivo com observação em ${formatDayBr(credited.attemptedAt)}, reativação em ${formatDayBr(reactivatedAt)}.`
+          : `Nenhum contato efetivo com observação até ${formatDayBr(reactivatedAt)}.`,
+      },
+      {
+        key: 'amount_match',
+        label: 'Valor creditado = pago após a reativação',
+        status: 'unknown',
+        detail:
+          'Valor recalculado do ERP a cada rodada (pagamentos desde a reativação); não reconferido aqui.',
+      },
+    );
+    if (!credited) {
+      checks.push({
+        key: 'credit_to_contact_agent',
+        label: 'Crédito está com quem fez o contato',
+        status: 'unknown',
+        detail: 'Sem contato qualificado para comparar.',
+      });
+    } else if (credited.performedBy?.id === input.assignedUser?.id) {
+      checks.push({
+        key: 'credit_to_contact_agent',
+        label: 'Crédito está com quem fez o contato',
+        status: 'ok',
+        detail: `Contato e crédito são de ${input.assignedUser?.name ?? '—'}.`,
+      });
+    } else {
+      checks.push({
+        key: 'credit_to_contact_agent',
+        label: 'Crédito está com quem fez o contato',
+        status: 'fail',
+        detail: `O último contato foi de ${credited.performedBy?.name ?? 'usuário removido'}, mas o crédito está com ${input.assignedUser?.name ?? 'ninguém'}.`,
+      });
+    }
+  } else {
+    checks.push(...paymentChecks);
   }
 
   return {
@@ -288,6 +362,7 @@ export function buildRecoveryAuditCase(
     recoveredAmount: brl(input.recoveredAmount),
     assignedTo: input.assignedUser,
     paymentDay: paymentDay ? formatDay(paymentDay) : null,
+    reactivatedAt: reactivatedAt ? formatDay(reactivatedAt) : null,
     payments: paidPayments.map((p) => ({
       titleNumber: p.titleNumber,
       paidDate: formatDay(p.paidDate),
