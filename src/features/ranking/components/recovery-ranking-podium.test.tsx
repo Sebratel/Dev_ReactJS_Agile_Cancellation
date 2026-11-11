@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
 import { RecoveryRankingPodium } from '@/features/ranking/components/recovery-ranking-podium';
 import { type RankingRow } from '@/features/ranking/utils/ranking-stats';
 
@@ -47,5 +48,32 @@ describe('RecoveryRankingPodium', () => {
 
     expect(screen.getByText('Eva Costa')).toBeInTheDocument();
     expect(screen.getAllByText('Vaga livre')).toHaveLength(2);
+  });
+
+  it('card do podio abre a conferencia do atendente quando ha handler', async () => {
+    const onOpenAudit = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <RecoveryRankingPodium
+        items={[row(1, 'Ana Lima'), row(2, 'Bruno Dias')]}
+        onOpenAudit={onOpenAudit}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole('button', { name: 'Ver conferência de Ana Lima' }),
+    );
+
+    expect(onOpenAudit).toHaveBeenCalledWith({
+      userId: 'u1',
+      name: 'Ana Lima',
+    });
+  });
+
+  it('sem handler os cards nao sao botoes', () => {
+    render(<RecoveryRankingPodium items={[row(1, 'Ana Lima')]} />);
+
+    expect(screen.queryByRole('button')).toBeNull();
   });
 });

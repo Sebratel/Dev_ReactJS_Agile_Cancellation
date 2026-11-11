@@ -49,6 +49,8 @@ export type RecoveryAuditPayment = {
   amount: string;
   receivedAmount: string;
   paymentForm: string | null;
+  // Título gerado por renegociação de um título do caso.
+  viaRenegotiation: boolean;
 };
 
 export type RecoveryAuditCase = {

@@ -1,4 +1,5 @@
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CaseRecoveryAuditSection } from '@/features/ranking/components/case-recovery-audit-section';
 import { renderWithProviders } from '@/test/test-utils';
@@ -41,16 +42,21 @@ describe('CaseRecoveryAuditSection', () => {
     });
   });
 
-  it('mostra as verificacoes do caso recuperado', async () => {
+  it('mostra o resumo e abre a linha do tempo no popup', async () => {
+    const user = userEvent.setup();
+
     renderWithProviders(<CaseRecoveryAuditSection caseId="c1" enabled />);
 
     expect(
-      await screen.findByText('Conferência do crédito'),
-    ).toBeInTheDocument();
-    expect(
-      await screen.findByText('Pagamento confirmado no ERP'),
+      await screen.findByText(/Receita confirmada para Débora/),
     ).toBeInTheDocument();
     expect(getCaseRecoveryAudit).toHaveBeenCalledWith('c1');
+
+    await user.click(screen.getByRole('button', { name: 'Ver conferência' }));
+
+    expect(
+      await screen.findByLabelText('Linha do tempo da recuperação'),
+    ).toBeInTheDocument();
   });
 
   it('nao renderiza nem busca quando desabilitado (nao e supervisao ou nao recuperado)', () => {

@@ -5,7 +5,7 @@ import { EmptyState } from '@/components/feedback/empty-state';
 import { ErrorState } from '@/components/feedback/error-state';
 import { TableSkeleton } from '@/components/feedback/table-skeleton';
 import { cn } from '@/lib/utils';
-import { RecoveryAuditDrawer } from '@/features/ranking/components/recovery-audit-drawer';
+import { RecoveryAuditDialog } from '@/features/ranking/components/recovery-audit-dialog';
 import { RecoveryRankingKpis } from '@/features/ranking/components/recovery-ranking-kpis';
 import { RecoveryRankingPodium } from '@/features/ranking/components/recovery-ranking-podium';
 import { RecoveryRankingTable } from '@/features/ranking/components/recovery-ranking-table';
@@ -99,7 +99,7 @@ export default function RankingPage() {
                   : undefined
               }
             />
-            <RecoveryRankingPodium items={rows} />
+            <RecoveryRankingPodium items={rows} onOpenAudit={setAuditAgent} />
             <RecoveryRankingTable rows={rows} onOpenAudit={setAuditAgent} />
           </div>
         ) : (
@@ -109,7 +109,7 @@ export default function RankingPage() {
           />
         )
       ) : null}
-      <RecoveryAuditDrawer
+      <RecoveryAuditDialog
         agent={auditAgent}
         period={period}
         onClose={() => {

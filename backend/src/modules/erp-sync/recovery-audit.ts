@@ -24,6 +24,9 @@ export type RecoveryAuditPaymentInput = {
   // Valor efetivamente recebido na baixa (pode diferir por multa/desconto).
   receivedAmount: number;
   paymentForm: string | null;
+  // Título gerado por renegociação de um título do caso (ex.: R$ 99,90 virou
+  // R$ 39,96): o que foi pago nele também entra no valor recuperado.
+  viaRenegotiation?: boolean;
 };
 
 export type RecoveryAuditCaseInput = {
@@ -78,6 +81,7 @@ export type RecoveryAuditPayment = {
   amount: string;
   receivedAmount: string;
   paymentForm: string | null;
+  viaRenegotiation: boolean;
 };
 
 export type RecoveryAuditCase = {
@@ -370,6 +374,7 @@ export function buildRecoveryAuditCase(
       amount: brl(p.amount),
       receivedAmount: brl(p.receivedAmount),
       paymentForm: p.paymentForm,
+      viaRenegotiation: Boolean(p.viaRenegotiation),
     })),
     paymentsAvailable,
     contacts,
@@ -418,7 +423,7 @@ export function buildMockRecoveryAudit(
       customerName: 'CLIENTE EXEMPLO A',
       contractCode: '10428',
       recoveredAt: day('2026-11-04T19:50:00.000Z'),
-      recoveredAmount: 99.9,
+      recoveredAmount: 139.86,
       cycleStartedAt: day('2026-10-20T00:00:00.000Z'),
       assignedUser: agent,
       attempts: [
@@ -438,6 +443,15 @@ export function buildMockRecoveryAudit(
           amount: 99.9,
           receivedAmount: 99.9,
           paymentForm: 'PIX',
+        },
+        {
+          titleNumber: '48990',
+          paidDate: day('2026-11-04T00:00:00.000Z'),
+          registeredAt: day('2026-11-04T22:09:00.000Z'),
+          amount: 39.96,
+          receivedAmount: 39.96,
+          paymentForm: 'Boleto',
+          viaRenegotiation: true,
         },
       ],
     }),

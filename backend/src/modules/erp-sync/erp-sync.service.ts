@@ -191,6 +191,51 @@ WHERE fr.id = ANY($1::bigint[])
 GROUP BY fr.id;
 `;
 
+// Pagamento de títulos GERADOS por renegociação: quando o cliente renegocia um
+// título-gatilho (consumido, type=0), o ERP cria títulos novos (type=1) e o que
+// ele paga neles também é dinheiro recuperado (ex.: título de R$ 99,90 vira um
+// de R$ 39,96, pago na hora). Só conta baixa REAL (com forma de pagamento).
+// O valor é o do título (title_amount), mesmo critério do valor dos gatilhos.
+const PAID_RENEGOTIATED_TITLES_QUERY = `
+SELECT
+  consumed.financial_receivable_title_id::text AS trigger_title_id,
+  g.id::text AS title_id,
+  g.title AS title_number,
+  g.title_amount::text AS title_amount,
+  MIN(x.client_paid_date) AS paid_date,
+  MIN(x.created) AS registered_at,
+  SUM(x.total_amount)::text AS received_amount,
+  STRING_AGG(DISTINCT pf.title, ', ') AS payment_form
+FROM erp.financial_renegotiation_titles consumed
+JOIN erp.financial_renegotiations r
+  ON r.id = consumed.financial_renegotiation_id AND r.deleted IS false
+JOIN erp.financial_renegotiation_titles gen
+  ON gen.financial_renegotiation_id = r.id AND gen.type = 1 AND gen.deleted IS false
+JOIN erp.financial_receivable_titles g
+  ON g.id = gen.financial_receivable_title_id AND g.deleted IS false AND g.bill_title_id IS NULL
+JOIN erp.financial_receipt_titles x
+  ON x.financial_receivable_title_id = g.id
+ AND x.client_paid_date IS NOT NULL
+ AND x.payment_form_id IS NOT NULL
+ AND x.deleted IS false
+LEFT JOIN erp.payment_forms pf ON pf.id = x.payment_form_id
+WHERE consumed.type = 0
+  AND consumed.deleted IS false
+  AND consumed.financial_receivable_title_id = ANY($1::bigint[])
+GROUP BY consumed.financial_receivable_title_id, g.id, g.title, g.title_amount;
+`;
+
+type PaidRenegotiatedRow = {
+  trigger_title_id: string;
+  title_id: string;
+  title_number: string | null;
+  title_amount: string | null;
+  paid_date: Date;
+  registered_at: Date | null;
+  received_amount: string | null;
+  payment_form: string | null;
+};
+
 // Detalhe dos títulos pagos de um caso recuperado (conferência do ranking):
 // dia da baixa, quando foi lançada no ERP, valor do título, valor recebido e
 // forma de pagamento. Mesmo critério de PAID_TITLES_QUERY (baixa real).
@@ -524,6 +569,7 @@ export class ErpSyncService implements OnModuleDestroy {
     if (payload.events.length > 0 && validEvents.length === 0) {
       await this.reconcileRecoveredCases();
       await this.reconcileCancelledRecovery();
+      await this.refreshRenegotiatedRecoveredAmounts();
       this.logger.warn(
         'Nenhum evento valido apos validacao — rodada encerrada.',
       );
@@ -543,6 +589,157 @@ export class ErpSyncService implements OnModuleDestroy {
 
     await this.reconcileRecoveredCases();
     await this.reconcileCancelledRecovery();
+    await this.refreshRenegotiatedRecoveredAmounts();
+  }
+
+  // Busca no ERP os títulos gerados por renegociação (e já pagos) dos títulos
+  // informados. Um título gerado pode aparecer para mais de um gatilho
+  // consumido na mesma renegociação: quem chama deduplica por `title_id`.
+  private async fetchPaidRenegotiatedRows(
+    pool: Pool,
+    triggerTitleIds: string[],
+  ): Promise<PaidRenegotiatedRow[]> {
+    if (triggerTitleIds.length === 0) {
+      return [];
+    }
+
+    const result = await pool.query<PaidRenegotiatedRow>(
+      PAID_RENEGOTIATED_TITLES_QUERY,
+      [triggerTitleIds],
+    );
+
+    return result.rows;
+  }
+
+  // Corrige o valor dos casos recuperados/pagos recentemente que renegociaram:
+  // o que o cliente pagou nos títulos gerados pela renegociação entra no valor.
+  // Só AUMENTA e só quando o valor já estava gravado (casos antigos sem valor
+  // não são tocados). Nunca derruba o sync: erro só vai para o log.
+  private async refreshRenegotiatedRecoveredAmounts(): Promise<void> {
+    const config = getErpSyncConfig();
+
+    if (!config.db) {
+      return;
+    }
+
+    try {
+      const since = new Date(Date.now() - 45 * 24 * 60 * 60 * 1000);
+      const cases = await this.prisma.collectionCase.findMany({
+        where: {
+          status: {
+            in: [CollectionStatus.RECOVERED, CollectionStatus.PAYMENT_MADE],
+          },
+          reactivatedAt: null,
+          recoveredAt: { gte: since },
+          recoveredAmount: { not: null },
+        },
+        select: { id: true, contractId: true, recoveredAmount: true },
+      });
+
+      if (cases.length === 0) {
+        return;
+      }
+
+      const contractIds = [...new Set(cases.map((item) => item.contractId))];
+      const invoices = await this.prisma.invoice.findMany({
+        where: { contractId: { in: contractIds }, externalId: { not: null } },
+        select: { contractId: true, externalId: true, amount: true },
+      });
+
+      const triggerIds = invoices
+        .map((invoice) => invoice.externalId)
+        .filter((id): id is string => !!id && /^[0-9]+$/.test(id));
+
+      if (triggerIds.length === 0) {
+        return;
+      }
+
+      const pool = this.getPool(config.db);
+      const paidResult = await pool.query<{ id: string }>(PAID_TITLES_QUERY, [
+        triggerIds,
+      ]);
+      const paidTriggerIds = new Set(paidResult.rows.map((row) => row.id));
+      const renegotiatedRows = await this.fetchPaidRenegotiatedRows(
+        pool,
+        triggerIds,
+      );
+
+      const contractByTitle = new Map(
+        invoices
+          .filter((invoice) => invoice.externalId)
+          .map((invoice) => [invoice.externalId as string, invoice.contractId]),
+      );
+      const centsByContract = new Map<string, number>();
+      const addCents = (contractId: string, cents: number) =>
+        centsByContract.set(
+          contractId,
+          (centsByContract.get(contractId) ?? 0) + cents,
+        );
+
+      for (const invoice of invoices) {
+        if (invoice.externalId && paidTriggerIds.has(invoice.externalId)) {
+          addCents(
+            invoice.contractId,
+            Math.round(Number(invoice.amount.toString()) * 100),
+          );
+        }
+      }
+
+      const seenTitles = new Set<string>();
+      for (const row of renegotiatedRows) {
+        const contractId = contractByTitle.get(row.trigger_title_id);
+        if (!contractId || seenTitles.has(row.title_id)) {
+          continue;
+        }
+        seenTitles.add(row.title_id);
+        addCents(contractId, Math.round(Number(row.title_amount ?? 0) * 100));
+      }
+
+      let corrected = 0;
+      for (const item of cases) {
+        const current = Number(item.recoveredAmount?.toString() ?? '0');
+        const next = (centsByContract.get(item.contractId) ?? 0) / 100;
+
+        if (next <= current + 0.004) {
+          continue;
+        }
+
+        await this.prisma.$transaction(async (tx) => {
+          await tx.collectionCase.update({
+            where: { id: item.id },
+            data: { recoveredAmount: next.toFixed(2) },
+          });
+          await tx.auditLog.create({
+            data: {
+              entityType: 'COLLECTION_CASE',
+              entityId: item.id,
+              action: AuditAction.UPDATE,
+              beforeSnapshot: { recoveredAmount: current.toFixed(2) },
+              afterSnapshot: { recoveredAmount: next.toFixed(2) },
+              metadata: {
+                resourceType: 'COLLECTION_CASE',
+                action: 'RECOVERED_AMOUNT_RENEGOTIATION_REFRESH',
+                source: ERP_SYNC_SOURCE,
+                reason:
+                  'Valor recuperado inclui o pago em titulos gerados por renegociacao.',
+              },
+            },
+          });
+        });
+        corrected += 1;
+      }
+
+      if (corrected > 0) {
+        this.logger.log(
+          `Valor recuperado corrigido por renegociacao em ${corrected} caso(s).`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        'Falha ao atualizar o valor recuperado com titulos renegociados.',
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
   }
 
   /**
@@ -1113,6 +1310,44 @@ export class ErpSyncService implements OnModuleDestroy {
       }
     }
 
+    // Pago em títulos GERADOS por renegociação dos títulos-gatilho: entra no
+    // valor recuperado do contrato (ex.: R$ 99,90 renegociado em R$ 39,96 pagos).
+    const renegotiatedPaidCentsByContract = new Map<string, number>();
+    if (allTriggerTitleIds.length > 0) {
+      try {
+        const pool = this.getPool(config.db);
+        const rows = await this.fetchPaidRenegotiatedRows(
+          pool,
+          allTriggerTitleIds,
+        );
+        const contractByTitle = new Map<string, string>();
+        for (const [contractId, ids] of titleIdsByContract) {
+          for (const id of ids) {
+            contractByTitle.set(id, contractId);
+          }
+        }
+        const seenTitles = new Set<string>();
+        for (const row of rows) {
+          const contractId = contractByTitle.get(row.trigger_title_id);
+          if (!contractId || seenTitles.has(row.title_id)) {
+            continue;
+          }
+          seenTitles.add(row.title_id);
+          renegotiatedPaidCentsByContract.set(
+            contractId,
+            (renegotiatedPaidCentsByContract.get(contractId) ?? 0) +
+              Math.round(Number(row.title_amount ?? 0) * 100),
+          );
+        }
+      } catch (error) {
+        this.logger.error(
+          'Falha ao buscar titulos renegociados pagos no ERP. Reconciliacao abortada nesta rodada (nao credita valor incompleto).',
+          error instanceof Error ? error.stack : String(error),
+        );
+        return;
+      }
+    }
+
     const hasPaymentEvidence = (collectionCase: { contractId: string }) => {
       const ids = titleIdsByContract.get(collectionCase.contractId);
       return Boolean(ids && ids.some((id) => paidTitleIds.has(id)));
@@ -1275,7 +1510,8 @@ export class ErpSyncService implements OnModuleDestroy {
             const paidAmountFor = (caseId: string) => {
               const contractId = contractIdByCase.get(caseId);
               const cents = contractId
-                ? (paidCentsByContract.get(contractId) ?? 0)
+                ? (paidCentsByContract.get(contractId) ?? 0) +
+                  (renegotiatedPaidCentsByContract.get(contractId) ?? 0)
                 : 0;
               return (cents / 100).toFixed(2);
             };
@@ -1893,6 +2129,7 @@ export class ErpSyncService implements OnModuleDestroy {
 
     // null = ERP indisponível (não dá para reconferir o pagamento agora).
     let paymentsByTitle: Map<string, RecoveryAuditPaymentRow> | null = null;
+    let renegotiatedRows: PaidRenegotiatedRow[] = [];
     const config = getErpSyncConfig();
     if (titleIds.length === 0) {
       paymentsByTitle = new Map();
@@ -1906,7 +2143,9 @@ export class ErpSyncService implements OnModuleDestroy {
         paymentsByTitle = new Map(
           result.rows.map((row) => [row.title_id, row]),
         );
+        renegotiatedRows = await this.fetchPaidRenegotiatedRows(pool, titleIds);
       } catch (error) {
+        paymentsByTitle = null;
         this.logger.error(
           'Falha ao buscar pagamentos no ERP para a conferência do ranking.',
           error instanceof Error ? error.stack : String(error),
@@ -1915,24 +2154,56 @@ export class ErpSyncService implements OnModuleDestroy {
     }
 
     const auditCases = cases.map((item) => {
+      const triggerIds = new Set(
+        item.contract.invoices
+          .map((invoice) => invoice.externalId)
+          .filter((id): id is string => !!id),
+      );
+      const seenRenegotiated = new Set<string>();
       const payments = paymentsByTitle
-        ? item.contract.invoices
-            .map((invoice) =>
-              invoice.externalId
-                ? paymentsByTitle?.get(invoice.externalId)
-                : undefined,
-            )
-            .filter((row): row is RecoveryAuditPaymentRow => !!row)
-            .map((row) => ({
-              titleNumber: row.title_number,
-              paidDate: new Date(row.paid_date),
-              registeredAt: row.registered_at
-                ? new Date(row.registered_at)
-                : null,
-              amount: Number(row.title_amount ?? 0),
-              receivedAmount: Number(row.received_amount ?? 0),
-              paymentForm: row.payment_form,
-            }))
+        ? [
+            ...item.contract.invoices
+              .map((invoice) =>
+                invoice.externalId
+                  ? paymentsByTitle?.get(invoice.externalId)
+                  : undefined,
+              )
+              .filter((row): row is RecoveryAuditPaymentRow => !!row)
+              .map((row) => ({
+                titleNumber: row.title_number,
+                paidDate: new Date(row.paid_date),
+                registeredAt: row.registered_at
+                  ? new Date(row.registered_at)
+                  : null,
+                amount: Number(row.title_amount ?? 0),
+                receivedAmount: Number(row.received_amount ?? 0),
+                paymentForm: row.payment_form,
+                viaRenegotiation: false,
+              })),
+            // Títulos gerados por renegociação dos títulos deste contrato.
+            ...renegotiatedRows
+              .filter((row) => {
+                if (
+                  !triggerIds.has(row.trigger_title_id) ||
+                  seenRenegotiated.has(row.title_id)
+                ) {
+                  return false;
+                }
+                seenRenegotiated.add(row.title_id);
+                return true;
+              })
+              .map((row) => ({
+                titleNumber: row.title_number,
+                paidDate: new Date(row.paid_date),
+                registeredAt: row.registered_at
+                  ? new Date(row.registered_at)
+                  : null,
+                amount: Number(row.title_amount ?? 0),
+                receivedAmount: Number(row.received_amount ?? 0),
+                paymentForm: row.payment_form,
+                viaRenegotiation: true,
+              })),
+          ]
         : null;
 
       return buildRecoveryAuditCase({

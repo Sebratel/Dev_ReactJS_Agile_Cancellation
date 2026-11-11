@@ -1,4 +1,4 @@
-import { Trophy } from 'lucide-react';
+import { ShieldCheck, Trophy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { type RankingRow } from '@/features/ranking/utils/ranking-stats';
 import { UserAvatar } from '@/components/ui/user-avatar';
@@ -9,6 +9,8 @@ import {
 
 type RecoveryRankingPodiumProps = {
   items: RankingRow[];
+  // Quando informado, cada card vira um botão que abre a conferência do crédito.
+  onOpenAudit?: (agent: { userId: string; name: string }) => void;
 };
 
 type Slot = {
@@ -24,7 +26,10 @@ const SLOTS: Slot[] = [
   { position: 3, label: '3º lugar', orderClass: 'order-3' },
 ];
 
-export function RecoveryRankingPodium({ items }: RecoveryRankingPodiumProps) {
+export function RecoveryRankingPodium({
+  items,
+  onOpenAudit,
+}: RecoveryRankingPodiumProps) {
   if (items.length === 0) {
     return null;
   }
@@ -55,14 +60,28 @@ export function RecoveryRankingPodium({ items }: RecoveryRankingPodiumProps) {
           );
         }
 
+        const clickable = Boolean(onOpenAudit);
+        const Wrapper = clickable ? 'button' : 'div';
+
         return (
-          <div
+          <Wrapper
             key={item.userId}
+            {...(clickable
+              ? {
+                  type: 'button' as const,
+                  onClick: () => {
+                    onOpenAudit?.({ userId: item.userId, name: item.name });
+                  },
+                  'aria-label': `Ver conferência de ${item.name}`,
+                }
+              : {})}
             className={cn(
               'flex flex-col items-center gap-3 rounded-2xl bg-card text-center shadow-card motion-safe:animate-rise-in-md',
               isFirst
                 ? 'p-7 ring-2 ring-primary sm:pb-9'
                 : 'p-5 ring-1 ring-border',
+              clickable &&
+                'cursor-pointer transition-shadow hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
               slot.orderClass,
             )}
           >
@@ -102,7 +121,14 @@ export function RecoveryRankingPodium({ items }: RecoveryRankingPodiumProps) {
                 {Math.round(item.sharePercent)}% do total
               </p>
             </div>
-          </div>
+
+            {clickable ? (
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-neutral">
+                <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                Ver como o valor foi confirmado
+              </span>
+            ) : null}
+          </Wrapper>
         );
       })}
     </section>

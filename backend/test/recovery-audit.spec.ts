@@ -201,3 +201,47 @@ describe('buildRecoveryAuditCase (cancelado reativado)', () => {
     expect(status(result, 'contact_before_payment')).toBe('fail');
   });
 });
+
+describe('buildRecoveryAuditCase (titulo gerado por renegociacao)', () => {
+  const renegotiated = {
+    titleNumber: 'FAT261104125806844',
+    paidDate: new Date('2026-11-04T00:00:00.000Z'),
+    registeredAt: new Date('2026-11-04T22:09:00.000Z'),
+    amount: 39.96,
+    receivedAmount: 39.96,
+    paymentForm: 'Boleto',
+    viaRenegotiation: true,
+  };
+  const original = {
+    titleNumber: 'FAT251126104121778',
+    paidDate: new Date('2026-11-04T00:00:00.000Z'),
+    registeredAt: new Date('2026-11-04T19:44:00.000Z'),
+    amount: 99.9,
+    receivedAmount: 103.23,
+    paymentForm: 'Pix',
+  };
+
+  it('valor = titulo pago + titulo gerado pela renegociacao (caso da Carina)', () => {
+    const result = build({
+      recoveredAmount: 139.86,
+      payments: [original, renegotiated],
+    });
+
+    expect(status(result, 'amount_match')).toBe('ok');
+    expect(result.payments.map((p) => p.viaRenegotiation)).toEqual([
+      false,
+      true,
+    ]);
+    expect(result.verified).toBe(true);
+  });
+
+  it('valor creditado sem o renegociado e apontado como divergente', () => {
+    const result = build({
+      recoveredAmount: 99.9,
+      payments: [original, renegotiated],
+    });
+
+    expect(status(result, 'amount_match')).toBe('fail');
+    expect(result.verified).toBe(false);
+  });
+});
