@@ -15,6 +15,7 @@ import {
   InvoiceStatus,
   PaymentPromiseStatus,
   Prisma,
+  UserStatus,
 } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { validateSync } from 'class-validator';
@@ -145,6 +146,7 @@ import { RecoveryNotifierService } from '@/modules/erp-sync/recovery-notifier.se
 import {
   buildMockRecoveryAudit,
   buildRecoveryAuditCase,
+  type ManualCreditResult,
   type RecoveryAuditCase,
   type RecoveryAuditResponse,
 } from '@/modules/erp-sync/recovery-audit';
@@ -611,6 +613,217 @@ export class ErpSyncService implements OnModuleDestroy {
     return result.rows;
   }
 
+  // Total pago por contrato (em centavos): títulos-gatilho pagos (valor do título
+  // gravado na fatura) mais o pago em títulos gerados por renegociação. Lança se o
+  // ERP não responder (quem chama decide se aborta ou ignora).
+  private async fetchPaidCentsByContract(
+    db: NonNullable<ReturnType<typeof getErpSyncConfig>['db']>,
+    contractIds: string[],
+  ): Promise<Map<string, number>> {
+    const centsByContract = new Map<string, number>();
+
+    if (contractIds.length === 0) {
+      return centsByContract;
+    }
+
+    const invoices = await this.prisma.invoice.findMany({
+      where: { contractId: { in: contractIds }, externalId: { not: null } },
+      select: { contractId: true, externalId: true, amount: true },
+    });
+    const triggerIds = invoices
+      .map((invoice) => invoice.externalId)
+      .filter((id): id is string => !!id && /^[0-9]+$/.test(id));
+
+    if (triggerIds.length === 0) {
+      return centsByContract;
+    }
+
+    const pool = this.getPool(db);
+    const paidResult = await pool.query<{ id: string }>(PAID_TITLES_QUERY, [
+      triggerIds,
+    ]);
+    const paidTriggerIds = new Set(paidResult.rows.map((row) => row.id));
+    const renegotiatedRows = await this.fetchPaidRenegotiatedRows(
+      pool,
+      triggerIds,
+    );
+
+    const contractByTitle = new Map(
+      invoices
+        .filter((invoice) => invoice.externalId)
+        .map((invoice) => [invoice.externalId as string, invoice.contractId]),
+    );
+    const addCents = (contractId: string, cents: number) =>
+      centsByContract.set(
+        contractId,
+        (centsByContract.get(contractId) ?? 0) + cents,
+      );
+
+    for (const invoice of invoices) {
+      if (invoice.externalId && paidTriggerIds.has(invoice.externalId)) {
+        addCents(
+          invoice.contractId,
+          Math.round(Number(invoice.amount.toString()) * 100),
+        );
+      }
+    }
+
+    const seenTitles = new Set<string>();
+    for (const row of renegotiatedRows) {
+      const contractId = contractByTitle.get(row.trigger_title_id);
+      if (!contractId || seenTitles.has(row.title_id)) {
+        continue;
+      }
+      seenTitles.add(row.title_id);
+      addCents(contractId, Math.round(Number(row.title_amount ?? 0) * 100));
+    }
+
+    return centsByContract;
+  }
+
+  // Crédito manual da supervisão: cliente que PAGOU (caso "Pagamento realizado",
+  // com baixa real confirmada) mas sem contato registrado. A supervisão escolhe o
+  // atendente e a receita já paga passa a contar para ele (caso vira Recuperado).
+  // Mantém a data original da recuperação (a receita fica no mês do pagamento) e
+  // exige motivo, gravado na Auditoria. Nunca credita caso sem pagamento.
+  async creditCaseManually(
+    caseId: string,
+    input: { assignedUserId: string; reason: string },
+    performerId: string,
+  ): Promise<ManualCreditResult> {
+    if (getDataSourceMode() !== 'database') {
+      return { outcome: 'success', amount: '99.90' };
+    }
+
+    const existing = await this.prisma.collectionCase.findUnique({
+      where: { id: caseId },
+      select: {
+        id: true,
+        status: true,
+        contractId: true,
+        recoveredAt: true,
+        recoveredAmount: true,
+        assignedUserId: true,
+        customer: { select: { name: true } },
+      },
+    });
+
+    if (!existing) {
+      return { outcome: 'case_not_found' };
+    }
+
+    if (existing.status !== CollectionStatus.PAYMENT_MADE) {
+      return { outcome: 'status_not_allowed', status: existing.status };
+    }
+
+    const agent = await this.prisma.user.findUnique({
+      where: { id: input.assignedUserId },
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        userRoles: { select: { role: { select: { code: true } } } },
+      },
+    });
+
+    if (
+      !agent ||
+      agent.status !== UserStatus.ACTIVE ||
+      !agent.userRoles.some(({ role }) => role.code === 'COLLECTION_AGENT')
+    ) {
+      return { outcome: 'user_not_found' };
+    }
+
+    // Valor: o gravado; se não houver (casos antigos), calcula o pago no ERP.
+    let amount = Number(existing.recoveredAmount?.toString() ?? '0');
+    if (amount <= 0) {
+      const config = getErpSyncConfig();
+      if (!config.db) {
+        return { outcome: 'amount_unavailable' };
+      }
+      try {
+        const cents = await this.fetchPaidCentsByContract(config.db, [
+          existing.contractId,
+        ]);
+        amount = (cents.get(existing.contractId) ?? 0) / 100;
+      } catch (error) {
+        this.logger.error(
+          'Falha ao calcular o valor pago no ERP para o credito manual.',
+          error instanceof Error ? error.stack : String(error),
+        );
+        return { outcome: 'amount_unavailable' };
+      }
+      if (amount <= 0) {
+        return { outcome: 'amount_unavailable' };
+      }
+    }
+
+    const now = new Date();
+    const updated = await this.prisma.$transaction(async (tx) => {
+      // Condicional ao status: duas atribuições ao mesmo tempo não duplicam.
+      const result = await tx.collectionCase.updateMany({
+        where: { id: caseId, status: CollectionStatus.PAYMENT_MADE },
+        data: {
+          status: CollectionStatus.RECOVERED,
+          assignedUserId: agent.id,
+          assignedAt: now,
+          recoveredAt: existing.recoveredAt ?? now,
+          recoveredAmount: amount.toFixed(2),
+          outstandingAmount: 0,
+          daysOverdue: 0,
+          updatedAt: now,
+        },
+      });
+
+      if (result.count !== 1) {
+        return false;
+      }
+
+      await tx.auditLog.create({
+        data: {
+          entityType: 'COLLECTION_CASE',
+          entityId: caseId,
+          action: AuditAction.STATUS_CHANGE,
+          performedByUserId: performerId,
+          beforeSnapshot: {
+            status: CollectionStatus.PAYMENT_MADE,
+            assignedUserId: existing.assignedUserId,
+          },
+          afterSnapshot: {
+            status: CollectionStatus.RECOVERED,
+            assignedUserId: agent.id,
+            recoveredAmount: amount.toFixed(2),
+          },
+          metadata: {
+            resourceType: 'COLLECTION_CASE',
+            action: 'MANUAL_CREDIT',
+            creditedUserId: agent.id,
+            creditedUserName: agent.name,
+            previousAssigneeId: existing.assignedUserId,
+            reason: input.reason.trim(),
+          },
+        },
+      });
+
+      return true;
+    });
+
+    if (!updated) {
+      return { outcome: 'status_not_allowed', status: 'CHANGED' };
+    }
+
+    await this.notificationsService.notify({
+      userId: agent.id,
+      type: 'CASE_ASSIGNED',
+      title: 'Receita creditada a você',
+      body: `A supervisão creditou a você a receita de ${existing.customer.name} (R$ ${amount.toFixed(2)}).`,
+      entityType: 'collection_case',
+      entityId: caseId,
+    });
+
+    return { outcome: 'success', amount: amount.toFixed(2) };
+  }
+
   // Corrige o valor dos casos recuperados/pagos recentemente que renegociaram:
   // o que o cliente pagou nos títulos gerados pela renegociação entra no valor.
   // Só AUMENTA e só quando o valor já estava gravado (casos antigos sem valor
@@ -641,58 +854,13 @@ export class ErpSyncService implements OnModuleDestroy {
       }
 
       const contractIds = [...new Set(cases.map((item) => item.contractId))];
-      const invoices = await this.prisma.invoice.findMany({
-        where: { contractId: { in: contractIds }, externalId: { not: null } },
-        select: { contractId: true, externalId: true, amount: true },
-      });
+      const centsByContract = await this.fetchPaidCentsByContract(
+        config.db,
+        contractIds,
+      );
 
-      const triggerIds = invoices
-        .map((invoice) => invoice.externalId)
-        .filter((id): id is string => !!id && /^[0-9]+$/.test(id));
-
-      if (triggerIds.length === 0) {
+      if (centsByContract.size === 0) {
         return;
-      }
-
-      const pool = this.getPool(config.db);
-      const paidResult = await pool.query<{ id: string }>(PAID_TITLES_QUERY, [
-        triggerIds,
-      ]);
-      const paidTriggerIds = new Set(paidResult.rows.map((row) => row.id));
-      const renegotiatedRows = await this.fetchPaidRenegotiatedRows(
-        pool,
-        triggerIds,
-      );
-
-      const contractByTitle = new Map(
-        invoices
-          .filter((invoice) => invoice.externalId)
-          .map((invoice) => [invoice.externalId as string, invoice.contractId]),
-      );
-      const centsByContract = new Map<string, number>();
-      const addCents = (contractId: string, cents: number) =>
-        centsByContract.set(
-          contractId,
-          (centsByContract.get(contractId) ?? 0) + cents,
-        );
-
-      for (const invoice of invoices) {
-        if (invoice.externalId && paidTriggerIds.has(invoice.externalId)) {
-          addCents(
-            invoice.contractId,
-            Math.round(Number(invoice.amount.toString()) * 100),
-          );
-        }
-      }
-
-      const seenTitles = new Set<string>();
-      for (const row of renegotiatedRows) {
-        const contractId = contractByTitle.get(row.trigger_title_id);
-        if (!contractId || seenTitles.has(row.title_id)) {
-          continue;
-        }
-        seenTitles.add(row.title_id);
-        addCents(contractId, Math.round(Number(row.title_amount ?? 0) * 100));
       }
 
       let corrected = 0;
@@ -2127,6 +2295,48 @@ export class ErpSyncService implements OnModuleDestroy {
       ),
     ];
 
+    // Créditos manuais da supervisão (o mais recente por caso): a conferência
+    // mostra a atribuição como etapa própria em vez de "sem contato".
+    const manualCreditLogs =
+      cases.length > 0
+        ? await this.prisma.auditLog.findMany({
+            where: {
+              entityType: 'COLLECTION_CASE',
+              entityId: { in: cases.map((item) => item.id) },
+              metadata: { path: '$.action', equals: 'MANUAL_CREDIT' },
+            },
+            orderBy: { createdAt: 'desc' },
+            select: {
+              entityId: true,
+              createdAt: true,
+              metadata: true,
+              performedBy: { select: { id: true, name: true } },
+            },
+          })
+        : [];
+    const manualCreditByCase = new Map<
+      string,
+      {
+        at: Date;
+        by: { id: string; name: string } | null;
+        reason: string;
+      }
+    >();
+    for (const log of manualCreditLogs) {
+      if (manualCreditByCase.has(log.entityId)) {
+        continue;
+      }
+      const metadata =
+        log.metadata && typeof log.metadata === 'object'
+          ? (log.metadata as Record<string, unknown>)
+          : {};
+      manualCreditByCase.set(log.entityId, {
+        at: log.createdAt,
+        by: log.performedBy,
+        reason: typeof metadata.reason === 'string' ? metadata.reason : '',
+      });
+    }
+
     // null = ERP indisponível (não dá para reconferir o pagamento agora).
     let paymentsByTitle: Map<string, RecoveryAuditPaymentRow> | null = null;
     let renegotiatedRows: PaidRenegotiatedRow[] = [];
@@ -2214,6 +2424,7 @@ export class ErpSyncService implements OnModuleDestroy {
         recoveredAmount: Number(item.recoveredAmount?.toString() ?? '0'),
         cycleStartedAt: item.cycleStartedAt,
         reactivatedAt: item.reactivatedAt,
+        manualCredit: manualCreditByCase.get(item.id) ?? null,
         assignedUser: item.assignedUser,
         attempts: item.collectionAttempts,
         payments,

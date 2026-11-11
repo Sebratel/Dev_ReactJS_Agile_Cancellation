@@ -30,6 +30,7 @@ function auditCase(
     assignedTo: { id: 'u1', name: 'Débora' },
     paymentDay: '2026-11-04',
     reactivatedAt: null,
+    manualCredit: null,
     paymentsAvailable: true,
     payments: [
       {

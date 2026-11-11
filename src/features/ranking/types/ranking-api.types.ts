@@ -62,6 +62,12 @@ export type RecoveryAuditCase = {
   assignedTo: { id: string; name: string } | null;
   paymentDay: string | null;
   reactivatedAt: string | null;
+  // Crédito atribuído à mão pela supervisão (cliente pagou sem contato registrado).
+  manualCredit: {
+    at: string;
+    by: { id: string; name: string } | null;
+    reason: string;
+  } | null;
   payments: RecoveryAuditPayment[];
   paymentsAvailable: boolean;
   contacts: RecoveryAuditContact[];

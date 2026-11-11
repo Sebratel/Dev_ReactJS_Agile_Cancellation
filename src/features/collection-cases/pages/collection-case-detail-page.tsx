@@ -20,6 +20,7 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { SectionCard } from '@/components/data-display/section-card';
 import { CaseRecoveryAuditSection } from '@/features/ranking/components/case-recovery-audit-section';
+import { ManualCreditAction } from '@/features/ranking/components/manual-credit-action';
 import { StatusBadge } from '@/components/data-display/status-badge';
 import { PageContainer } from '@/components/navigation/page-container';
 import { HsmDeliveryBadge } from '@/features/collection-cases/components/hsm-delivery-badge';
@@ -600,6 +601,13 @@ export default function CollectionCaseDetailPage() {
             </div>
 
             <div className="flex min-w-0 flex-1 flex-col gap-6">
+              {canDistribute && caseQuery.data.status === 'PAYMENT_MADE' ? (
+                <ManualCreditAction
+                  caseId={caseQuery.data.id}
+                  customerName={caseQuery.data.customer.name}
+                />
+              ) : null}
+
               <CaseRecoveryAuditSection
                 caseId={caseQuery.data.id}
                 enabled={canDistribute && caseQuery.data.status === 'RECOVERED'}

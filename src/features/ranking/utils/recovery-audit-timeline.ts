@@ -11,6 +11,7 @@ import {
 } from '@/utils/formatters';
 
 export type TimelineStepKind =
+  | 'manual'
   | 'contact'
   | 'payment'
   | 'reactivation'
@@ -42,6 +43,7 @@ const PILL_LABELS: Record<string, string> = {
   contact_before_payment: 'Contato antes do pagamento',
   amount_match: 'Valor = soma dos títulos pagos',
   credit_to_contact_agent: 'Crédito com quem fez o contato',
+  manual_credit: 'Atribuído pela supervisão',
 };
 
 const REACTIVATION_PILL_LABELS: Record<string, string> = {
@@ -91,6 +93,32 @@ function truncate(text: string | null, max = 90): string | null {
 export function buildTimelineSteps(item: RecoveryAuditCase): TimelineStep[] {
   const steps: TimelineStep[] = [];
 
+  // 1. Crédito atribuído à mão pela supervisão: no lugar do contato.
+  if (item.manualCredit) {
+    steps.push({
+      key: 'manual',
+      kind: 'manual',
+      when: formatDateTimePtBR(item.manualCredit.at),
+      title: 'Atribuição pela supervisão',
+      subtitle: `${item.manualCredit.by?.name ?? 'Supervisão'} → ${item.assignedTo?.name ?? 'atendente'}`,
+      note: truncate(item.manualCredit.reason, 140),
+      pills: compact([pillFor(item, item.checks, 'manual_credit')]),
+      problem: false,
+    });
+  } else {
+    pushContactStep(item, steps);
+  }
+
+  // 2. Pagamento(s) no ERP — ou a reativação, no caso de cancelado.
+  pushPaymentSteps(item, steps);
+
+  // 3. Recuperação registrada pela plataforma.
+  pushRecoveryAndResult(item, steps);
+
+  return steps;
+}
+
+function pushContactStep(item: RecoveryAuditCase, steps: TimelineStep[]) {
   // 1. Contato que sustenta o crédito.
   const credited = item.contacts.find((contact) => contact.credited) ?? null;
   const ignoredAttempts = item.contacts.filter(
@@ -117,8 +145,9 @@ export function buildTimelineSteps(item: RecoveryAuditCase): TimelineStep[] {
       last.subtitle = `${last.subtitle ?? ''}${last.subtitle ? ' · ' : ''}${ignoredAttempts} outra(s) tentativa(s) não contam`;
     }
   }
+}
 
-  // 2. Pagamento(s) no ERP — ou a reativação, no caso de cancelado.
+function pushPaymentSteps(item: RecoveryAuditCase, steps: TimelineStep[]) {
   const beforePaymentPill = pillFor(
     item,
     item.checks,
@@ -184,8 +213,9 @@ export function buildTimelineSteps(item: RecoveryAuditCase): TimelineStep[] {
         });
       });
   }
+}
 
-  // 3. Recuperação registrada pela plataforma.
+function pushRecoveryAndResult(item: RecoveryAuditCase, steps: TimelineStep[]) {
   steps.push({
     key: 'recovery',
     kind: 'recovery',
@@ -216,6 +246,4 @@ export function buildTimelineSteps(item: RecoveryAuditCase): TimelineStep[] {
     ]),
     problem: !item.verified,
   });
-
-  return steps;
 }

@@ -44,7 +44,9 @@ function CaseBanner({ item }: { item: RecoveryAuditCase }) {
       <span className="flex items-center gap-2 text-sm font-semibold">
         <ShieldCheck className="h-4 w-4 shrink-0" aria-hidden="true" />
         {item.verified
-          ? `Receita confirmada para ${name}`
+          ? item.manualCredit
+            ? `Receita atribuída pela supervisão a ${name}`
+            : `Receita confirmada para ${name}`
           : `Receita creditada a ${name} — ${pending} etapa(s) não confirmada(s)`}
       </span>
       <span className="text-xl font-bold tabular-nums">{amount}</span>

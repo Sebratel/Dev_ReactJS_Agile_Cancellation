@@ -10,6 +10,7 @@ import {
   IntegrationEventStatus,
 } from '@prisma/client';
 import { HttpStatus, Injectable } from '@nestjs/common';
+import { sumReceivableInvoices } from '@/modules/collection-cases/utils/receivable-invoices.util';
 import { AppException } from '@/common/exceptions/app.exception';
 import { CREDIT_LOCKED_CASE_STATUSES } from '@/modules/collection-cases/utils/credit-locked-statuses';
 import { createPaginatedResponse } from '@/common/pagination/paginated-response';
@@ -1591,11 +1592,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
       paidAmount: formatDecimal(invoice.paidAmount),
     }));
 
-    const totalOutstanding = invoices.reduce((total, invoice) => {
-      const amount = Number(invoice.amount);
-      const paidAmount = Number(invoice.paidAmount);
-      return total + Math.max(amount - paidAmount, 0);
-    }, 0);
+    const totalOutstanding = sumReceivableInvoices(invoices);
 
     const cancellation = record.cancellationProcesses[0];
 

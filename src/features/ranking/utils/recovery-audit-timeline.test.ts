@@ -12,6 +12,7 @@ function base(overrides: Partial<RecoveryAuditCase> = {}): RecoveryAuditCase {
     assignedTo: { id: 'u1', name: 'Débora' },
     paymentDay: '2026-11-04',
     reactivatedAt: null,
+    manualCredit: null,
     paymentsAvailable: true,
     payments: [
       {
@@ -127,5 +128,32 @@ describe('buildTimelineSteps', () => {
 
     expect(steps[1]?.kind).toBe('reactivation');
     expect(steps[1]?.pills[0]?.label).toBe('Contrato reativado no ERP');
+  });
+
+  it('credito manual da supervisao entra no lugar do contato', () => {
+    const steps = buildTimelineSteps(
+      base({
+        contacts: [],
+        manualCredit: {
+          at: '2026-11-09T12:00:00.000Z',
+          by: { id: 's1', name: 'Paulo' },
+          reason: 'Fechou por ligação e esqueceu de registrar',
+        },
+        checks: [
+          { key: 'payment_confirmed', label: 'x', status: 'ok', detail: '' },
+          { key: 'manual_credit', label: 'x', status: 'ok', detail: '' },
+          { key: 'amount_match', label: 'x', status: 'ok', detail: '' },
+        ],
+      }),
+    );
+
+    expect(steps[0]).toMatchObject({
+      kind: 'manual',
+      title: 'Atribuição pela supervisão',
+      subtitle: 'Paulo → Débora',
+      problem: false,
+    });
+    expect(steps[0]?.pills[0]?.label).toBe('Atribuído pela supervisão');
+    expect(steps[0]?.note).toContain('esqueceu de registrar');
   });
 });

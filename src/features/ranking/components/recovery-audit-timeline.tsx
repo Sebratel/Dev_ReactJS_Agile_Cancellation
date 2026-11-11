@@ -5,6 +5,7 @@ import {
   CircleX,
   CreditCard,
   Flag,
+  HandCoins,
   MessageCircle,
   RotateCcw,
   type LucideIcon,
@@ -20,6 +21,7 @@ import {
 } from '@/features/ranking/utils/recovery-audit-timeline';
 
 const STEP_ICONS: Record<TimelineStepKind, LucideIcon> = {
+  manual: HandCoins,
   contact: MessageCircle,
   payment: CreditCard,
   reactivation: RotateCcw,
@@ -28,6 +30,7 @@ const STEP_ICONS: Record<TimelineStepKind, LucideIcon> = {
 };
 
 const DOT_CLASSES: Record<TimelineStepKind, string> = {
+  manual: 'border-primary/50 bg-primary/15 text-foreground',
   contact: 'border-primary/50 bg-primary/10 text-foreground',
   payment: 'border-warning/50 bg-warning/15 text-warning',
   reactivation: 'border-warning/50 bg-warning/15 text-warning',

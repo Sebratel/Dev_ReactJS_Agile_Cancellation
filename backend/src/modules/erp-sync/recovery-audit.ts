@@ -41,6 +41,13 @@ export type RecoveryAuditCaseInput = {
   // DEPOIS da reativação (não por título-gatilho), e o contato precisa de
   // observação e ser até o dia da reativação.
   reactivatedAt?: Date | null;
+  // Crédito atribuído à mão pela supervisão (cliente pagou sem contato
+  // registrado). Troca as verificações de contato por uma etapa própria.
+  manualCredit?: {
+    at: Date;
+    by: { id: string; name: string } | null;
+    reason: string;
+  } | null;
   attempts: RecoveryAuditAttemptInput[];
   // null = ERP indisponível (não foi possível confirmar o pagamento agora).
   payments: RecoveryAuditPaymentInput[] | null;
@@ -54,7 +61,8 @@ export type RecoveryAuditCheck = {
     | 'effective_contact'
     | 'contact_before_payment'
     | 'amount_match'
-    | 'credit_to_contact_agent';
+    | 'credit_to_contact_agent'
+    | 'manual_credit';
   label: string;
   status: RecoveryAuditCheckStatus;
   detail: string;
@@ -93,6 +101,11 @@ export type RecoveryAuditCase = {
   assignedTo: { id: string; name: string } | null;
   paymentDay: string | null;
   reactivatedAt: string | null;
+  manualCredit: {
+    at: string;
+    by: { id: string; name: string } | null;
+    reason: string;
+  } | null;
   payments: RecoveryAuditPayment[];
   paymentsAvailable: boolean;
   contacts: RecoveryAuditContact[];
@@ -354,6 +367,22 @@ export function buildRecoveryAuditCase(
         detail: `O último contato foi de ${credited.performedBy?.name ?? 'usuário removido'}, mas o crédito está com ${input.assignedUser?.name ?? 'ninguém'}.`,
       });
     }
+  } else if (input.manualCredit) {
+    // Crédito manual: o pagamento e o valor continuam conferidos; no lugar das
+    // verificações de contato entra a atribuição da supervisão (com o motivo).
+    const manual = input.manualCredit;
+    const byPayment = (key: string) =>
+      paymentChecks.filter((check) => check.key === key);
+    checks.push(
+      ...byPayment('payment_confirmed'),
+      {
+        key: 'manual_credit',
+        label: 'Crédito atribuído pela supervisão',
+        status: manual.reason.trim().length > 0 ? 'ok' : 'unknown',
+        detail: `${manual.by?.name ?? 'Supervisão'} em ${formatDayBr(manual.at)}: ${manual.reason || 'sem motivo registrado'}`,
+      },
+      ...byPayment('amount_match'),
+    );
   } else {
     checks.push(...paymentChecks);
   }
@@ -367,6 +396,13 @@ export function buildRecoveryAuditCase(
     assignedTo: input.assignedUser,
     paymentDay: paymentDay ? formatDay(paymentDay) : null,
     reactivatedAt: reactivatedAt ? formatDay(reactivatedAt) : null,
+    manualCredit: input.manualCredit
+      ? {
+          at: input.manualCredit.at.toISOString(),
+          by: input.manualCredit.by,
+          reason: input.manualCredit.reason,
+        }
+      : null,
     payments: paidPayments.map((p) => ({
       titleNumber: p.titleNumber,
       paidDate: formatDay(p.paidDate),
@@ -509,3 +545,10 @@ export function buildMockRecoveryAudit(
     cases,
   };
 }
+
+export type ManualCreditResult =
+  | { outcome: 'success'; amount: string }
+  | { outcome: 'case_not_found' }
+  | { outcome: 'status_not_allowed'; status: string }
+  | { outcome: 'user_not_found' }
+  | { outcome: 'amount_unavailable' };

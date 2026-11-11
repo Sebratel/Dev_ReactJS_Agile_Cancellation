@@ -1,5 +1,17 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpStatus,
+  Param,
+  Post,
+  Query,
+} from '@nestjs/common';
+import { AppException } from '@/common/exceptions/app.exception';
 import { createApiResponse } from '@/common/responses/api-response';
+import { CurrentUser } from '@/modules/auth/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '@/modules/auth/types/authenticated-user.type';
+import { ManualCreditDto } from '@/modules/erp-sync/dto/manual-credit.dto';
 import { Roles } from '@/modules/auth/decorators/roles.decorator';
 import { DashboardRankingQueryDto } from '@/modules/dashboard/dto/dashboard-ranking-query.dto';
 import { ErpSyncService } from '@/modules/erp-sync/erp-sync.service';
@@ -51,6 +63,52 @@ export class ErpSyncController {
     const result = await this.erpSyncService.getCaseRecoveryAudit(caseId);
 
     return createApiResponse(result);
+  }
+
+  // Crédito manual: a supervisão atribui a um atendente a receita de um cliente
+  // que pagou sem contato registrado (caso "Pagamento realizado").
+  @Roles('ADMIN', 'SUPERVISOR')
+  @Post('manual-credit/:caseId')
+  async creditCaseManually(
+    @Param('caseId') caseId: string,
+    @Body() body: ManualCreditDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const result = await this.erpSyncService.creditCaseManually(
+      caseId,
+      body,
+      user.id,
+    );
+
+    if (result.outcome === 'case_not_found') {
+      throw new AppException(
+        `Caso de cobrança ${caseId} não encontrado.`,
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    if (result.outcome === 'status_not_allowed') {
+      throw new AppException(
+        'Só é possível creditar casos com pagamento realizado e ainda sem crédito.',
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    }
+
+    if (result.outcome === 'user_not_found') {
+      throw new AppException(
+        'Atendente de cobrança não encontrado ou inativo.',
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    }
+
+    if (result.outcome === 'amount_unavailable') {
+      throw new AppException(
+        'Não foi possível confirmar o valor pago no ERP agora. Tente novamente em instantes.',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+
+    return createApiResponse({ credited: true, amount: result.amount });
   }
 
   // Detalhe de renegociacao de um contrato (supervisao): titulos renegociados
