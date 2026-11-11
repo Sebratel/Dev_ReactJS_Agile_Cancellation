@@ -194,3 +194,32 @@ jobs:
             echo "::error::Pelo menos um job nao passou."; exit 1
           fi
           echo "Tudo verde."
+
+  # CD de staging: com o `ci-ok` verde, avisa o Portainer, que faz pull do Git,
+  # rebuilda e redeploya a stack (GitOps). A URL do webhook e segredo do repositorio
+  # (Settings > Secrets and variables > Actions > PORTAINER_WEBHOOK_STAGING): ela
+  # contem o token e nunca vai para o codigo nem para o log.
+  deploy-staging:
+    name: Deploy staging (Portainer)
+    runs-on: ubuntu-latest
+    needs: [ci-ok]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/staging'
+    timeout-minutes: 5
+    # Um deploy por vez e nunca cancela um em andamento.
+    concurrency:
+      group: deploy-staging
+      cancel-in-progress: false
+    steps:
+      - name: Acionar o webhook do Portainer
+        env:
+          PORTAINER_WEBHOOK_STAGING: ${{ secrets.PORTAINER_WEBHOOK_STAGING }}
+        run: |
+          if [ -z "$PORTAINER_WEBHOOK_STAGING" ]; then
+            echo "::error::Segredo PORTAINER_WEBHOOK_STAGING nao configurado no repositorio."; exit 1
+          fi
+          status=$(curl -sS -o /dev/null -w '%{http_code}' -X POST --retry 3 --retry-delay 5 --max-time 60 "$PORTAINER_WEBHOOK_STAGING")
+          echo "Portainer respondeu HTTP $status"
+          case "$status" in
+            2??) echo "Redeploy de staging solicitado para ${GITHUB_SHA::7}." ;;
+            *) echo "::error::Webhook do Portainer falhou (HTTP $status)."; exit 1 ;;
+          esac

@@ -155,11 +155,12 @@ src/
 Fluxo (padrao Sebratel, modelo A: o Portainer builda do Git, sem registry):
 
 ```
-feature/* --PR--> staging --> GitHub Actions (ci-ok) --> stack de staging no Portainer
+feature/* --PR--> staging --> GitHub Actions (ci-ok) --> webhook --> stack de staging no Portainer
                   main    --> GitHub Actions (ci-ok) --> stack de producao no Portainer
 ```
 
 - **CI** (`.github/workflows/ci.yml`): `validacoes` (nomes do compose), `frontend` e `backend` (typecheck, lint, format, security scan, testes com **cobertura minima de 70%**, build), `imagem` (build das imagens e `up --wait` da stack com smoke de `/health` e do proxy `/api`) e o agregador **`ci-ok`**, unico check obrigatorio na protecao de branch (1 aprovacao, sem push direto, sem force push).
+- **CD de staging** (job `deploy-staging` no mesmo `ci.yml`): a cada push na `staging`, com o `ci-ok` verde, o GitHub chama o webhook da stack e o Portainer faz pull, rebuild e redeploy sozinho; se o CI falhar, nada e implantado. A URL do webhook fica no segredo de repositorio `PORTAINER_WEBHOOK_STAGING` (Settings > Secrets and variables > Actions) e nunca no codigo. O webhook responde na hora: o resultado do build aparece no Portainer. Producao (`main`) segue manual ate existir um segredo/job proprio.
 - **Stack no Portainer**: nome `dev_reactjs_agile_cancellation` (repositorio em minusculas), arquivo `docker-compose.portainer.yml`, referencia `refs/heads/staging` (staging) ou `refs/heads/main` (producao). Webhook com _Re-pull image_ e _Force redeployment_.
 - **Servicos**: `frontend` (nginx), `backend` (NestJS, health em `/health`), `mariadb`. Sem `container_name`.
 - **Segredos**: so no painel _Environment_ da stack (veja `.env.example`). Staging usa banco, N8N e Google proprios de staging; nunca os de producao.
