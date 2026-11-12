@@ -6,11 +6,17 @@ function build(opts: {
   column: boolean;
   index: boolean;
   table?: boolean;
+  applied?: boolean;
 }) {
   const rows = (has: boolean) => (has ? [{ ok: 1 }] : []);
   const queryRawUnsafe = jest.fn((sql: string) => {
     if (sql.includes('information_schema.TABLES')) {
       return Promise.resolve(rows(opts.table ?? true));
+    }
+    if (sql.includes('finished_at IS NOT NULL')) {
+      return Promise.resolve(
+        opts.applied ? [{ migration_name: MIGRATION }] : [],
+      );
     }
     if (sql.includes('_prisma_migrations')) {
       return Promise.resolve(
@@ -42,6 +48,21 @@ describe('heal-failed-migration (P3009)', () => {
     await expect(heal({ prisma, resolve, log })).resolves.toBe('nothing-to-do');
     expect(prisma.$queryRawUnsafe).toHaveBeenCalledTimes(1);
     expect(resolve).not.toHaveBeenCalled();
+  });
+
+  it('falha antiga obsoleta (ja existe linha aplicada): resolve --rolled-back, nunca --applied (P3008)', async () => {
+    const { prisma, resolve, executeRawUnsafe } = build({
+      failed: true,
+      applied: true,
+      column: true,
+      index: true,
+    });
+    await expect(heal({ prisma, resolve, log })).resolves.toBe(
+      'stale-failure-cleared',
+    );
+    expect(resolve).toHaveBeenCalledTimes(1);
+    expect(resolve).toHaveBeenCalledWith('--rolled-back', MIGRATION);
+    expect(executeRawUnsafe).not.toHaveBeenCalled();
   });
 
   it('nao faz nada quando a migration nao esta falha', async () => {

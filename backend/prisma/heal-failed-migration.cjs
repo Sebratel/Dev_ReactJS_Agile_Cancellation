@@ -29,6 +29,21 @@ async function heal({ prisma, resolve, log = console.log }) {
     return 'nothing-to-do';
   }
 
+  // Falha obsoleta: uma tentativa posterior ja concluiu a migration (ha uma linha aplicada), mas a
+  // linha falha antiga continua travando o deploy (P3009). `--applied` recusa (P3008); o correto e
+  // marcar a falha antiga como revertida.
+  const applied = await prisma.$queryRawUnsafe(
+    'SELECT migration_name FROM _prisma_migrations WHERE migration_name = ? AND finished_at IS NOT NULL AND rolled_back_at IS NULL',
+    MIGRATION,
+  );
+  if (applied.length > 0) {
+    log(
+      `[heal-migration] ${MIGRATION}: ja aplicada, falha antiga obsoleta -> resolve --rolled-back`,
+    );
+    await resolve('--rolled-back', MIGRATION);
+    return 'stale-failure-cleared';
+  }
+
   const columns = await prisma.$queryRawUnsafe(
     'SELECT 1 AS ok FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?',
     TABLE,
