@@ -1,5 +1,4 @@
 import 'reflect-metadata';
-import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
@@ -8,19 +7,8 @@ import { AppModule } from '@/app.module';
 import { getAppConfig } from '@/config/app.config';
 import { HttpExceptionFilter } from '@/common/filters/http-exception.filter';
 import { TimeoutInterceptor } from '@/common/interceptors/timeout.interceptor';
+import { registerProcessSafetyNets } from '@/common/utils/process-safety-nets';
 import { createGlobalValidationPipe } from '@/common/validation/validation-pipe.config';
-
-// Rede de seguranca: uma rejeicao nao tratada (ex.: conflito de escrita do banco em
-// tarefa em segundo plano) derrubaria o processo no Node 22 e poria a API em loop de restart.
-function registerProcessSafetyNets() {
-  const logger = new Logger('Process');
-  process.on('unhandledRejection', (reason: unknown) => {
-    logger.error(
-      'unhandledRejection capturada (processo mantido).',
-      reason instanceof Error ? reason.stack : String(reason),
-    );
-  });
-}
 
 async function bootstrap() {
   registerProcessSafetyNets();
