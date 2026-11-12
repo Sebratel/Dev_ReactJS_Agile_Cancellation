@@ -39,10 +39,14 @@ const defaultValues: CreateAttemptFormValues = {
 
 type CreateCollectionAttemptFormProps = {
   caseId: string;
+  // Cancelado em recuperação: a observação é obrigatória (ela, com o contato
+  // efetivo, é a prova que credita a receita quando o ERP reativar o contrato).
+  notesRequired?: boolean;
 };
 
 export function CreateCollectionAttemptForm({
   caseId,
+  notesRequired = false,
 }: CreateCollectionAttemptFormProps) {
   const mutation = useCreateCollectionAttempt(caseId);
 
@@ -52,7 +56,17 @@ export function CreateCollectionAttemptForm({
     reset,
     formState: { errors },
   } = useForm<CreateAttemptFormValues>({
-    resolver: zodResolver(createAttemptSchema),
+    resolver: zodResolver(
+      notesRequired
+        ? createAttemptSchema.extend({
+            notes: z
+              .string()
+              .trim()
+              .min(1, 'Informe a observação do contato.')
+              .max(1000, 'A observação deve ter no máximo 1000 caracteres.'),
+          })
+        : createAttemptSchema,
+    ),
     defaultValues,
   });
 
@@ -88,7 +102,7 @@ export function CreateCollectionAttemptForm({
       description="Registre uma nova abordagem realizada para este caso."
     >
       <form
-        className="grid gap-4 md:grid-cols-2"
+        className="grid gap-4 md:grid-cols-3"
         onSubmit={(event) => {
           void handleSubmit(onSubmit)(event);
         }}
@@ -128,23 +142,8 @@ export function CreateCollectionAttemptForm({
         </Field>
 
         <Field
-          label="Observação"
-          htmlFor="attempt-notes"
-          error={errors.notes?.message}
-          className="md:col-span-2"
-        >
-          <Textarea
-            id="attempt-notes"
-            rows={3}
-            placeholder="Detalhes da abordagem realizada."
-            {...register('notes')}
-          />
-        </Field>
-
-        <Field
           label="Próximo contato (opcional)"
           htmlFor="attempt-next-contact"
-          className="md:col-span-2"
         >
           <Input
             id="attempt-next-contact"
@@ -153,8 +152,22 @@ export function CreateCollectionAttemptForm({
           />
         </Field>
 
+        <Field
+          label={notesRequired ? 'Observação (obrigatória)' : 'Observação'}
+          htmlFor="attempt-notes"
+          error={errors.notes?.message}
+          className="md:col-span-3"
+        >
+          <Textarea
+            id="attempt-notes"
+            rows={2}
+            placeholder="Detalhes da abordagem realizada."
+            {...register('notes')}
+          />
+        </Field>
+
         {apiErrorMessage ? (
-          <div className="md:col-span-2">
+          <div className="md:col-span-3">
             <ErrorState
               title="Falha ao registrar tentativa"
               description={apiErrorMessage}
@@ -162,7 +175,7 @@ export function CreateCollectionAttemptForm({
           </div>
         ) : null}
 
-        <div className="md:col-span-2">
+        <div className="flex justify-end md:col-span-3">
           <Button type="submit" disabled={mutation.isPending}>
             {mutation.isPending ? 'Salvando...' : 'Salvar tentativa'}
           </Button>

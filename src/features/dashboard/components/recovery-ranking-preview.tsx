@@ -5,7 +5,10 @@ import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useRecoveryRanking } from '@/features/ranking/hooks/use-recovery-ranking';
 import { getRankingInitials } from '@/features/ranking/utils/ranking-labels';
-import { formatCurrencyFromDecimalString, formatInteger } from '@/utils/formatters';
+import {
+  formatCurrencyFromDecimalString,
+  formatInteger,
+} from '@/utils/formatters';
 
 export function RecoveryRankingPreview() {
   const rankingQuery = useRecoveryRanking('current_month');
@@ -30,10 +33,7 @@ export function RecoveryRankingPreview() {
       ) : (
         <ul className="divide-y divide-border">
           {topThree.map((item) => (
-            <li
-              key={item.userId}
-              className="flex items-center gap-3 px-6 py-3"
-            >
+            <li key={item.userId} className="flex items-center gap-3 px-6 py-3">
               <span
                 className={cn(
                   'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold tabular-nums',

@@ -67,6 +67,7 @@ export class DashboardMockRepository implements DashboardRepository {
         },
       ],
       topReasons: [],
+      allReasons: [],
       excludedNotCancelled: 0,
     });
   }

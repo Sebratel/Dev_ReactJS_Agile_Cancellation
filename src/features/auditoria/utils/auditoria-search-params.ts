@@ -9,6 +9,7 @@ export type AuditoriaFiltersState = {
   entityType: string;
   entityId: string;
   action: string;
+  category: string;
   startDate: string;
   endDate: string;
   page: number;
@@ -20,6 +21,7 @@ export const EMPTY_AUDITORIA_FILTERS: AuditoriaFiltersState = {
   entityType: '',
   entityId: '',
   action: '',
+  category: '',
   startDate: '',
   endDate: '',
   page: 1,
@@ -48,6 +50,7 @@ export function parseAuditoriaSearchParams(
     entityType: searchParams.get('entityType') ?? '',
     entityId: searchParams.get('entityId') ?? '',
     action: searchParams.get('action') ?? '',
+    category: searchParams.get('category') ?? '',
     startDate: searchParams.get('startDate') ?? '',
     endDate: searchParams.get('endDate') ?? '',
     page: parsePositiveInt(searchParams.get('page')) ?? 1,
@@ -79,6 +82,10 @@ export function auditoriaFiltersToSearchParams(
     params.set('action', filters.action.trim());
   }
 
+  if (filters.category.trim()) {
+    params.set('category', filters.category.trim());
+  }
+
   if (filters.startDate.trim()) {
     params.set('startDate', filters.startDate.trim());
   }
@@ -107,6 +114,7 @@ export function auditoriaFiltersToListParams(
     entityType: filters.entityType.trim() || undefined,
     entityId: filters.entityId.trim() || undefined,
     action: filters.action.trim() || undefined,
+    category: filters.category.trim() || undefined,
     startDate: filters.startDate.trim() || undefined,
     endDate: filters.endDate.trim() || undefined,
     search: search || undefined,
@@ -120,6 +128,7 @@ export function hasActiveAuditoriaFilters(filters: AuditoriaFiltersState) {
     filters.entityType.trim().length > 0 ||
     filters.entityId.trim().length > 0 ||
     filters.action.trim().length > 0 ||
+    filters.category.trim().length > 0 ||
     filters.startDate.trim().length > 0 ||
     filters.endDate.trim().length > 0
   );

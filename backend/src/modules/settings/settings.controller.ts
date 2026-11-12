@@ -1,6 +1,8 @@
 import { Body, Controller, Get, Patch } from '@nestjs/common';
 import { createApiResponse } from '@/common/responses/api-response';
+import { CurrentUser } from '@/modules/auth/decorators/current-user.decorator';
 import { Roles } from '@/modules/auth/decorators/roles.decorator';
+import type { AuthenticatedUser } from '@/modules/auth/types/authenticated-user.type';
 import { UpdateSettingsDto } from '@/modules/settings/dto/update-settings.dto';
 import { SettingsService } from '@/modules/settings/settings.service';
 
@@ -24,8 +26,11 @@ export class SettingsController {
 
   @Roles('ADMIN')
   @Patch()
-  async updateSettings(@Body() body: UpdateSettingsDto) {
-    const settings = await this.settingsService.updateSettings(body);
+  async updateSettings(
+    @Body() body: UpdateSettingsDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const settings = await this.settingsService.updateSettings(body, user.id);
     return createApiResponse(settings);
   }
 }

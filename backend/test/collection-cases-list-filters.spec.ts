@@ -276,6 +276,7 @@ describe('lista de casos — so carteira ativa por padrao (A4)', () => {
         'NO_RESPONSE',
         'ELIGIBLE_FOR_CANCELLATION',
         'CANCELLATION_IN_PROGRESS',
+        'CANCELLED_IN_RECOVERY',
       ],
     });
   });

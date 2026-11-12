@@ -27,6 +27,10 @@ export class WhatsappBulkContactWorkerService {
 
   @Interval(TICK_INTERVAL_MS)
   async tick() {
+    // Permite subir uma instância local contra o banco real sem disputar a fila
+    // de envios com o servidor de verdade (ex.: BULK_CONTACT_WORKER_ENABLED=false).
+    if (process.env.BULK_CONTACT_WORKER_ENABLED === 'false') return;
+
     // Guarda simples contra sobreposicao de execucoes (um processo so) — se
     // um lote demorar mais que o intervalo, o proximo tick e ignorado ate o
     // atual terminar.
@@ -47,9 +51,8 @@ export class WhatsappBulkContactWorkerService {
   }
 
   private async processBatch() {
-    const items = await this.bulkContactJobRepository.getPendingItems(
-      BATCH_SIZE,
-    );
+    const items =
+      await this.bulkContactJobRepository.getPendingItems(BATCH_SIZE);
 
     if (items.length === 0) return;
 

@@ -11,6 +11,8 @@ const STATUS_LABELS: Record<string, string> = {
   RECOVERED: 'Retido',
   PAYMENT_MADE: 'Pagamento realizado',
   RENEGOTIATED: 'Renegociado',
+  CANCELLED_IN_RECOVERY: 'Cancelado em recuperação',
+  REACTIVATED: 'Reativado',
 };
 
 const PRIORITY_LABELS: Record<string, string> = {
@@ -22,11 +24,11 @@ const PRIORITY_LABELS: Record<string, string> = {
 
 const DANGER_STATUSES = new Set(['NO_RESPONSE', 'ELIGIBLE_FOR_CANCELLATION']);
 
-const SUCCESS_STATUSES = new Set(['RECOVERED', 'PAYMENT_MADE']);
+const SUCCESS_STATUSES = new Set(['RECOVERED', 'PAYMENT_MADE', 'REACTIVATED']);
 
 // Renegociado não é pagamento (o cliente ainda deve) — sinaliza como atenção,
 // não como sucesso.
-const WARNING_STATUSES = new Set(['RENEGOTIATED']);
+const WARNING_STATUSES = new Set(['RENEGOTIATED', 'CANCELLED_IN_RECOVERY']);
 
 export function getCollectionStatusLabel(status: string) {
   return STATUS_LABELS[status] ?? status;
@@ -207,6 +209,8 @@ const BLOCKED_SEND_TO_CANCELLATION_STATUSES = new Set([
   'PAYMENT_MADE',
   'RENEGOTIATED',
   'CANCELLATION_IN_PROGRESS',
+  'CANCELLED_IN_RECOVERY',
+  'REACTIVATED',
 ]);
 
 const CANCELLATION_STATUS_LABELS: Record<string, string> = {
@@ -337,21 +341,42 @@ export function getCaseOriginVariant(origin: string | null): StatusVariant {
   return 'neutral';
 }
 
-export const HSM_DELIVERY_STATES = ['FAILED', 'SENT', 'DELIVERED', 'READ'] as const;
+export const HSM_DELIVERY_STATES = [
+  'FAILED',
+  'SENT',
+  'DELIVERED',
+  'READ',
+] as const;
 
 export function getHsmDeliveryPresentation(
   state: string | null | undefined,
   detail?: string | null,
-): { label: string; variant: 'success' | 'warning' | 'danger' | 'neutral'; title: string } | null {
+): {
+  label: string;
+  variant: 'success' | 'warning' | 'danger' | 'neutral';
+  title: string;
+} | null {
   switch (state) {
     case 'READ':
       return { label: 'HSM lido', variant: 'success', title: detail ?? 'Lida' };
     case 'DELIVERED':
-      return { label: 'HSM entregue', variant: 'success', title: detail ?? 'Entregue' };
+      return {
+        label: 'HSM entregue',
+        variant: 'success',
+        title: detail ?? 'Entregue',
+      };
     case 'SENT':
-      return { label: 'HSM enviado', variant: 'neutral', title: detail ?? 'Enviada' };
+      return {
+        label: 'HSM enviado',
+        variant: 'neutral',
+        title: detail ?? 'Enviada',
+      };
     case 'FAILED':
-      return { label: 'HSM não entregue', variant: 'danger', title: detail ?? 'Falha na entrega' };
+      return {
+        label: 'HSM não entregue',
+        variant: 'danger',
+        title: detail ?? 'Falha na entrega',
+      };
     default:
       return null;
   }
@@ -367,4 +392,10 @@ export function getHsmDeliveryFilterLabel(state: string): string {
         : state === 'READ'
           ? 'Lido'
           : state;
+}
+
+// Recuperado/pago já gerou crédito no ranking: o backend recusa reatribuir,
+// então a tela mostra só o nome da atendente (sem seletor).
+export function isCreditLockedStatus(status: string) {
+  return status === 'RECOVERED' || status === 'PAYMENT_MADE';
 }

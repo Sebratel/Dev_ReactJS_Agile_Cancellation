@@ -128,7 +128,9 @@ describe('WebhooksService (mock)', () => {
     const { service, notificationsService } = createService();
 
     await service.recordMatrixReply({ codAtendimento: '5081836' });
-    const second = await service.recordMatrixReply({ codAtendimento: '5081836' });
+    const second = await service.recordMatrixReply({
+      codAtendimento: '5081836',
+    });
 
     expect(second.data.outcome).toBe('already_processed');
     expect(notificationsService.notify).toHaveBeenCalledTimes(1);

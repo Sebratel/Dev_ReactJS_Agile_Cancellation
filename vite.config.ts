@@ -29,9 +29,23 @@ export default defineConfig({
     include: ['src/**/*.test.{ts,tsx}'],
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'html'],
+      reporter: ['text', 'html', 'json-summary', 'lcov'],
       include: ['src/**/*.{ts,tsx}'],
-      exclude: ['src/test/**'],
+      exclude: [
+        'src/main.tsx',
+        'src/**/*.d.ts',
+        'src/test/**',
+        'src/**/*.test.{ts,tsx}',
+        'src/**/types/**',
+        'src/**/*.types.ts',
+        'src/services/api/api-types.ts',
+      ],
+      thresholds: {
+        statements: 70,
+        branches: 70,
+        functions: 70,
+        lines: 70,
+      },
     },
   },
 });

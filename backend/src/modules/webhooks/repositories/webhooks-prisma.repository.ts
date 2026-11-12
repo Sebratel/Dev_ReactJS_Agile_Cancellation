@@ -7,6 +7,7 @@ import {
   PaymentPromiseStatus,
   Prisma,
 } from '@prisma/client';
+import { retryOnWriteConflict } from '@/common/utils/retry-on-write-conflict.util';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import type { IngestCollectionEventDto } from '@/modules/webhooks/dto/ingest-collection-cases.dto';
 import type { MatrixReplyDto } from '@/modules/webhooks/dto/matrix-reply.dto';
@@ -23,6 +24,7 @@ const REOPENABLE_FINALIZED_STATUSES: CollectionStatus[] = [
   CollectionStatus.PAYMENT_MADE,
   CollectionStatus.CLOSED,
   CollectionStatus.RENEGOTIATED,
+  CollectionStatus.REACTIVATED,
 ];
 
 @Injectable()
@@ -43,203 +45,212 @@ export class WebhooksPrismaRepository implements WebhooksRepository {
     };
 
     for (const event of events) {
-      await this.prisma.$transaction(async (tx) => {
-        const customer = await tx.customer.upsert({
-          where: { document: event.customer.document },
-          update: {
-            name: event.customer.name,
-            email: event.customer.email ?? null,
-            phone: event.customer.phone ?? null,
-            phone2: event.customer.phone2 ?? null,
-            externalId: event.customer.externalId ?? null,
-          },
-          create: {
-            document: event.customer.document,
-            name: event.customer.name,
-            email: event.customer.email ?? null,
-            phone: event.customer.phone ?? null,
-            phone2: event.customer.phone2 ?? null,
-            externalId: event.customer.externalId ?? null,
-          },
-        });
-        summary.customersUpserted += 1;
+      await retryOnWriteConflict(() =>
+        this.prisma.$transaction(async (tx) => {
+          const customer = await tx.customer.upsert({
+            where: { document: event.customer.document },
+            update: {
+              name: event.customer.name,
+              email: event.customer.email ?? null,
+              phone: event.customer.phone ?? null,
+              phone2: event.customer.phone2 ?? null,
+              externalId: event.customer.externalId ?? null,
+            },
+            create: {
+              document: event.customer.document,
+              name: event.customer.name,
+              email: event.customer.email ?? null,
+              phone: event.customer.phone ?? null,
+              phone2: event.customer.phone2 ?? null,
+              externalId: event.customer.externalId ?? null,
+            },
+          });
+          summary.customersUpserted += 1;
 
-        const contract = await tx.contract.upsert({
-          where: { code: event.contract.code },
-          update: {
-            customerId: customer.id,
-            status: event.contract.status ?? undefined,
-            erpStatus: event.contract.erpStatus ?? undefined,
-            startDate: new Date(event.contract.startDate),
-            totalValue: event.contract.totalValue ?? null,
-            monthlyValue: event.contract.monthlyValue ?? null,
-            externalId: event.contract.externalId ?? null,
-          },
-          create: {
-            customerId: customer.id,
-            code: event.contract.code,
-            status: event.contract.status ?? undefined,
-            erpStatus: event.contract.erpStatus ?? null,
-            startDate: new Date(event.contract.startDate),
-            totalValue: event.contract.totalValue ?? null,
-            monthlyValue: event.contract.monthlyValue ?? null,
-            externalId: event.contract.externalId ?? null,
-          },
-        });
-        summary.contractsUpserted += 1;
+          const contract = await tx.contract.upsert({
+            where: { code: event.contract.code },
+            update: {
+              customerId: customer.id,
+              status: event.contract.status ?? undefined,
+              erpStatus: event.contract.erpStatus ?? undefined,
+              startDate: new Date(event.contract.startDate),
+              totalValue: event.contract.totalValue ?? null,
+              monthlyValue: event.contract.monthlyValue ?? null,
+              externalId: event.contract.externalId ?? null,
+            },
+            create: {
+              customerId: customer.id,
+              code: event.contract.code,
+              status: event.contract.status ?? undefined,
+              erpStatus: event.contract.erpStatus ?? null,
+              startDate: new Date(event.contract.startDate),
+              totalValue: event.contract.totalValue ?? null,
+              monthlyValue: event.contract.monthlyValue ?? null,
+              externalId: event.contract.externalId ?? null,
+            },
+          });
+          summary.contractsUpserted += 1;
 
-        for (const invoice of event.invoices ?? []) {
-          await tx.invoice.upsert({
-            where: { externalId: invoice.externalId },
+          for (const invoice of event.invoices ?? []) {
+            await tx.invoice.upsert({
+              where: { externalId: invoice.externalId },
+              update: {
+                contractId: contract.id,
+                invoiceNumber: invoice.invoiceNumber ?? null,
+                status: invoice.status ?? undefined,
+                dueDate: new Date(invoice.dueDate),
+                amount: invoice.amount,
+                paidAmount: invoice.paidAmount ?? 0,
+              },
+              create: {
+                contractId: contract.id,
+                invoiceNumber: invoice.invoiceNumber ?? null,
+                status: invoice.status ?? undefined,
+                dueDate: new Date(invoice.dueDate),
+                amount: invoice.amount,
+                paidAmount: invoice.paidAmount ?? 0,
+                externalId: invoice.externalId,
+              },
+            });
+            summary.invoicesUpserted += 1;
+
+            // Fatura sintetica da pre-cobranca (pre-*) vira duplicata quando a
+            // real do ERP chega; sem cancelar, o ranking de 1o/2o vencimento erra.
+            const dueStart = new Date(invoice.dueDate);
+            dueStart.setUTCHours(0, 0, 0, 0);
+            await tx.invoice.updateMany({
+              where: {
+                contractId: contract.id,
+                externalId: { startsWith: 'pre-' },
+                status: { in: ['OPEN', 'OVERDUE', 'PARTIALLY_PAID'] },
+                dueDate: {
+                  gte: dueStart,
+                  lt: new Date(dueStart.getTime() + 86_400_000),
+                },
+              },
+              data: { status: 'CANCELLED' },
+            });
+          }
+
+          const existingCase = await tx.collectionCase.findUnique({
+            where: { externalId: event.externalId },
+            select: { id: true, status: true },
+          });
+
+          // Reabertura: o contrato voltou a ficar elegivel e ja existia um caso
+          // FINALIZADO (recuperado/pago/encerrado). E um novo ciclo de cobranca —
+          // limpamos as marcas do ciclo anterior para nao contaminar o novo.
+          const isReopening =
+            existingCase !== null &&
+            REOPENABLE_FINALIZED_STATUSES.includes(existingCase.status);
+          const now = new Date();
+
+          const collectionCase = await tx.collectionCase.upsert({
+            where: { externalId: event.externalId },
             update: {
               contractId: contract.id,
-              invoiceNumber: invoice.invoiceNumber ?? null,
-              status: invoice.status ?? undefined,
-              dueDate: new Date(invoice.dueDate),
-              amount: invoice.amount,
-              paidAmount: invoice.paidAmount ?? 0,
+              customerId: customer.id,
+              // Cancelado em recuperação mantém o status: quem o encerra é a
+              // reconciliação com o ERP (reativação), não o ingest.
+              status:
+                existingCase?.status === CollectionStatus.CANCELLED_IN_RECOVERY
+                  ? undefined
+                  : (event.case.status ?? undefined),
+              priority: event.case.priority ?? undefined,
+              outstandingAmount: event.case.outstandingAmount,
+              daysOverdue: event.case.daysOverdue ?? 0,
+              ...(isReopening
+                ? {
+                    cycleStartedAt: now,
+                    recoveredAt: null,
+                    recoveredAmount: null,
+                    reactivatedAt: null,
+                    assignedUserId: null,
+                    matrixAwaitingReply: false,
+                    matrixLastOutboundAt: null,
+                    matrixLastReplyAt: null,
+                  }
+                : {}),
             },
             create: {
               contractId: contract.id,
-              invoiceNumber: invoice.invoiceNumber ?? null,
-              status: invoice.status ?? undefined,
-              dueDate: new Date(invoice.dueDate),
-              amount: invoice.amount,
-              paidAmount: invoice.paidAmount ?? 0,
-              externalId: invoice.externalId,
+              customerId: customer.id,
+              status: event.case.status ?? undefined,
+              priority: event.case.priority ?? undefined,
+              outstandingAmount: event.case.outstandingAmount,
+              daysOverdue: event.case.daysOverdue ?? 0,
+              externalId: event.externalId,
+              cycleStartedAt: now,
+              origin: 'ERP_SYNC',
             },
           });
-          summary.invoicesUpserted += 1;
+          summary.casesUpserted += 1;
 
-          // Fatura sintetica da pre-cobranca (pre-*) vira duplicata quando a
-          // real do ERP chega; sem cancelar, o ranking de 1o/2o vencimento erra.
-          const dueStart = new Date(invoice.dueDate);
-          dueStart.setUTCHours(0, 0, 0, 0);
-          await tx.invoice.updateMany({
-            where: {
-              contractId: contract.id,
-              externalId: { startsWith: 'pre-' },
-              status: { in: ['OPEN', 'OVERDUE', 'PARTIALLY_PAID'] },
-              dueDate: {
-                gte: dueStart,
-                lt: new Date(dueStart.getTime() + 86_400_000),
+          if (isReopening && existingCase) {
+            // Encerra promessas antigas ainda ativas e cancela qualquer processo
+            // de cancelamento pendente do ciclo anterior.
+            await tx.paymentPromise.updateMany({
+              where: {
+                collectionCaseId: collectionCase.id,
+                status: PaymentPromiseStatus.ACTIVE,
               },
-            },
-            data: { status: 'CANCELLED' },
-          });
-        }
+              data: { status: PaymentPromiseStatus.CANCELLED },
+            });
 
-        const existingCase = await tx.collectionCase.findUnique({
-          where: { externalId: event.externalId },
-          select: { id: true, status: true },
-        });
-
-        // Reabertura: o contrato voltou a ficar elegivel e ja existia um caso
-        // FINALIZADO (recuperado/pago/encerrado). E um novo ciclo de cobranca —
-        // limpamos as marcas do ciclo anterior para nao contaminar o novo.
-        const isReopening =
-          existingCase !== null &&
-          REOPENABLE_FINALIZED_STATUSES.includes(existingCase.status);
-        const now = new Date();
-
-        const collectionCase = await tx.collectionCase.upsert({
-          where: { externalId: event.externalId },
-          update: {
-            contractId: contract.id,
-            customerId: customer.id,
-            status: event.case.status ?? undefined,
-            priority: event.case.priority ?? undefined,
-            outstandingAmount: event.case.outstandingAmount,
-            daysOverdue: event.case.daysOverdue ?? 0,
-            ...(isReopening
-              ? {
-                  cycleStartedAt: now,
-                  recoveredAt: null,
-                  assignedUserId: null,
-                  matrixAwaitingReply: false,
-                  matrixLastOutboundAt: null,
-                  matrixLastReplyAt: null,
-                }
-              : {}),
-          },
-          create: {
-            contractId: contract.id,
-            customerId: customer.id,
-            status: event.case.status ?? undefined,
-            priority: event.case.priority ?? undefined,
-            outstandingAmount: event.case.outstandingAmount,
-            daysOverdue: event.case.daysOverdue ?? 0,
-            externalId: event.externalId,
-            cycleStartedAt: now,
-            origin: 'ERP_SYNC',
-          },
-        });
-        summary.casesUpserted += 1;
-
-        if (isReopening && existingCase) {
-          // Encerra promessas antigas ainda ativas e cancela qualquer processo
-          // de cancelamento pendente do ciclo anterior.
-          await tx.paymentPromise.updateMany({
-            where: {
-              collectionCaseId: collectionCase.id,
-              status: PaymentPromiseStatus.ACTIVE,
-            },
-            data: { status: PaymentPromiseStatus.CANCELLED },
-          });
-
-          await tx.cancellationProcess.updateMany({
-            where: {
-              collectionCaseId: collectionCase.id,
-              status: {
-                in: [
-                  CancellationStatus.PENDING,
-                  CancellationStatus.IN_PROGRESS,
-                  CancellationStatus.AWAITING_PROTOCOL,
-                  CancellationStatus.AWAITING_PICKUP,
-                ],
+            await tx.cancellationProcess.updateMany({
+              where: {
+                collectionCaseId: collectionCase.id,
+                status: {
+                  in: [
+                    CancellationStatus.PENDING,
+                    CancellationStatus.IN_PROGRESS,
+                    CancellationStatus.AWAITING_PROTOCOL,
+                    CancellationStatus.AWAITING_PICKUP,
+                  ],
+                },
               },
-            },
-            data: { status: CancellationStatus.CANCELLED, completedAt: now },
-          });
+              data: { status: CancellationStatus.CANCELLED, completedAt: now },
+            });
 
-          // Registra a reabertura na auditoria (o upsert por si so nao audita).
-          await tx.auditLog.create({
-            data: {
-              entityType: 'COLLECTION_CASE',
-              entityId: collectionCase.id,
-              action: AuditAction.STATUS_CHANGE,
-              beforeSnapshot: { status: existingCase.status },
-              afterSnapshot: { status: collectionCase.status },
-              metadata: {
-                resourceType: 'COLLECTION_CASE',
-                action: 'ERP_SYNC_CASE_REOPENED',
-                source,
-                reason:
-                  'Contrato voltou a ficar elegivel no ERP (reabertura de ciclo).',
-                externalId: event.externalId,
+            // Registra a reabertura na auditoria (o upsert por si so nao audita).
+            await tx.auditLog.create({
+              data: {
+                entityType: 'COLLECTION_CASE',
+                entityId: collectionCase.id,
+                action: AuditAction.STATUS_CHANGE,
+                beforeSnapshot: { status: existingCase.status },
+                afterSnapshot: { status: collectionCase.status },
+                metadata: {
+                  resourceType: 'COLLECTION_CASE',
+                  action: 'ERP_SYNC_CASE_REOPENED',
+                  source,
+                  reason:
+                    'Contrato voltou a ficar elegivel no ERP (reabertura de ciclo).',
+                  externalId: event.externalId,
+                },
               },
-            },
-          });
-        }
+            });
+          }
 
-        // Tentativa inicial automatica: criada quando o caso e novo OU quando e
-        // reaberto (novo ciclo). Representa o contato via mensagem (WhatsApp/HSM)
-        // enviado pelo sistema antes de o caso entrar/voltar na plataforma.
-        if (!existingCase || isReopening) {
-          await tx.collectionAttempt.create({
-            data: {
-              collectionCaseId: collectionCase.id,
-              performedByUserId: null,
-              channel: 'WHATSAPP',
-              result: 'NO_ANSWER',
-              notes:
-                'Mensagem automática enviada ao cliente antes da entrada na plataforma.',
-              attemptedAt: now,
-              isAutomatic: true,
-            },
-          });
-        }
-      });
+          // Tentativa inicial automatica: criada quando o caso e novo OU quando e
+          // reaberto (novo ciclo). Representa o contato via mensagem (WhatsApp/HSM)
+          // enviado pelo sistema antes de o caso entrar/voltar na plataforma.
+          if (!existingCase || isReopening) {
+            await tx.collectionAttempt.create({
+              data: {
+                collectionCaseId: collectionCase.id,
+                performedByUserId: null,
+                channel: 'WHATSAPP',
+                result: 'NO_ANSWER',
+                notes:
+                  'Mensagem automática enviada ao cliente antes da entrada na plataforma.',
+                attemptedAt: now,
+                isAutomatic: true,
+              },
+            });
+          }
+        }),
+      );
     }
 
     await this.recordIntegrationEvent(source, summary);
@@ -292,64 +303,67 @@ export class WebhooksPrismaRepository implements WebhooksRepository {
       };
     }
 
-    const attempt = await this.prisma.$transaction(async (tx) => {
-      const createdAttempt = await tx.collectionAttempt.create({
-        data: {
-          collectionCaseId: record.id,
-          performedByUserId: record.assignedUserId,
-          channel: 'WHATSAPP',
-          result: 'CONTACTED',
-          attemptedAt: replyAt,
-          notes: buildMatrixReplyAttemptNotes(input),
-        },
-      });
-
-      await tx.collectionCase.update({
-        where: { id: record.id },
-        data: {
-          matrixAwaitingReply: false,
-          matrixLastReplyAt: replyAt,
-          updatedAt: now,
-        },
-      });
-
-      await tx.integrationEvent.create({
-        data: {
-          source: 'n8n_matrix',
-          eventType: 'collection_cases.matrix_reply',
-          status: IntegrationEventStatus.COMPLETED,
-          payload: buildMatrixReplyPayload(input, record.id),
-          processedAt: now,
-        },
-      });
-
-      await tx.auditLog.create({
-        data: {
-          entityType: 'COLLECTION_CASE',
-          entityId: record.id,
-          action: AuditAction.INTEGRATION,
-          performedByUserId: record.assignedUserId,
-          beforeSnapshot: {
-            matrixAwaitingReply: record.matrixAwaitingReply,
-            matrixLastReplyAt: record.matrixLastReplyAt?.toISOString() ?? null,
+    const attempt = await retryOnWriteConflict(() =>
+      this.prisma.$transaction(async (tx) => {
+        const createdAttempt = await tx.collectionAttempt.create({
+          data: {
+            collectionCaseId: record.id,
+            performedByUserId: record.assignedUserId,
+            channel: 'WHATSAPP',
+            result: 'CONTACTED',
+            attemptedAt: replyAt,
+            notes: buildMatrixReplyAttemptNotes(input),
           },
-          afterSnapshot: {
+        });
+
+        await tx.collectionCase.update({
+          where: { id: record.id },
+          data: {
             matrixAwaitingReply: false,
-            matrixLastReplyAt: replyAt.toISOString(),
-            attemptId: createdAttempt.id,
+            matrixLastReplyAt: replyAt,
+            updatedAt: now,
           },
-          metadata: {
-            provider: 'n8n_matrix',
-            resourceType: 'COLLECTION_ATTEMPT',
-            attemptId: createdAttempt.id,
-            matrixAttendanceCode: attendanceCode ?? null,
-            matrixMessageCode: messageCode ?? null,
-          },
-        },
-      });
+        });
 
-      return createdAttempt;
-    });
+        await tx.integrationEvent.create({
+          data: {
+            source: 'n8n_matrix',
+            eventType: 'collection_cases.matrix_reply',
+            status: IntegrationEventStatus.COMPLETED,
+            payload: buildMatrixReplyPayload(input, record.id),
+            processedAt: now,
+          },
+        });
+
+        await tx.auditLog.create({
+          data: {
+            entityType: 'COLLECTION_CASE',
+            entityId: record.id,
+            action: AuditAction.INTEGRATION,
+            performedByUserId: record.assignedUserId,
+            beforeSnapshot: {
+              matrixAwaitingReply: record.matrixAwaitingReply,
+              matrixLastReplyAt:
+                record.matrixLastReplyAt?.toISOString() ?? null,
+            },
+            afterSnapshot: {
+              matrixAwaitingReply: false,
+              matrixLastReplyAt: replyAt.toISOString(),
+              attemptId: createdAttempt.id,
+            },
+            metadata: {
+              provider: 'n8n_matrix',
+              resourceType: 'COLLECTION_ATTEMPT',
+              attemptId: createdAttempt.id,
+              matrixAttendanceCode: attendanceCode ?? null,
+              matrixMessageCode: messageCode ?? null,
+            },
+          },
+        });
+
+        return createdAttempt;
+      }),
+    );
 
     return {
       outcome: 'success',

@@ -131,6 +131,7 @@ export type AssignCaseParams = {
 export type AssignCaseResult =
   | { outcome: 'success'; case: CollectionCaseDetailsResponse }
   | { outcome: 'case_not_found' }
+  | { outcome: 'case_locked' }
   | { outcome: 'user_not_found' };
 
 export type BulkAssignCasesParams = {
@@ -171,16 +172,15 @@ export type RevertCancellationResult =
   | { outcome: 'case_not_found' }
   | { outcome: 'status_not_allowed'; currentStatus: string };
 
-export type RecoverCancelledParams = {
-  caseId: string;
+export type ReopenCancelledParams = {
+  caseIds: string[];
+  assignedUserId: string;
   performedByUserId: string | null;
 };
 
-export type RecoverCancelledResult =
-  | { outcome: 'success'; case: CollectionCaseDetailsResponse }
-  | { outcome: 'case_not_found' }
-  | { outcome: 'status_not_allowed'; currentStatus: string }
-  | { outcome: 'no_manual_attempt' };
+export type ReopenCancelledResult =
+  | { outcome: 'success'; reopened: number; skipped: number }
+  | { outcome: 'user_not_found' };
 
 export type CollectionCaseIntakeSummary = {
   today: number;
@@ -194,6 +194,9 @@ export type CollectionCasesListParams = {
   priority?: string;
   assignedToId?: string;
   contractStatus?: string;
+  statusIn?: string[];
+  cancellationReason?: string;
+  reactivated?: boolean;
   hsmDeliveryState?: string;
   search?: string;
   daysOverdueMin?: number;
@@ -246,7 +249,9 @@ export interface CollectionCasesRepository {
     params: CreateCollectionAttemptParams,
   ): Promise<CollectionAttemptResponse | null>;
 
-  getContactContext(caseId: string): Promise<CollectionCaseContactContext | null>;
+  getContactContext(
+    caseId: string,
+  ): Promise<CollectionCaseContactContext | null>;
 
   recordWhatsAppContactIntegration(
     params: RecordWhatsAppContactIntegrationParams,
@@ -268,14 +273,20 @@ export interface CollectionCasesRepository {
     params: RevertCancellationParams,
   ): Promise<RevertCancellationResult>;
 
-  recoverCancelled(
-    params: RecoverCancelledParams,
-  ): Promise<RecoverCancelledResult>;
+  // Supervisão devolve clientes cancelados (encerrados) a uma carteira para
+  // tentar a reativação; o caso continua cancelado até o ERP reativar o contrato.
+  reopenCancelled(
+    params: ReopenCancelledParams,
+  ): Promise<ReopenCancelledResult>;
 
   assignCase(params: AssignCaseParams): Promise<AssignCaseResult>;
 
-  bulkAssignCases(params: BulkAssignCasesParams): Promise<BulkAssignCasesResult>;
-  autoDistributeCases(params: AutoDistributeCasesParams): Promise<AutoDistributeCasesResult>;
+  bulkAssignCases(
+    params: BulkAssignCasesParams,
+  ): Promise<BulkAssignCasesResult>;
+  autoDistributeCases(
+    params: AutoDistributeCasesParams,
+  ): Promise<AutoDistributeCasesResult>;
 }
 
 export function mapQueryDtoToListParams(
@@ -288,6 +299,9 @@ export function mapQueryDtoToListParams(
     priority: query.priority,
     assignedToId: query.assignedToId,
     contractStatus: query.contractStatus,
+    statusIn: query.statusIn,
+    cancellationReason: query.cancellationReason,
+    reactivated: query.reactivated,
     hsmDeliveryState: query.hsmDeliveryState,
     search: query.search,
     daysOverdueMin: query.daysOverdueMin,

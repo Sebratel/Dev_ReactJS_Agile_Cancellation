@@ -12,3 +12,6 @@ backend/node_modules
 backend/dist
 backend/coverage
 backend/.env
+
+# teste de carga: resultados brutos
+loadtest/out/

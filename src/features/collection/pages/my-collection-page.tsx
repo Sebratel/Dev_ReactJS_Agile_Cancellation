@@ -1,6 +1,6 @@
-import { ArrowRight, BookUser, ArrowUpDown } from 'lucide-react';
+import { ArrowRight, BookUser, ArrowUpDown, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { MetricCard } from '@/components/data-display/metric-card';
 import { PageHeader } from '@/components/data-display/page-header';
 import { PageContainer } from '@/components/navigation/page-container';
@@ -9,7 +9,7 @@ import { EmptyState } from '@/components/feedback/empty-state';
 import { ErrorState } from '@/components/feedback/error-state';
 import { TableSkeleton } from '@/components/feedback/table-skeleton';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Pagination } from '@/components/ui/pagination';
 import {
   Table,
@@ -21,10 +21,19 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useAuth } from '@/features/auth/auth-context';
+import {
+  SEVERITY_ROW_CLASS,
+  SEVERITY_TEXT_CLASS,
+  getOverdueSeverity,
+  getVisibleSla,
+  isInteractiveTarget,
+} from '@/features/collection-cases/utils/case-row-presentation';
+
 import { ContactCustomerWhatsAppAction } from '@/features/collection-cases/components/contact-customer-whatsapp-action';
 import { CollectionCaseSnapshotStrip } from '@/features/collection-cases/components/collection-case-snapshot-strip';
 import { HsmDeliveryBadge } from '@/features/collection-cases/components/hsm-delivery-badge';
 import { useCollectionCases } from '@/features/collection-cases/hooks/use-collection-cases';
+import { useSnapshotCounts } from '@/features/collection-cases/hooks/use-snapshot-counts';
 import type {
   CollectionCasesSortBy,
   CollectionCasesSortDirection,
@@ -33,12 +42,12 @@ import {
   getCollectionStatusLabel,
   getCollectionStatusVariant,
   getPriorityLabel,
-  getPriorityVariant,
-  getSlaPresentation,
 } from '@/features/collection-cases/utils/collection-case-labels';
 import {
   formatCurrencyFromDecimalString,
+  formatDateTimePtBR,
   formatInteger,
+  formatRelativeTimePtBR,
 } from '@/utils/formatters';
 
 const PAGE_SIZE = 10;
@@ -62,6 +71,7 @@ function isSegmentKey(value: string | null): value is SegmentKey {
 }
 
 export default function MyCollectionPage() {
+  const navigate = useNavigate();
   const { session } = useAuth();
   const userId = session?.user.id ?? '';
   const [searchParams] = useSearchParams();
@@ -97,6 +107,11 @@ export default function MyCollectionPage() {
     setSegment(next);
     setPage(1);
   };
+
+  const snapshotCounts = useSnapshotCounts({
+    assignedToId: userId,
+    interactionStatus: segment === 'all' ? undefined : segment,
+  });
 
   const items = casesQuery.data?.items ?? [];
   const totalPages = Math.max(casesQuery.data?.pagination.totalPages ?? 1, 1);
@@ -153,8 +168,7 @@ export default function MyCollectionPage() {
         </span>
         {SORT_OPTIONS.map((opt) => {
           const active = sortBy === opt.key;
-          const arrow =
-            active ? (sortDirection === 'desc' ? ' ↓' : ' ↑') : '';
+          const arrow = active ? (sortDirection === 'desc' ? ' ↓' : ' ↑') : '';
           return (
             <button
               key={opt.key}
@@ -204,7 +218,11 @@ export default function MyCollectionPage() {
 
       {!casesQuery.isLoading && !casesQuery.isError && items.length > 0 ? (
         <>
-          <CollectionCaseSnapshotStrip items={items} totalCases={totalCases} />
+          <CollectionCaseSnapshotStrip
+            items={items}
+            totalCases={totalCases}
+            counts={snapshotCounts}
+          />
 
           {nextCase ? (
             <div className="grid gap-4 lg:grid-cols-[240px_1fr]">
@@ -243,45 +261,84 @@ export default function MyCollectionPage() {
           ) : null}
 
           <TableContainer>
-            <Table className="min-w-[760px]">
+            <Table className="table-fixed">
+              <colgroup>
+                <col className="w-[34%]" />
+                <col className="w-[18%]" />
+                <col className="w-[26%]" />
+                <col className="w-[16%]" />
+                <col className="w-14" />
+              </colgroup>
               <TableHead>
                 <tr>
                   <TableHeaderCell>Cliente</TableHeaderCell>
-                  <TableHeaderCell>Contrato</TableHeaderCell>
-                  <TableHeaderCell>Status</TableHeaderCell>
-                  <TableHeaderCell>Prioridade</TableHeaderCell>
-                  <TableHeaderCell align="right">
-                    Dias em atraso
+                  <TableHeaderCell>Atraso</TableHeaderCell>
+                  <TableHeaderCell>Situação</TableHeaderCell>
+                  <TableHeaderCell>Último contato</TableHeaderCell>
+                  <TableHeaderCell align="center">
+                    <span className="sr-only">Ações</span>
                   </TableHeaderCell>
-                  <TableHeaderCell align="right">
-                    Valor em aberto
-                  </TableHeaderCell>
-                  <TableHeaderCell>SLA</TableHeaderCell>
                 </tr>
               </TableHead>
               <TableBody>
                 {items.map((item) => {
-                  const sla = getSlaPresentation(item.slaDueAt);
+                  const sla = getVisibleSla(item.slaDueAt);
+                  const severity = getOverdueSeverity(
+                    item.daysOverdue,
+                    item.priority === 'CRITICAL' || sla?.variant === 'danger',
+                  );
+                  const detailPath = `/minha-cobranca/${item.id}`;
 
                   return (
-                    <TableRow key={item.id}>
+                    <TableRow
+                      key={item.id}
+                      className={cn(
+                        'cursor-pointer',
+                        SEVERITY_ROW_CLASS[severity],
+                      )}
+                      onClick={(event) => {
+                        if (!isInteractiveTarget(event.target)) {
+                          void navigate(detailPath);
+                        }
+                      }}
+                    >
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
-                          <Link
-                            to={`/minha-cobranca/${item.id}`}
-                            className="min-w-0 text-primary hover:underline"
-                          >
+                          <span className="min-w-0 truncate">
                             {item.customerName}
-                          </Link>
+                          </span>
                           <ContactCustomerWhatsAppAction
                             caseId={item.id}
                             customerName={item.customerName}
                             customerPhone={item.customerPhone}
                           />
                         </div>
+                        <div className="mt-0.5 text-xs font-normal text-neutral">
+                          Contrato <span>{item.contractCode}</span>
+                        </div>
                       </TableCell>
-                      <TableCell className="text-neutral">
-                        {item.contractCode}
+                      <TableCell>
+                        <div className="space-y-0.5">
+                          <div
+                            className={cn(
+                              'font-semibold tabular-nums',
+                              SEVERITY_TEXT_CLASS[severity],
+                            )}
+                          >
+                            {formatInteger(item.daysOverdue)} dias
+                          </div>
+                          <div className="text-xs tabular-nums text-neutral">
+                            {formatCurrencyFromDecimalString(
+                              item.outstandingAmount,
+                            )}
+                          </div>
+                          {sla ? (
+                            <StatusBadge
+                              label={sla.label}
+                              variant={sla.variant}
+                            />
+                          ) : null}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col items-start gap-1">
@@ -289,28 +346,51 @@ export default function MyCollectionPage() {
                             label={getCollectionStatusLabel(item.status)}
                             variant={getCollectionStatusVariant(item.status)}
                           />
-                          <HsmDeliveryBadge
-                            state={item.hsmDeliveryState}
-                            detail={item.hsmDeliveryDetail}
-                          />
+                          <div className="text-xs text-neutral">
+                            Prioridade {getPriorityLabel(item.priority)}
+                            <HsmDeliveryBadge
+                              inline
+                              state={item.hsmDeliveryState}
+                              detail={item.hsmDeliveryDetail}
+                            />
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <StatusBadge
-                          label={getPriorityLabel(item.priority)}
-                          variant={getPriorityVariant(item.priority)}
-                        />
+                        <div
+                          className="text-sm text-foreground"
+                          title={
+                            item.lastContactAt
+                              ? formatDateTimePtBR(item.lastContactAt)
+                              : undefined
+                          }
+                        >
+                          {item.lastContactAt
+                            ? formatRelativeTimePtBR(item.lastContactAt)
+                            : 'Sem contato'}
+                        </div>
+                        <div className="text-xs text-neutral">
+                          {formatInteger(item.totalAttempts)}{' '}
+                          {item.totalAttempts === 1
+                            ? 'tentativa'
+                            : 'tentativas'}
+                        </div>
                       </TableCell>
-                      <TableCell numeric>
-                        {formatInteger(item.daysOverdue)}
-                      </TableCell>
-                      <TableCell numeric className="font-medium">
-                        {formatCurrencyFromDecimalString(
-                          item.outstandingAmount,
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <StatusBadge label={sla.label} variant={sla.variant} />
+                      <TableCell align="center">
+                        <Link
+                          to={detailPath}
+                          title="Abrir caso"
+                          aria-label={`Abrir caso de ${item.customerName}`}
+                          className={buttonVariants({
+                            variant: 'ghost',
+                            size: 'sm',
+                          })}
+                        >
+                          <ChevronRight
+                            className="h-4 w-4"
+                            aria-hidden="true"
+                          />
+                        </Link>
                       </TableCell>
                     </TableRow>
                   );

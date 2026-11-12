@@ -6,6 +6,8 @@ import {
   type AutoDistributePayload,
   type AutoDistributeResponse,
   type BulkAssignCasesPayload,
+  type ReopenCancelledPayload,
+  type ReopenCancelledResponse,
   type BulkAssignCasesResponse,
   type BulkSendToCancellationPayload,
   type BulkSendToCancellationResponse,
@@ -51,6 +53,13 @@ function buildCollectionCasesSearchParams(params: CollectionCasesListParams) {
   appendParam(searchParams, 'priority', params.priority);
   appendParam(searchParams, 'assignedToId', params.assignedToId);
   appendParam(searchParams, 'contractStatus', params.contractStatus);
+  appendParam(searchParams, 'statusIn', params.statusIn?.join(','));
+  appendParam(searchParams, 'cancellationReason', params.cancellationReason);
+  appendParam(
+    searchParams,
+    'reactivated',
+    params.reactivated ? 'true' : undefined,
+  );
   appendParam(searchParams, 'hsmDeliveryState', params.hsmDeliveryState);
   appendParam(searchParams, 'search', params.search);
   appendParam(searchParams, 'daysOverdueMin', params.daysOverdueMin);
@@ -223,11 +232,10 @@ export async function createCollectionAttempt(
 }
 
 export async function contactCustomerByWhatsApp(caseId: string) {
-  const response =
-    await httpClient.request<ContactCustomerWhatsAppResponse>({
-      path: `/collection-cases/${caseId}/contact-whatsapp`,
-      method: 'POST',
-    });
+  const response = await httpClient.request<ContactCustomerWhatsAppResponse>({
+    path: `/collection-cases/${caseId}/contact-whatsapp`,
+    method: 'POST',
+  });
 
   return response.data;
 }
@@ -287,10 +295,12 @@ export async function cancelPaymentPromise(
   return response.data;
 }
 
-export async function recoverCancelledCase(caseId: string) {
-  const response = await httpClient.request<CollectionCaseDetailsResponse>({
-    path: `/collection-cases/${caseId}/recover-cancelled`,
+// Supervisão devolve clientes cancelados a uma carteira (novo ciclo).
+export async function reopenCancelledCases(payload: ReopenCancelledPayload) {
+  const response = await httpClient.request<ReopenCancelledResponse>({
+    path: '/collection-cases/reopen-cancelled',
     method: 'POST',
+    body: JSON.stringify(payload),
   });
 
   return response.data;

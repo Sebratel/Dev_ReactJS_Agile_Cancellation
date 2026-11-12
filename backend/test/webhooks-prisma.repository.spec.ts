@@ -40,7 +40,10 @@ function buildEvent(
  * `tx` controlado. `existingCaseId` simula um caso ja existente (findUnique
  * retorna { id }) ou um caso novo (null).
  */
-function createPrismaMock(existingCaseId: string | null) {
+function createPrismaMock(
+  existingCaseId: string | null,
+  existingStatus: string = 'OPEN',
+) {
   const collectionAttemptCreate: AttemptCreateMock = jest
     .fn()
     .mockResolvedValue({ id: 'att-new' });
@@ -48,26 +51,37 @@ function createPrismaMock(existingCaseId: string | null) {
   const tx = {
     customer: { upsert: jest.fn().mockResolvedValue({ id: 'cus-1' }) },
     contract: { upsert: jest.fn().mockResolvedValue({ id: 'ctr-1' }) },
-    invoice: { upsert: jest.fn().mockResolvedValue({ id: 'inv-1' }) },
+    invoice: {
+      upsert: jest.fn().mockResolvedValue({ id: 'inv-1' }),
+      updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+    },
     collectionCase: {
       findUnique: jest
         .fn()
-        .mockResolvedValue(existingCaseId ? { id: existingCaseId } : null),
-      upsert: jest
-        .fn()
-        .mockResolvedValue({ id: existingCaseId ?? 'case-new' }),
+        .mockResolvedValue(
+          existingCaseId
+            ? { id: existingCaseId, status: existingStatus }
+            : null,
+        ),
+      upsert: jest.fn().mockResolvedValue({ id: existingCaseId ?? 'case-new' }),
     },
     collectionAttempt: { create: collectionAttemptCreate },
+    paymentPromise: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+    cancellationProcess: {
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+    },
+    auditLog: { create: jest.fn().mockResolvedValue({ id: 'aud-1' }) },
   };
 
+  const transaction = jest.fn(
+    async (cb: (txArg: typeof tx) => Promise<unknown>) => cb(tx),
+  );
   const prisma = {
-    $transaction: jest.fn(
-      async (cb: (txArg: typeof tx) => Promise<unknown>) => cb(tx),
-    ),
+    $transaction: transaction,
     integrationEvent: { create: jest.fn().mockResolvedValue({ id: 'evt-1' }) },
   } as unknown as PrismaService;
 
-  return { prisma, tx, collectionAttemptCreate };
+  return { prisma, tx, collectionAttemptCreate, transaction };
 }
 
 describe('WebhooksPrismaRepository.ingestCollectionBatch', () => {
@@ -95,7 +109,8 @@ describe('WebhooksPrismaRepository.ingestCollectionBatch', () => {
   });
 
   it('NAO cria tentativa quando o caso ja existe (evita duplicar em re-ingestao)', async () => {
-    const { prisma, collectionAttemptCreate } = createPrismaMock('case-existing');
+    const { prisma, collectionAttemptCreate } =
+      createPrismaMock('case-existing');
     const repository = new WebhooksPrismaRepository(prisma);
 
     await repository.ingestCollectionBatch('n8n', [buildEvent()]);
@@ -116,5 +131,141 @@ describe('WebhooksPrismaRepository.ingestCollectionBatch', () => {
     for (const call of collectionAttemptCreate.mock.calls) {
       expect(call[0].data.isAutomatic).toBe(true);
     }
+  });
+
+  it('reabre caso finalizado: novo ciclo, encerra promessas/cancelamentos, audita e cria tentativa', async () => {
+    const { prisma, tx, collectionAttemptCreate } = createPrismaMock(
+      'case-existing',
+      'RECOVERED',
+    );
+    const repository = new WebhooksPrismaRepository(prisma);
+
+    await repository.ingestCollectionBatch('n8n', [buildEvent()]);
+
+    expect(tx.collectionCase.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({
+          recoveredAt: null,
+          assignedUserId: null,
+          matrixAwaitingReply: false,
+        }),
+      }),
+    );
+    expect(tx.paymentPromise.updateMany).toHaveBeenCalledTimes(1);
+    expect(tx.cancellationProcess.updateMany).toHaveBeenCalledTimes(1);
+    expect(tx.auditLog.create).toHaveBeenCalledTimes(1);
+    expect(collectionAttemptCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it('caso existente em CANCELLED_IN_RECOVERY mantem o status (quem encerra e a reconciliacao)', async () => {
+    const { prisma, tx } = createPrismaMock(
+      'case-existing',
+      'CANCELLED_IN_RECOVERY',
+    );
+    const repository = new WebhooksPrismaRepository(prisma);
+
+    await repository.ingestCollectionBatch('n8n', [
+      buildEvent({ case: { outstandingAmount: 500, status: 'IN_COLLECTION' } }),
+    ]);
+
+    expect(tx.collectionCase.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({ status: undefined }),
+      }),
+    );
+    expect(tx.auditLog.create).not.toHaveBeenCalled();
+  });
+
+  it('persiste campos opcionais informados e aceita evento sem faturas', async () => {
+    const { prisma, tx } = createPrismaMock(null);
+    const repository = new WebhooksPrismaRepository(prisma);
+
+    await repository.ingestCollectionBatch('n8n', [
+      buildEvent({
+        customer: {
+          name: 'Cliente',
+          document: '1',
+          email: 'a@b.c',
+          phone: '11',
+          phone2: '22',
+          externalId: 'cx',
+        },
+        contract: {
+          code: 'CT',
+          startDate: '2025-01-01T00:00:00.000Z',
+          status: 'ACTIVE',
+          erpStatus: 'A',
+          monthlyValue: 99,
+          externalId: 'ctx',
+        },
+        invoices: [
+          {
+            externalId: 'i2',
+            dueDate: '2025-02-01T00:00:00.000Z',
+            amount: 10,
+            invoiceNumber: 'N1',
+            status: 'PAID',
+            paidAmount: 10,
+          },
+        ],
+        case: {
+          outstandingAmount: 5,
+          status: 'IN_COLLECTION',
+          priority: 'HIGH',
+        },
+      }),
+      buildEvent({ externalId: 'sem-faturas', invoices: undefined }),
+    ]);
+
+    expect(tx.customer.upsert).toHaveBeenCalledTimes(2);
+    expect(tx.invoice.upsert).toHaveBeenCalledTimes(1);
+  });
+
+  describe('conflito de escrita (P2034) — causa do loop de restart da API', () => {
+    const p2034 = () =>
+      Object.assign(
+        new Error(
+          'Transaction failed due to a write conflict or a deadlock. Please retry your transaction',
+        ),
+        { code: 'P2034', meta: { modelName: 'Invoice' } },
+      );
+
+    it('refaz a transacao inteira e conclui o lote quando o P2034 e transitorio', async () => {
+      const { prisma, tx, transaction } = createPrismaMock(null);
+      tx.invoice.upsert
+        .mockRejectedValueOnce(p2034())
+        .mockRejectedValueOnce(p2034())
+        .mockResolvedValue({ id: 'inv-1' });
+      const repository = new WebhooksPrismaRepository(prisma);
+
+      const summary = await repository.ingestCollectionBatch('n8n', [
+        buildEvent(),
+      ]);
+
+      expect(transaction).toHaveBeenCalledTimes(3);
+      expect(summary.casesUpserted).toBe(1);
+    });
+
+    it('rejeita (sem derrubar o processo) quando o conflito persiste, apos 4 tentativas', async () => {
+      const { prisma, tx, transaction } = createPrismaMock(null);
+      tx.invoice.upsert.mockRejectedValue(p2034());
+      const repository = new WebhooksPrismaRepository(prisma);
+
+      await expect(
+        repository.ingestCollectionBatch('n8n', [buildEvent()]),
+      ).rejects.toMatchObject({ code: 'P2034' });
+      expect(transaction).toHaveBeenCalledTimes(4);
+    });
+
+    it('nao repete erros que nao sao conflito de escrita', async () => {
+      const { prisma, tx, transaction } = createPrismaMock(null);
+      tx.invoice.upsert.mockRejectedValue(new Error('outro erro'));
+      const repository = new WebhooksPrismaRepository(prisma);
+
+      await expect(
+        repository.ingestCollectionBatch('n8n', [buildEvent()]),
+      ).rejects.toThrow('outro erro');
+      expect(transaction).toHaveBeenCalledTimes(1);
+    });
   });
 });

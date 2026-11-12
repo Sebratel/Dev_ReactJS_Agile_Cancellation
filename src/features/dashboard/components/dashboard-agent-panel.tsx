@@ -4,11 +4,14 @@ import {
   CalendarClock,
   ChevronRight,
   Hourglass,
+  Briefcase,
+  Handshake,
   ListChecks,
   PhoneOff,
   TrendingUp,
   User,
 } from 'lucide-react';
+import { MetricCard } from '@/components/data-display/metric-card';
 import { SectionCard } from '@/components/data-display/section-card';
 import RecoveryTrendChart from '@/features/dashboard/components/recovery-trend-chart';
 import { mapDashboardSummaryToRecoveryTrend } from '@/features/dashboard/utils/dashboard.mapper';
@@ -46,8 +49,15 @@ const ACTION_TONE_CLASSES: Record<AgentActionTone, string> = {
 
 const WORK_HREF = '/minha-cobranca';
 
-export function DashboardAgentPanel({ user, summary }: DashboardAgentPanelProps) {
-  const isCancellationAgent = user.roles.includes('CANCELLATION_AGENT');
+export function DashboardAgentPanel({
+  user,
+  summary,
+}: DashboardAgentPanelProps) {
+  // Quem acumula os dois papéis vê o painel de cobrança; a tela de
+  // Cancelamentos continua acessível pelo menu.
+  const isCancellationAgent =
+    user.roles.includes('CANCELLATION_AGENT') &&
+    !user.roles.includes('COLLECTION_AGENT');
   const workHref = isCancellationAgent ? '/cancelamentos' : WORK_HREF;
 
   // Próximos a contatar: casos DELE ainda sem contato manual, do mais crítico
@@ -74,19 +84,18 @@ export function DashboardAgentPanel({ user, summary }: DashboardAgentPanelProps)
     (alert) => alert.key === 'promisesDueToday',
   );
   const promisesDueToday = dueTodayAlert?.count ?? 0;
-  const recoveredMonth = formatCurrencyFromDecimalString(
-    String(summary.metrics.recoveredMonth),
-  );
+  const paidMonth = Number(summary.metrics.recoveredMonth) || 0;
+  // Backend antigo (durante um deploy) pode não enviar o campo: mostra "—" em
+  // vez de R$ 0,00, que seria um dado falso.
+  const hasContactBreakdown =
+    summary.metrics.recoveredAfterContactMonth !== undefined;
+  const recoveredAfterContact =
+    Number(summary.metrics.recoveredAfterContactMonth) || 0;
+  const paidOnOwn = Math.max(paidMonth - recoveredAfterContact, 0);
+  const overduePromisesPaid = Number(summary.metrics.overduePromisesPaid ?? 0);
   const activePromises = Number(summary.metrics.activePromises);
 
   const recoveryTrend = mapDashboardSummaryToRecoveryTrend(summary);
-  const recoveredCases = recoveryTrend.reduce(
-    (total, item) => total + item.recoveredCases,
-    0,
-  );
-
-  const circumference = 2 * Math.PI * 52;
-  const dashOffset = circumference * (1 - pct / 100);
 
   const actions: Array<{
     label: string;
@@ -98,7 +107,10 @@ export function DashboardAgentPanel({ user, summary }: DashboardAgentPanelProps)
   }> = [
     {
       label: 'Promessas vencidas',
-      helper: 'acordo furado, recontatar',
+      helper:
+        overduePromisesPaid > 0
+          ? `acordo furado · ${formatInteger(overduePromisesPaid)} já pagaram`
+          : 'acordo furado, recontatar',
       value: overduePromises,
       tone: 'danger',
       icon: Hourglass,
@@ -137,59 +149,50 @@ export function DashboardAgentPanel({ user, summary }: DashboardAgentPanelProps)
         </div>
       </div>
 
-      <SectionCard contentClassName="p-4 sm:p-5">
-        <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-center">
-          <div className="relative h-32 w-32 shrink-0">
-            <svg viewBox="0 0 120 120" className="h-32 w-32 -rotate-90">
-              <circle
-                cx="60"
-                cy="60"
-                r="52"
-                fill="none"
-                className="stroke-muted"
-                strokeWidth="12"
-              />
-              <circle
-                cx="60"
-                cy="60"
-                r="52"
-                fill="none"
-                className="stroke-success"
-                strokeWidth="12"
-                strokeLinecap="round"
-                strokeDasharray={circumference}
-                strokeDashoffset={dashOffset}
-              />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-2xl font-bold tabular-nums">{pct}%</span>
-              <span className="text-xs text-neutral">contatados</span>
-            </div>
-          </div>
-
-          <div className="min-w-0 flex-1">
-            <p className="mb-3 text-sm font-bold">Sua carteira hoje</p>
-            <div className="grid grid-cols-3 gap-2">
-              <div className="rounded-lg bg-muted/55 px-3 py-2.5">
-                <p className="text-xs text-neutral">Total</p>
-                <p className="text-xl font-bold tabular-nums">{formatInteger(active)}</p>
-              </div>
-              <div className="rounded-lg bg-success/10 px-3 py-2.5">
-                <p className="text-xs text-success">Já contatados</p>
-                <p className="text-xl font-bold tabular-nums text-success">
-                  {formatInteger(contacted)}
-                </p>
-              </div>
-              <div className="rounded-lg bg-warning/10 px-3 py-2.5">
-                <p className="text-xs text-warning">Faltam</p>
-                <p className="text-xl font-bold tabular-nums text-warning">
-                  {formatInteger(remaining)}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </SectionCard>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <MetricCard
+          title="Minha carteira"
+          value={formatInteger(active)}
+          description={`${formatInteger(contacted)} já contatados (${pct}%)`}
+          icon={Briefcase}
+          variant="neutral"
+          density="compact"
+        />
+        <MetricCard
+          title="Recuperado no mês"
+          value={
+            hasContactBreakdown
+              ? formatCurrencyFromDecimalString(
+                  String(summary.metrics.recoveredAfterContactMonth),
+                )
+              : '—'
+          }
+          description={
+            hasContactBreakdown
+              ? `pago após seu contato · ${formatCurrencyFromDecimalString(String(paidOnOwn))} pagaram sozinhos`
+              : 'pago após seu contato'
+          }
+          icon={TrendingUp}
+          variant="success"
+          density="compact"
+        />
+        <MetricCard
+          title="Promessas ativas"
+          value={formatInteger(activePromises)}
+          description="acordos em andamento"
+          icon={Handshake}
+          variant="neutral"
+          density="compact"
+        />
+        <MetricCard
+          title="Ainda sem contato"
+          value={formatInteger(remaining)}
+          description="casos da sua carteira para começar"
+          icon={PhoneOff}
+          variant="warning"
+          density="compact"
+        />
+      </div>
 
       <div className="grid gap-4 2xl:grid-cols-2">
         <SectionCard title="Pra fazer hoje" contentClassName="space-y-2 p-4">
@@ -207,7 +210,9 @@ export function DashboardAgentPanel({ user, summary }: DashboardAgentPanelProps)
                   <Icon className="h-5 w-5" aria-hidden="true" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-medium">{action.label}</span>
+                  <span className="block text-sm font-medium">
+                    {action.label}
+                  </span>
                   <span className="block truncate text-xs text-neutral">
                     {action.helper}
                   </span>
@@ -215,45 +220,18 @@ export function DashboardAgentPanel({ user, summary }: DashboardAgentPanelProps)
                 <span className="shrink-0 text-base font-bold tabular-nums">
                   {formatInteger(action.value)}
                 </span>
-                <ChevronRight className="h-4 w-4 shrink-0 text-neutral" aria-hidden="true" />
+                <ChevronRight
+                  className="h-4 w-4 shrink-0 text-neutral"
+                  aria-hidden="true"
+                />
               </Link>
             );
           })}
         </SectionCard>
 
-        <SectionCard contentClassName="p-4">
-          <div className="mb-1 flex items-baseline justify-between gap-3">
-            <p className="text-sm font-bold">Você recuperou</p>
-            <p className="text-xl font-bold tabular-nums text-success">
-              {recoveredMonth}
-            </p>
-          </div>
-          <p className="text-xs text-neutral">
-            no mês · {formatInteger(recoveredCases)} casos
-          </p>
-
-          <div className="mt-4 flex items-center gap-2 rounded-lg bg-success/10 px-3 py-2.5 text-sm text-success">
-            <TrendingUp className="h-4 w-4 shrink-0" aria-hidden="true" />
-            {recoveredCases > 0
-              ? 'Bom ritmo — continue priorizando os acordos ativos.'
-              : 'Comece pelos contatos de hoje para destravar recuperações.'}
-          </div>
-
-          <div className="mt-4 grid grid-cols-2 gap-2 text-center">
-            <div>
-              <p className="text-xs text-neutral">Promessas ativas</p>
-              <p className="text-xl font-bold tabular-nums">
-                {formatInteger(activePromises)}
-              </p>
-            </div>
-            <div className="border-l border-border">
-              <p className="text-xs text-neutral">Retidos</p>
-              <p className="text-xl font-bold tabular-nums text-success">
-                {formatInteger(recoveredCases)}
-              </p>
-            </div>
-          </div>
-        </SectionCard>
+        {recoveryTrend.length > 0 ? (
+          <RecoveryTrendChart data={recoveryTrend} />
+        ) : null}
       </div>
 
       {!isCancellationAgent ? (
@@ -263,7 +241,9 @@ export function DashboardAgentPanel({ user, summary }: DashboardAgentPanelProps)
           contentClassName="p-0"
         >
           {nextToContactQuery.isLoading ? (
-            <p className="px-4 py-6 text-sm text-neutral">Carregando sua fila…</p>
+            <p className="px-4 py-6 text-sm text-neutral">
+              Carregando sua fila…
+            </p>
           ) : nextToContact.length === 0 ? (
             <div className="flex items-center gap-2 px-4 py-6 text-sm text-success">
               <ListChecks className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -304,10 +284,6 @@ export function DashboardAgentPanel({ user, summary }: DashboardAgentPanelProps)
             </>
           )}
         </SectionCard>
-      ) : null}
-
-      {recoveryTrend.length > 0 ? (
-        <RecoveryTrendChart data={recoveryTrend} />
       ) : null}
     </div>
   );

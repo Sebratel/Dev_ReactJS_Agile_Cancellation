@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Download, Inbox, Layers, PhoneOff, Shuffle, XCircle } from 'lucide-react';
+import {
+  Download,
+  Inbox,
+  Layers,
+  PhoneOff,
+  Shuffle,
+  XCircle,
+} from 'lucide-react';
 import { MetricCard } from '@/components/data-display/metric-card';
 import { BulkActionBar } from '@/components/data-display/bulk-action-bar';
 import { PageHeader } from '@/components/data-display/page-header';
@@ -61,10 +68,22 @@ export default function BacklogPage() {
   );
 
   const casesQuery = useCollectionCases(listParams);
-  const waitingQuery = useCollectionCases({ status: 'WAITING_TRIAGE', limit: 1 });
-  const inCollectionQuery = useCollectionCases({ status: 'IN_COLLECTION', limit: 1 });
-  const noResponseQuery = useCollectionCases({ status: 'NO_RESPONSE', limit: 1 });
-  const eligibleQuery = useCollectionCases({ status: 'ELIGIBLE_FOR_CANCELLATION', limit: 1 });
+  const waitingQuery = useCollectionCases({
+    status: 'WAITING_TRIAGE',
+    limit: 1,
+  });
+  const inCollectionQuery = useCollectionCases({
+    status: 'IN_COLLECTION',
+    limit: 1,
+  });
+  const noResponseQuery = useCollectionCases({
+    status: 'NO_RESPONSE',
+    limit: 1,
+  });
+  const eligibleQuery = useCollectionCases({
+    status: 'ELIGIBLE_FOR_CANCELLATION',
+    limit: 1,
+  });
 
   const agentsQuery = useUsers({
     status: 'ACTIVE',
@@ -79,7 +98,9 @@ export default function BacklogPage() {
   const autoDistributeMutation = useAutoDistribute();
   const { exportCsv, isExporting } = useExportCasesCsv();
 
-  const handleRetry = () => { void casesQuery.refetch(); };
+  const handleRetry = () => {
+    void casesQuery.refetch();
+  };
 
   const items = useMemo(() => casesQuery.data?.items ?? [], [casesQuery.data]);
   const totalPages = Math.max(casesQuery.data?.pagination.totalPages ?? 1, 1);
@@ -133,7 +154,12 @@ export default function BacklogPage() {
   async function handleAutoDistribute() {
     try {
       const result = await autoDistributeMutation.mutateAsync({
-        statuses: ['WAITING_TRIAGE', 'IN_COLLECTION', 'NO_RESPONSE', 'ELIGIBLE_FOR_CANCELLATION'],
+        statuses: [
+          'WAITING_TRIAGE',
+          'IN_COLLECTION',
+          'NO_RESPONSE',
+          'ELIGIBLE_FOR_CANCELLATION',
+        ],
         targetRole: 'COLLECTION_AGENT',
       });
       toast.success(
@@ -141,7 +167,9 @@ export default function BacklogPage() {
       );
     } catch (error) {
       toast.error(
-        error instanceof ApiError ? error.message : 'Não foi possível distribuir os casos.',
+        error instanceof ApiError
+          ? error.message
+          : 'Não foi possível distribuir os casos.',
       );
     }
   }
@@ -156,16 +184,22 @@ export default function BacklogPage() {
             {canDistribute ? (
               <Button
                 variant="secondary"
-                onClick={() => { void handleAutoDistribute(); }}
+                onClick={() => {
+                  void handleAutoDistribute();
+                }}
                 disabled={autoDistributeMutation.isPending}
               >
                 <Shuffle className="h-4 w-4" />
-                {autoDistributeMutation.isPending ? 'Distribuindo...' : 'Distribuir automaticamente'}
+                {autoDistributeMutation.isPending
+                  ? 'Distribuindo...'
+                  : 'Distribuir automaticamente'}
               </Button>
             ) : null}
             <Button
               variant="secondary"
-              onClick={() => { void exportCsv({ ...listParams }); }}
+              onClick={() => {
+                void exportCsv({ ...listParams });
+              }}
               disabled={isExporting || casesQuery.isLoading}
             >
               <Download className="h-4 w-4" />
@@ -277,7 +311,9 @@ export default function BacklogPage() {
           selectedCaseIds={Array.from(selectedIds)}
           agents={agents}
           workload={workloadQuery.data}
-          onBulkAssign={(id) => { void handleBulkAssign(id); }}
+          onBulkAssign={(id) => {
+            void handleBulkAssign(id);
+          }}
           onClearSelection={clearSelection}
           isAssigning={bulkAssign.isPending}
         />

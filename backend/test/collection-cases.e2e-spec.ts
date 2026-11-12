@@ -630,12 +630,18 @@ describe('Collection cases (e2e)', () => {
 
     await api(httpServer)
       .post('/collection-cases/case_0002/send-to-cancellation')
-      .send({ reason: 'Primeiro encaminhamento.', assignedUserId: 'user-cancellation' })
+      .send({
+        reason: 'Primeiro encaminhamento.',
+        assignedUserId: 'user-cancellation',
+      })
       .expect(201);
 
     await api(httpServer)
       .post('/collection-cases/case_0002/send-to-cancellation')
-      .send({ reason: 'Segundo encaminhamento.', assignedUserId: 'user-cancellation' })
+      .send({
+        reason: 'Segundo encaminhamento.',
+        assignedUserId: 'user-cancellation',
+      })
       .expect(409);
   });
 
@@ -644,7 +650,10 @@ describe('Collection cases (e2e)', () => {
 
     await api(httpServer)
       .post('/collection-cases/case_recovered/send-to-cancellation')
-      .send({ reason: 'Tentativa invalida.', assignedUserId: 'user-cancellation' })
+      .send({
+        reason: 'Tentativa invalida.',
+        assignedUserId: 'user-cancellation',
+      })
       .expect(409);
   });
 });

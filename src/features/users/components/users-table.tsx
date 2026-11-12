@@ -1,5 +1,6 @@
 import { StatusBadge } from '@/components/data-display/status-badge';
 import { Button } from '@/components/ui/button';
+import { UserAvatar } from '@/components/ui/user-avatar';
 import {
   Table,
   TableBody,
@@ -40,7 +41,14 @@ export function UsersTable({ users, onEdit }: UsersTableProps) {
           {users.map((user) => (
             <TableRow key={user.id}>
               <TableCell className="align-top font-medium">
-                {user.name}
+                <div className="flex items-center gap-3">
+                  <UserAvatar
+                    name={user.name}
+                    avatarUrl={user.avatarUrl}
+                    className="h-8 w-8 text-xs"
+                  />
+                  <span className="min-w-0">{user.name}</span>
+                </div>
               </TableCell>
               <TableCell className="align-top text-neutral">
                 {user.email}

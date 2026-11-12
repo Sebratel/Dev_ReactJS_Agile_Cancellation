@@ -2,11 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
+  ChevronRight,
   HandshakeIcon,
   RefreshCw,
   XCircle,
 } from 'lucide-react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { isInteractiveTarget } from '@/features/collection-cases/utils/case-row-presentation';
 import { MetricCard } from '@/components/data-display/metric-card';
 import { PageHeader } from '@/components/data-display/page-header';
 import { SectionCard } from '@/components/data-display/section-card';
@@ -15,7 +17,7 @@ import { PageContainer } from '@/components/navigation/page-container';
 import { EmptyState } from '@/components/feedback/empty-state';
 import { ErrorState } from '@/components/feedback/error-state';
 import { TableSkeleton } from '@/components/feedback/table-skeleton';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Pagination } from '@/components/ui/pagination';
 import { Select } from '@/components/ui/select';
@@ -29,6 +31,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import {
+  getCollectionStatusLabel,
+  getCollectionStatusVariant,
   getPromiseStatusLabel,
   getPromiseStatusVariant,
 } from '@/features/collection-cases/utils/collection-case-labels';
@@ -45,8 +49,19 @@ import {
 
 const DEFAULT_LIMIT = 20;
 
+const CASE_SITUATION_OPTIONS = [
+  { value: '', label: 'Todas as situações' },
+  { value: 'PAID', label: 'Já pagaram' },
+  { value: 'RECOVERED', label: 'Pagou após contato do atendente' },
+  { value: 'PAYMENT_MADE', label: 'Pagou sem contato' },
+  { value: 'IN_COLLECTION', label: 'Em cobrança (ainda devem)' },
+  { value: 'CANCELLATION', label: 'Em cancelamento' },
+  { value: 'CLOSED', label: 'Encerrado' },
+] as const;
+
 type Filters = {
   status: string;
+  caseSituation: string;
   search: string;
   from: string;
   to: string;
@@ -56,6 +71,7 @@ type Filters = {
 function parseFilters(params: URLSearchParams): Filters {
   return {
     status: params.get('status') ?? '',
+    caseSituation: params.get('caseSituation') ?? '',
     search: params.get('search') ?? '',
     from: params.get('from') ?? '',
     to: params.get('to') ?? '',
@@ -66,6 +82,7 @@ function parseFilters(params: URLSearchParams): Filters {
 function filtersToSearchParams(f: Filters) {
   const p = new URLSearchParams();
   if (f.status) p.set('status', f.status);
+  if (f.caseSituation) p.set('caseSituation', f.caseSituation);
   if (f.search.trim()) p.set('search', f.search.trim());
   if (f.from) p.set('from', f.from);
   if (f.to) p.set('to', f.to);
@@ -74,6 +91,7 @@ function filtersToSearchParams(f: Filters) {
 }
 
 export default function PaymentPromisesPage() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const filters = useMemo(() => parseFilters(searchParams), [searchParams]);
 
@@ -101,7 +119,11 @@ export default function PaymentPromisesPage() {
 
   const listParams: PaymentPromisesListParams = useMemo(
     () => ({
-      status: (filters.status as PaymentPromisesListParams['status']) || undefined,
+      status:
+        (filters.status as PaymentPromisesListParams['status']) || undefined,
+      caseSituation:
+        (filters.caseSituation as PaymentPromisesListParams['caseSituation']) ||
+        undefined,
       search: debouncedSearch.trim() || undefined,
       from: filters.from || undefined,
       to: filters.to || undefined,
@@ -120,6 +142,7 @@ export default function PaymentPromisesPage() {
 
   const hasActiveFilters =
     Boolean(filters.status) ||
+    Boolean(filters.caseSituation) ||
     Boolean(filters.search.trim()) ||
     Boolean(filters.from) ||
     Boolean(filters.to);
@@ -129,7 +152,9 @@ export default function PaymentPromisesPage() {
     setSearchParams(new URLSearchParams(), { replace: true });
   };
 
-  const handleRetry = () => { void listQuery.refetch(); };
+  const handleRetry = () => {
+    void listQuery.refetch();
+  };
 
   return (
     <PageContainer>
@@ -157,7 +182,11 @@ export default function PaymentPromisesPage() {
         <MetricCard
           title="Vencidas"
           value={formatInteger(summary?.overdue ?? 0)}
-          description="Ativas com data ultrapassada"
+          description={
+            summary && summary.overduePaid > 0
+              ? `Ativas com data ultrapassada · ${formatInteger(summary.overduePaid)} já pagaram`
+              : 'Ativas com data ultrapassada'
+          }
           icon={AlertTriangle}
           variant={summary && summary.overdue > 0 ? 'danger' : 'neutral'}
           loading={summaryQuery.isLoading}
@@ -177,7 +206,9 @@ export default function PaymentPromisesPage() {
           value={formatInteger(summary?.brokenThisMonth ?? 0)}
           description="Acordos não honrados no mês atual"
           icon={XCircle}
-          variant={summary && summary.brokenThisMonth > 0 ? 'warning' : 'neutral'}
+          variant={
+            summary && summary.brokenThisMonth > 0 ? 'warning' : 'neutral'
+          }
           loading={summaryQuery.isLoading}
           density="compact"
         />
@@ -185,7 +216,7 @@ export default function PaymentPromisesPage() {
 
       <SectionCard
         title="Filtros"
-        description="Filtre por status, período ou busca textual."
+        description="Filtre por status da promessa, situação do caso (pagou ou não), período ou busca textual."
         contentClassName="space-y-3"
       >
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -202,9 +233,11 @@ export default function PaymentPromisesPage() {
             <span className="text-xs font-medium text-neutral">Status</span>
             <Select
               value={filters.status}
-              onChange={(e) => updateFilters({ status: e.target.value, page: 1 })}
+              onChange={(e) =>
+                updateFilters({ status: e.target.value, page: 1 })
+              }
             >
-              <option value="">Todos os status</option>
+              <option value="">Todos (sem canceladas)</option>
               <option value="ACTIVE">Ativas</option>
               <option value="FULFILLED">Cumpridas</option>
               <option value="BROKEN">Descumpridas</option>
@@ -213,7 +246,27 @@ export default function PaymentPromisesPage() {
           </label>
 
           <label className="space-y-1 text-sm">
-            <span className="text-xs font-medium text-neutral">Data inicial</span>
+            <span className="text-xs font-medium text-neutral">
+              Situação do caso
+            </span>
+            <Select
+              value={filters.caseSituation}
+              onChange={(e) =>
+                updateFilters({ caseSituation: e.target.value, page: 1 })
+              }
+            >
+              {CASE_SITUATION_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+          </label>
+
+          <label className="space-y-1 text-sm">
+            <span className="text-xs font-medium text-neutral">
+              Data inicial
+            </span>
             <Input
               type="date"
               value={filters.from}
@@ -271,67 +324,108 @@ export default function PaymentPromisesPage() {
           contentClassName="p-0"
         >
           <TableContainer flush className="max-h-[70vh] overflow-y-auto">
-            <Table className="min-w-[860px]">
+            <Table className="table-fixed">
+              <colgroup>
+                <col className="w-[27%]" />
+                <col className="w-[19%]" />
+                <col className="w-[13%]" />
+                <col className="w-[19%]" />
+                <col className="w-[16%]" />
+                <col className="w-14" />
+              </colgroup>
               <TableHead sticky>
                 <tr>
                   <TableHeaderCell>Cliente</TableHeaderCell>
-                  <TableHeaderCell>Contrato</TableHeaderCell>
-                  <TableHeaderCell align="right">Valor prometido</TableHeaderCell>
-                  <TableHeaderCell>Data prometida</TableHeaderCell>
+                  <TableHeaderCell>Promessa</TableHeaderCell>
                   <TableHeaderCell>Status</TableHeaderCell>
+                  <TableHeaderCell>Situação do caso</TableHeaderCell>
                   <TableHeaderCell>Responsável</TableHeaderCell>
-                  <TableHeaderCell>Ação</TableHeaderCell>
+                  <TableHeaderCell align="center">
+                    <span className="sr-only">Ações</span>
+                  </TableHeaderCell>
                 </tr>
               </TableHead>
               <TableBody>
-                {items.map((item) => (
-                  <TableRow
-                    key={item.id}
-                    className={cn(item.isOverdue && 'bg-danger/5')}
-                  >
-                    <TableCell className="font-medium">
-                      <div>
-                        <p>{item.customer.name}</p>
-                        <p className="text-xs text-neutral">{item.customer.document}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-neutral">
-                      {item.contract.code}
-                    </TableCell>
-                    <TableCell align="right" className="font-medium tabular-nums">
-                      {formatCurrencyFromDecimalString(item.promisedAmount)}
-                    </TableCell>
-                    <TableCell className="tabular-nums">
-                      <div className="flex items-center gap-2">
-                        {formatDatePtBR(item.promisedDate)}
-                        {item.isOverdue ? (
-                          <span className="rounded-full bg-danger/10 px-1.5 py-0.5 text-[10px] font-semibold text-danger">
-                            Vencida
-                          </span>
-                        ) : null}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge
-                        label={getPromiseStatusLabel(item.status)}
-                        variant={getPromiseStatusVariant(item.status)}
-                      />
-                    </TableCell>
-                    <TableCell className="text-neutral">
-                      {item.assignedTo?.name ?? (
-                        <span className="italic text-neutral/60">Não atribuído</span>
+                {items.map((item) => {
+                  const detailPath = `/supervisao/${item.collectionCaseId}`;
+
+                  return (
+                    <TableRow
+                      key={item.id}
+                      className={cn(
+                        'cursor-pointer [&>td:first-child]:border-l-[3px]',
+                        item.isOverdue
+                          ? 'bg-danger/5 [&>td:first-child]:border-l-danger'
+                          : '[&>td:first-child]:border-l-transparent',
                       )}
-                    </TableCell>
-                    <TableCell>
-                      <Link
-                        to={`/supervisao/${item.collectionCaseId}`}
-                        className="text-xs font-medium text-primary hover:underline"
-                      >
-                        Ver caso
-                      </Link>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      onClick={(event) => {
+                        if (!isInteractiveTarget(event.target)) {
+                          void navigate(detailPath);
+                        }
+                      }}
+                    >
+                      <TableCell className="font-medium">
+                        <div className="truncate">{item.customer.name}</div>
+                        <div className="mt-0.5 text-xs font-normal text-neutral">
+                          {item.customer.document} · {item.contract.code}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-semibold tabular-nums">
+                          {formatCurrencyFromDecimalString(item.promisedAmount)}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs tabular-nums text-neutral">
+                          {formatDatePtBR(item.promisedDate)}
+                          {item.isOverdue ? (
+                            <span className="rounded-full bg-danger/10 px-1.5 py-0.5 text-[10px] font-semibold text-danger">
+                              Vencida
+                            </span>
+                          ) : null}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge
+                          label={getPromiseStatusLabel(item.status)}
+                          variant={getPromiseStatusVariant(item.status)}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge
+                          label={getCollectionStatusLabel(item.caseStatus)}
+                          variant={getCollectionStatusVariant(item.caseStatus)}
+                        />
+                        {item.caseRecoveredAt ? (
+                          <div className="mt-0.5 text-xs tabular-nums text-neutral">
+                            em {formatDatePtBR(item.caseRecoveredAt)}
+                          </div>
+                        ) : null}
+                      </TableCell>
+                      <TableCell className="text-neutral">
+                        {item.assignedTo?.name ?? (
+                          <span className="italic text-neutral/60">
+                            Não atribuído
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell align="center">
+                        <Link
+                          to={detailPath}
+                          title="Ver caso"
+                          aria-label={`Ver caso de ${item.customer.name}`}
+                          className={buttonVariants({
+                            variant: 'ghost',
+                            size: 'sm',
+                          })}
+                        >
+                          <ChevronRight
+                            className="h-4 w-4"
+                            aria-hidden="true"
+                          />
+                        </Link>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </TableContainer>

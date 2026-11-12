@@ -1,20 +1,31 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, type OnModuleDestroy } from '@nestjs/common';
+import {
+  CANCELLED_RECOVERY_PAYMENT_WINDOW_DAYS,
+  resolveCancelledRecoveryOutcome,
+  type CancelledRecoveryErpState,
+} from '@/modules/erp-sync/cancelled-recovery';
 import type { RenegotiationSummaryResponse } from '@/modules/erp-sync/dto/renegotiation-summary.response';
 import { Cron } from '@nestjs/schedule';
 import {
   AuditAction,
   CancellationStatus,
   CollectionStatus,
+  ContractStatus,
   IntegrationEventStatus,
   InvoiceStatus,
   PaymentPromiseStatus,
   Prisma,
+  UserStatus,
 } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { validateSync } from 'class-validator';
 import { Pool } from 'pg';
 import { getDataSourceMode } from '@/common/data-source/data-source.config';
-import { getErpSyncConfig, type ErpSyncDbConfig } from '@/config/erp-sync.config';
+import { retryOnWriteConflict } from '@/common/utils/retry-on-write-conflict.util';
+import {
+  getErpSyncConfig,
+  type ErpSyncDbConfig,
+} from '@/config/erp-sync.config';
 import type {
   RenegotiationDetailResponse,
   RenegotiationTitle,
@@ -133,6 +144,17 @@ import {
 import { NotificationsService } from '@/modules/notifications/notifications.service';
 import { RecoveryNotifierService } from '@/modules/erp-sync/recovery-notifier.service';
 import {
+  buildMockRecoveryAudit,
+  buildRecoveryAuditCase,
+  type ManualCreditResult,
+  type RecoveryAuditCase,
+  type RecoveryAuditResponse,
+} from '@/modules/erp-sync/recovery-audit';
+import {
+  resolveRecoveryRankingRange,
+  type RecoveryRankingPeriod,
+} from '@/modules/dashboard/utils/dashboard-ranking.utils';
+import {
   buildRecoveryNotifications,
   buildRecoveryWebhookPayload,
   type RecoveredCaseForNotification,
@@ -170,6 +192,83 @@ WHERE fr.id = ANY($1::bigint[])
   AND x.deleted IS false
 GROUP BY fr.id;
 `;
+
+// Pagamento de títulos GERADOS por renegociação: quando o cliente renegocia um
+// título-gatilho (consumido, type=0), o ERP cria títulos novos (type=1) e o que
+// ele paga neles também é dinheiro recuperado (ex.: título de R$ 99,90 vira um
+// de R$ 39,96, pago na hora). Só conta baixa REAL (com forma de pagamento).
+// O valor é o do título (title_amount), mesmo critério do valor dos gatilhos.
+const PAID_RENEGOTIATED_TITLES_QUERY = `
+SELECT
+  consumed.financial_receivable_title_id::text AS trigger_title_id,
+  g.id::text AS title_id,
+  g.title AS title_number,
+  g.title_amount::text AS title_amount,
+  MIN(x.client_paid_date) AS paid_date,
+  MIN(x.created) AS registered_at,
+  SUM(x.total_amount)::text AS received_amount,
+  STRING_AGG(DISTINCT pf.title, ', ') AS payment_form
+FROM erp.financial_renegotiation_titles consumed
+JOIN erp.financial_renegotiations r
+  ON r.id = consumed.financial_renegotiation_id AND r.deleted IS false
+JOIN erp.financial_renegotiation_titles gen
+  ON gen.financial_renegotiation_id = r.id AND gen.type = 1 AND gen.deleted IS false
+JOIN erp.financial_receivable_titles g
+  ON g.id = gen.financial_receivable_title_id AND g.deleted IS false AND g.bill_title_id IS NULL
+JOIN erp.financial_receipt_titles x
+  ON x.financial_receivable_title_id = g.id
+ AND x.client_paid_date IS NOT NULL
+ AND x.payment_form_id IS NOT NULL
+ AND x.deleted IS false
+LEFT JOIN erp.payment_forms pf ON pf.id = x.payment_form_id
+WHERE consumed.type = 0
+  AND consumed.deleted IS false
+  AND consumed.financial_receivable_title_id = ANY($1::bigint[])
+GROUP BY consumed.financial_receivable_title_id, g.id, g.title, g.title_amount;
+`;
+
+type PaidRenegotiatedRow = {
+  trigger_title_id: string;
+  title_id: string;
+  title_number: string | null;
+  title_amount: string | null;
+  paid_date: Date;
+  registered_at: Date | null;
+  received_amount: string | null;
+  payment_form: string | null;
+};
+
+// Detalhe dos títulos pagos de um caso recuperado (conferência do ranking):
+// dia da baixa, quando foi lançada no ERP, valor do título, valor recebido e
+// forma de pagamento. Mesmo critério de PAID_TITLES_QUERY (baixa real).
+const RECOVERY_AUDIT_PAYMENTS_QUERY = `
+SELECT
+  fr.id::text AS title_id,
+  fr.title AS title_number,
+  fr.title_amount::text AS title_amount,
+  MIN(x.client_paid_date) AS paid_date,
+  MIN(x.created) AS registered_at,
+  SUM(x.total_amount)::text AS received_amount,
+  STRING_AGG(DISTINCT pf.title, ', ') AS payment_form
+FROM erp.financial_receivable_titles fr
+JOIN erp.financial_receipt_titles x ON x.financial_receivable_title_id = fr.id
+LEFT JOIN erp.payment_forms pf ON pf.id = x.payment_form_id
+WHERE fr.id = ANY($1::bigint[])
+  AND x.client_paid_date IS NOT NULL
+  AND x.payment_form_id IS NOT NULL
+  AND x.deleted IS false
+GROUP BY fr.id, fr.title, fr.title_amount;
+`;
+
+type RecoveryAuditPaymentRow = {
+  title_id: string;
+  title_number: string | null;
+  title_amount: string | null;
+  paid_date: Date;
+  registered_at: Date | null;
+  received_amount: string | null;
+  payment_form: string | null;
+};
 
 /**
  * Elegibilidade: contratos com 2 vencimentos consecutivos em aberto (ontem e
@@ -298,6 +397,57 @@ WHERE c.public_id = ANY($1::uuid[])
 GROUP BY c.public_id, c.id, c.v_status;
 `;
 
+// Cancelados devolvidos à carteira: status atual do contrato no ERP e data do
+// último evento "Reativação de Contrato".
+const CANCELLED_RECOVERY_STATE_QUERY = `
+SELECT
+  c.public_id::text AS contract_external_id,
+  c.v_status::text  AS erp_contract_status,
+  (
+    SELECT MAX(ce.date)
+    FROM erp.contract_events ce
+    JOIN erp.contract_event_types cet ON cet.id = ce.contract_event_type_id
+    WHERE ce.contract_id = c.id
+      AND ce.deleted IS false
+      AND cet.title = 'Reativação de Contrato'
+  ) AS reactivated_at
+FROM erp.contracts c
+WHERE c.public_id = ANY($1::uuid[]);
+`;
+
+type CancelledRecoveryStateRow = {
+  contract_external_id: string;
+  erp_contract_status: string | null;
+  reactivated_at: Date | null;
+};
+
+// Valor efetivamente PAGO por contrato desde a reativação (baixas reais, não
+// deletadas, com forma de pagamento e data até hoje — há baixas futuras
+// programadas que ainda não são pagamento).
+const CANCELLED_RECOVERY_PAID_SINCE_QUERY = `
+SELECT
+  t.public_id::text AS contract_external_id,
+  COALESCE(SUM(x.total_amount), 0)::text AS paid_amount
+FROM unnest($1::uuid[], $2::date[]) AS t(public_id, since)
+JOIN erp.contracts c ON c.public_id = t.public_id
+JOIN erp.financial_receivable_titles fr ON fr.contract_id = c.id
+JOIN erp.financial_receipt_titles x ON x.financial_receivable_title_id = fr.id
+WHERE fr.deleted IS false
+  AND fr.renegotiated IS false
+  AND fr.bill_title_id IS NULL
+  AND x.deleted IS false
+  AND x.client_paid_date IS NOT NULL
+  AND x.payment_form_id IS NOT NULL
+  AND x.client_paid_date >= t.since
+  AND x.client_paid_date <= CURRENT_DATE
+GROUP BY t.public_id;
+`;
+
+type CancelledRecoveryPaidRow = {
+  contract_external_id: string;
+  paid_amount: string;
+};
+
 type ErpContractReconcileStatusRow = {
   contract_external_id: string;
   erp_contract_status: string | null;
@@ -306,7 +456,7 @@ type ErpContractReconcileStatusRow = {
 };
 
 @Injectable()
-export class ErpSyncService {
+export class ErpSyncService implements OnModuleDestroy {
   private readonly logger = new Logger(ErpSyncService.name);
   private pool: Pool | null = null;
   private isScheduledSyncRunning = false;
@@ -330,9 +480,24 @@ export class ErpSyncService {
     }
 
     this.isScheduledSyncRunning = true;
-    void this.runSync().finally(() => {
-      this.isScheduledSyncRunning = false;
-    });
+    // Sem o catch, uma falha transitoria do banco (ex.: MariaDB 1020 em upsert
+    // concorrente) vira unhandledRejection e o Node 22 derruba o processo da API.
+    void this.runSync()
+      .catch((error: unknown) => {
+        this.logger.error(
+          'Falha inesperada na sincronizacao com o ERP.',
+          error instanceof Error ? error.stack : String(error),
+        );
+      })
+      .finally(() => {
+        this.isScheduledSyncRunning = false;
+      });
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    const pool = this.pool;
+    this.pool = null;
+    await pool?.end();
   }
 
   async runSync(): Promise<void> {
@@ -405,7 +570,11 @@ export class ErpSyncService {
 
     if (payload.events.length > 0 && validEvents.length === 0) {
       await this.reconcileRecoveredCases();
-      this.logger.warn('Nenhum evento valido apos validacao — rodada encerrada.');
+      await this.reconcileCancelledRecovery();
+      await this.refreshRenegotiatedRecoveredAmounts();
+      this.logger.warn(
+        'Nenhum evento valido apos validacao — rodada encerrada.',
+      );
       return;
     }
 
@@ -421,6 +590,599 @@ export class ErpSyncService {
     }
 
     await this.reconcileRecoveredCases();
+    await this.reconcileCancelledRecovery();
+    await this.refreshRenegotiatedRecoveredAmounts();
+  }
+
+  // Busca no ERP os títulos gerados por renegociação (e já pagos) dos títulos
+  // informados. Um título gerado pode aparecer para mais de um gatilho
+  // consumido na mesma renegociação: quem chama deduplica por `title_id`.
+  private async fetchPaidRenegotiatedRows(
+    pool: Pool,
+    triggerTitleIds: string[],
+  ): Promise<PaidRenegotiatedRow[]> {
+    if (triggerTitleIds.length === 0) {
+      return [];
+    }
+
+    const result = await pool.query<PaidRenegotiatedRow>(
+      PAID_RENEGOTIATED_TITLES_QUERY,
+      [triggerTitleIds],
+    );
+
+    return result.rows;
+  }
+
+  // Total pago por contrato (em centavos): títulos-gatilho pagos (valor do título
+  // gravado na fatura) mais o pago em títulos gerados por renegociação. Lança se o
+  // ERP não responder (quem chama decide se aborta ou ignora).
+  private async fetchPaidCentsByContract(
+    db: NonNullable<ReturnType<typeof getErpSyncConfig>['db']>,
+    contractIds: string[],
+  ): Promise<Map<string, number>> {
+    const centsByContract = new Map<string, number>();
+
+    if (contractIds.length === 0) {
+      return centsByContract;
+    }
+
+    const invoices = await this.prisma.invoice.findMany({
+      where: { contractId: { in: contractIds }, externalId: { not: null } },
+      select: { contractId: true, externalId: true, amount: true },
+    });
+    const triggerIds = invoices
+      .map((invoice) => invoice.externalId)
+      .filter((id): id is string => !!id && /^[0-9]+$/.test(id));
+
+    if (triggerIds.length === 0) {
+      return centsByContract;
+    }
+
+    const pool = this.getPool(db);
+    const paidResult = await pool.query<{ id: string }>(PAID_TITLES_QUERY, [
+      triggerIds,
+    ]);
+    const paidTriggerIds = new Set(paidResult.rows.map((row) => row.id));
+    const renegotiatedRows = await this.fetchPaidRenegotiatedRows(
+      pool,
+      triggerIds,
+    );
+
+    const contractByTitle = new Map(
+      invoices
+        .filter((invoice) => invoice.externalId)
+        .map((invoice) => [invoice.externalId as string, invoice.contractId]),
+    );
+    const addCents = (contractId: string, cents: number) =>
+      centsByContract.set(
+        contractId,
+        (centsByContract.get(contractId) ?? 0) + cents,
+      );
+
+    for (const invoice of invoices) {
+      if (invoice.externalId && paidTriggerIds.has(invoice.externalId)) {
+        addCents(
+          invoice.contractId,
+          Math.round(Number(invoice.amount.toString()) * 100),
+        );
+      }
+    }
+
+    const seenTitles = new Set<string>();
+    for (const row of renegotiatedRows) {
+      const contractId = contractByTitle.get(row.trigger_title_id);
+      if (!contractId || seenTitles.has(row.title_id)) {
+        continue;
+      }
+      seenTitles.add(row.title_id);
+      addCents(contractId, Math.round(Number(row.title_amount ?? 0) * 100));
+    }
+
+    return centsByContract;
+  }
+
+  // Crédito manual da supervisão: cliente que PAGOU (caso "Pagamento realizado",
+  // com baixa real confirmada) mas sem contato registrado. A supervisão escolhe o
+  // atendente e a receita já paga passa a contar para ele (caso vira Recuperado).
+  // Mantém a data original da recuperação (a receita fica no mês do pagamento) e
+  // exige motivo, gravado na Auditoria. Nunca credita caso sem pagamento.
+  async creditCaseManually(
+    caseId: string,
+    input: { assignedUserId: string; reason: string },
+    performerId: string,
+  ): Promise<ManualCreditResult> {
+    if (getDataSourceMode() !== 'database') {
+      return { outcome: 'success', amount: '99.90' };
+    }
+
+    const existing = await this.prisma.collectionCase.findUnique({
+      where: { id: caseId },
+      select: {
+        id: true,
+        status: true,
+        contractId: true,
+        recoveredAt: true,
+        recoveredAmount: true,
+        assignedUserId: true,
+        customer: { select: { name: true } },
+      },
+    });
+
+    if (!existing) {
+      return { outcome: 'case_not_found' };
+    }
+
+    if (existing.status !== CollectionStatus.PAYMENT_MADE) {
+      return { outcome: 'status_not_allowed', status: existing.status };
+    }
+
+    const agent = await this.prisma.user.findUnique({
+      where: { id: input.assignedUserId },
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        userRoles: { select: { role: { select: { code: true } } } },
+      },
+    });
+
+    if (
+      !agent ||
+      agent.status !== UserStatus.ACTIVE ||
+      !agent.userRoles.some(({ role }) => role.code === 'COLLECTION_AGENT')
+    ) {
+      return { outcome: 'user_not_found' };
+    }
+
+    // Valor: o gravado; se não houver (casos antigos), calcula o pago no ERP.
+    let amount = Number(existing.recoveredAmount?.toString() ?? '0');
+    if (amount <= 0) {
+      const config = getErpSyncConfig();
+      if (!config.db) {
+        return { outcome: 'amount_unavailable' };
+      }
+      try {
+        const cents = await this.fetchPaidCentsByContract(config.db, [
+          existing.contractId,
+        ]);
+        amount = (cents.get(existing.contractId) ?? 0) / 100;
+      } catch (error) {
+        this.logger.error(
+          'Falha ao calcular o valor pago no ERP para o credito manual.',
+          error instanceof Error ? error.stack : String(error),
+        );
+        return { outcome: 'amount_unavailable' };
+      }
+      if (amount <= 0) {
+        return { outcome: 'amount_unavailable' };
+      }
+    }
+
+    const now = new Date();
+    const updated = await this.prisma.$transaction(async (tx) => {
+      // Condicional ao status: duas atribuições ao mesmo tempo não duplicam.
+      const result = await tx.collectionCase.updateMany({
+        where: { id: caseId, status: CollectionStatus.PAYMENT_MADE },
+        data: {
+          status: CollectionStatus.RECOVERED,
+          assignedUserId: agent.id,
+          assignedAt: now,
+          recoveredAt: existing.recoveredAt ?? now,
+          recoveredAmount: amount.toFixed(2),
+          outstandingAmount: 0,
+          daysOverdue: 0,
+          updatedAt: now,
+        },
+      });
+
+      if (result.count !== 1) {
+        return false;
+      }
+
+      await tx.auditLog.create({
+        data: {
+          entityType: 'COLLECTION_CASE',
+          entityId: caseId,
+          action: AuditAction.STATUS_CHANGE,
+          performedByUserId: performerId,
+          beforeSnapshot: {
+            status: CollectionStatus.PAYMENT_MADE,
+            assignedUserId: existing.assignedUserId,
+          },
+          afterSnapshot: {
+            status: CollectionStatus.RECOVERED,
+            assignedUserId: agent.id,
+            recoveredAmount: amount.toFixed(2),
+          },
+          metadata: {
+            resourceType: 'COLLECTION_CASE',
+            action: 'MANUAL_CREDIT',
+            creditedUserId: agent.id,
+            creditedUserName: agent.name,
+            previousAssigneeId: existing.assignedUserId,
+            reason: input.reason.trim(),
+          },
+        },
+      });
+
+      return true;
+    });
+
+    if (!updated) {
+      return { outcome: 'status_not_allowed', status: 'CHANGED' };
+    }
+
+    await this.notificationsService.notify({
+      userId: agent.id,
+      type: 'CASE_ASSIGNED',
+      title: 'Receita creditada a você',
+      body: `A supervisão creditou a você a receita de ${existing.customer.name} (R$ ${amount.toFixed(2)}).`,
+      entityType: 'collection_case',
+      entityId: caseId,
+    });
+
+    return { outcome: 'success', amount: amount.toFixed(2) };
+  }
+
+  // Corrige o valor dos casos recuperados/pagos recentemente que renegociaram:
+  // o que o cliente pagou nos títulos gerados pela renegociação entra no valor.
+  // Só AUMENTA e só quando o valor já estava gravado (casos antigos sem valor
+  // não são tocados). Nunca derruba o sync: erro só vai para o log.
+  private async refreshRenegotiatedRecoveredAmounts(): Promise<void> {
+    const config = getErpSyncConfig();
+
+    if (!config.db) {
+      return;
+    }
+
+    try {
+      const since = new Date(Date.now() - 45 * 24 * 60 * 60 * 1000);
+      const cases = await this.prisma.collectionCase.findMany({
+        where: {
+          status: {
+            in: [CollectionStatus.RECOVERED, CollectionStatus.PAYMENT_MADE],
+          },
+          reactivatedAt: null,
+          recoveredAt: { gte: since },
+          recoveredAmount: { not: null },
+        },
+        select: { id: true, contractId: true, recoveredAmount: true },
+      });
+
+      if (cases.length === 0) {
+        return;
+      }
+
+      const contractIds = [...new Set(cases.map((item) => item.contractId))];
+      const centsByContract = await this.fetchPaidCentsByContract(
+        config.db,
+        contractIds,
+      );
+
+      if (centsByContract.size === 0) {
+        return;
+      }
+
+      let corrected = 0;
+      for (const item of cases) {
+        const current = Number(item.recoveredAmount?.toString() ?? '0');
+        const next = (centsByContract.get(item.contractId) ?? 0) / 100;
+
+        if (next <= current + 0.004) {
+          continue;
+        }
+
+        await this.prisma.$transaction(async (tx) => {
+          await tx.collectionCase.update({
+            where: { id: item.id },
+            data: { recoveredAmount: next.toFixed(2) },
+          });
+          await tx.auditLog.create({
+            data: {
+              entityType: 'COLLECTION_CASE',
+              entityId: item.id,
+              action: AuditAction.UPDATE,
+              beforeSnapshot: { recoveredAmount: current.toFixed(2) },
+              afterSnapshot: { recoveredAmount: next.toFixed(2) },
+              metadata: {
+                resourceType: 'COLLECTION_CASE',
+                action: 'RECOVERED_AMOUNT_RENEGOTIATION_REFRESH',
+                source: ERP_SYNC_SOURCE,
+                reason:
+                  'Valor recuperado inclui o pago em titulos gerados por renegociacao.',
+              },
+            },
+          });
+        });
+        corrected += 1;
+      }
+
+      if (corrected > 0) {
+        this.logger.log(
+          `Valor recuperado corrigido por renegociacao em ${corrected} caso(s).`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        'Falha ao atualizar o valor recuperado com titulos renegociados.',
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
+  }
+
+  /**
+   * Clientes cancelados devolvidos à carteira (CANCELLED_IN_RECOVERY): só viram
+   * RECOVERED quando o ERP mostra o contrato "Normal" de novo E houve contato
+   * efetivo com observação antes da reativação; sem isso, REACTIVATED (sem
+   * receita). A receita do atendente é o que o cliente PAGAR depois da
+   * reativação (recalculado a cada rodada durante a janela de pagamentos).
+   */
+  private async reconcileCancelledRecovery(): Promise<void> {
+    const config = getErpSyncConfig();
+
+    if (!config.db) {
+      return;
+    }
+
+    const now = new Date();
+    const windowStart = new Date(
+      now.getTime() -
+        CANCELLED_RECOVERY_PAYMENT_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+    );
+
+    const cases = await this.prisma.collectionCase.findMany({
+      where: {
+        OR: [
+          { status: CollectionStatus.CANCELLED_IN_RECOVERY },
+          {
+            status: CollectionStatus.RECOVERED,
+            reactivatedAt: { not: null, gte: windowStart },
+          },
+        ],
+        contract: { externalId: { not: null } },
+      },
+      select: {
+        id: true,
+        status: true,
+        cycleStartedAt: true,
+        reactivatedAt: true,
+        recoveredAmount: true,
+        contractId: true,
+        contract: { select: { externalId: true } },
+        collectionAttempts: {
+          where: { isAutomatic: false },
+          select: {
+            attemptedAt: true,
+            result: true,
+            notes: true,
+            isAutomatic: true,
+          },
+        },
+      },
+    });
+
+    if (cases.length === 0) {
+      return;
+    }
+
+    const contractExternalIds = [
+      ...new Set(
+        cases
+          .map((item) => item.contract.externalId)
+          .filter((id): id is string => id !== null),
+      ),
+    ];
+
+    const erpState = new Map<string, CancelledRecoveryErpState>();
+
+    try {
+      const pool = this.getPool(config.db);
+      const result = await pool.query<CancelledRecoveryStateRow>(
+        CANCELLED_RECOVERY_STATE_QUERY,
+        [contractExternalIds],
+      );
+
+      for (const row of result.rows) {
+        erpState.set(row.contract_external_id, {
+          erpContractStatus: row.erp_contract_status,
+          reactivatedAt: row.reactivated_at
+            ? new Date(row.reactivated_at)
+            : null,
+        });
+      }
+    } catch (error) {
+      this.logger.error(
+        'Falha ao ler a reativacao dos cancelados no ERP. Reconciliacao de cancelados abortada nesta rodada.',
+        error instanceof Error ? error.stack : String(error),
+      );
+      return;
+    }
+
+    type Transition = {
+      caseId: string;
+      contractId: string;
+      kind: 'recovered' | 'reactivated';
+      reactivatedAt: Date;
+    };
+    const transitions: Transition[] = [];
+
+    for (const item of cases) {
+      if (item.status !== CollectionStatus.CANCELLED_IN_RECOVERY) {
+        continue;
+      }
+
+      const outcome = resolveCancelledRecoveryOutcome({
+        erp: erpState.get(item.contract.externalId ?? ''),
+        cycleStartedAt: item.cycleStartedAt,
+        attempts: item.collectionAttempts,
+        now,
+      });
+
+      if (outcome.kind !== 'waiting') {
+        transitions.push({
+          caseId: item.id,
+          contractId: item.contractId,
+          kind: outcome.kind,
+          reactivatedAt: outcome.reactivatedAt,
+        });
+      }
+    }
+
+    if (transitions.length > 0) {
+      await retryOnWriteConflict(() =>
+        this.prisma.$transaction(async (tx) => {
+          for (const transition of transitions) {
+            const recovered = transition.kind === 'recovered';
+            const nextStatus = recovered
+              ? CollectionStatus.RECOVERED
+              : CollectionStatus.REACTIVATED;
+
+            await tx.collectionCase.update({
+              where: { id: transition.caseId },
+              data: {
+                status: nextStatus,
+                reactivatedAt: transition.reactivatedAt,
+                recoveredAt: recovered ? transition.reactivatedAt : null,
+                // Receita = pagamentos após a reativação (atualizada abaixo).
+                recoveredAmount: recovered ? '0.00' : null,
+                outstandingAmount: 0,
+                daysOverdue: 0,
+                updatedAt: now,
+              },
+            });
+
+            await tx.contract.update({
+              where: { id: transition.contractId },
+              data: {
+                status: ContractStatus.ACTIVE,
+                erpStatus: 'Normal',
+                updatedAt: now,
+              },
+            });
+
+            await tx.auditLog.create({
+              data: {
+                entityType: 'COLLECTION_CASE',
+                entityId: transition.caseId,
+                action: AuditAction.STATUS_CHANGE,
+                beforeSnapshot: {
+                  status: CollectionStatus.CANCELLED_IN_RECOVERY,
+                },
+                afterSnapshot: {
+                  status: nextStatus,
+                  reactivatedAt: transition.reactivatedAt.toISOString(),
+                },
+                metadata: {
+                  resourceType: 'COLLECTION_CASE',
+                  action: recovered
+                    ? 'CANCELLED_RECOVERY_RECOVERED'
+                    : 'CANCELLED_RECOVERY_REACTIVATED',
+                  source: ERP_SYNC_SOURCE,
+                  reason: recovered
+                    ? 'Contrato reativado no ERP com contato efetivo e observacao registrados antes da reativacao.'
+                    : 'Contrato reativado no ERP sem contato qualificado antes (nao credita receita).',
+                },
+              },
+            });
+          }
+        }),
+      );
+
+      this.logger.log(
+        `Cancelados reativados: ${transitions.filter((item) => item.kind === 'recovered').length} recuperado(s), ${transitions.filter((item) => item.kind === 'reactivated').length} sem credito.`,
+      );
+    }
+
+    await this.refreshCancelledRecoveryRevenue(
+      config.db,
+      cases,
+      transitions,
+      now,
+    );
+  }
+
+  // Receita dos recuperados = soma do que foi pago desde a reativação.
+  private async refreshCancelledRecoveryRevenue(
+    db: NonNullable<ReturnType<typeof getErpSyncConfig>['db']>,
+    cases: Array<{
+      id: string;
+      status: CollectionStatus;
+      reactivatedAt: Date | null;
+      recoveredAmount: { toString(): string } | null;
+      contract: { externalId: string | null };
+    }>,
+    transitions: Array<{
+      caseId: string;
+      kind: 'recovered' | 'reactivated';
+      reactivatedAt: Date;
+    }>,
+    now: Date,
+  ): Promise<void> {
+    const recoveredNow = new Map(
+      transitions
+        .filter((transition) => transition.kind === 'recovered')
+        .map((transition) => [transition.caseId, transition.reactivatedAt]),
+    );
+
+    const targets = cases
+      .map((item) => ({
+        id: item.id,
+        externalId: item.contract.externalId,
+        since:
+          recoveredNow.get(item.id) ??
+          (item.status === CollectionStatus.RECOVERED
+            ? item.reactivatedAt
+            : null),
+        current: Number(item.recoveredAmount?.toString() ?? '0'),
+      }))
+      .filter(
+        (
+          target,
+        ): target is typeof target & { externalId: string; since: Date } =>
+          target.externalId !== null && target.since !== null,
+      );
+
+    if (targets.length === 0) {
+      return;
+    }
+
+    let paidByContract: Map<string, number>;
+
+    try {
+      const pool = this.getPool(db);
+      const result = await pool.query<CancelledRecoveryPaidRow>(
+        CANCELLED_RECOVERY_PAID_SINCE_QUERY,
+        [
+          targets.map((target) => target.externalId),
+          targets.map((target) => target.since.toISOString().slice(0, 10)),
+        ],
+      );
+      paidByContract = new Map(
+        result.rows.map((row) => [
+          row.contract_external_id,
+          Number(row.paid_amount),
+        ]),
+      );
+    } catch (error) {
+      this.logger.error(
+        'Falha ao ler os pagamentos dos cancelados recuperados no ERP. Receita nao atualizada nesta rodada.',
+        error instanceof Error ? error.stack : String(error),
+      );
+      return;
+    }
+
+    for (const target of targets) {
+      const paid = paidByContract.get(target.externalId) ?? 0;
+
+      if (Math.abs(paid - target.current) < 0.005) {
+        continue;
+      }
+
+      await this.prisma.collectionCase.update({
+        where: { id: target.id },
+        data: { recoveredAmount: paid.toFixed(2), updatedAt: now },
+      });
+    }
   }
 
   private async reconcileRecoveredCases(): Promise<void> {
@@ -437,6 +1199,10 @@ export class ErpSyncService {
             CollectionStatus.RECOVERED,
             CollectionStatus.PAYMENT_MADE,
             CollectionStatus.RENEGOTIATED,
+            // Cancelados devolvidos à carteira têm reconciliação própria
+            // (reconcileCancelledRecovery); aqui virariam "cancelados" de novo.
+            CollectionStatus.CANCELLED_IN_RECOVERY,
+            CollectionStatus.REACTIVATED,
           ],
         },
         contract: {
@@ -608,9 +1374,8 @@ export class ErpSyncService {
     // creditado como "recuperado" e disparava notificação falsa.
     const recoverExternalIds = casesToRecover
       .map((collectionCase) => collectionCase.externalId)
-      .filter(
-        (externalId): externalId is string =>
-          Boolean(externalId && uuidPattern.test(externalId)),
+      .filter((externalId): externalId is string =>
+        Boolean(externalId && uuidPattern.test(externalId)),
       );
 
     const contractStatusByExternalId = new Map<
@@ -654,7 +1419,9 @@ export class ErpSyncService {
     // falsa. As faturas-gatilho ficam guardadas na plataforma (invoice.externalId
     // = id do titulo no ERP).
     const recoverContractIds = [
-      ...new Set(casesToRecover.map((collectionCase) => collectionCase.contractId)),
+      ...new Set(
+        casesToRecover.map((collectionCase) => collectionCase.contractId),
+      ),
     ];
     const triggerInvoices =
       recoverContractIds.length > 0
@@ -711,6 +1478,44 @@ export class ErpSyncService {
       }
     }
 
+    // Pago em títulos GERADOS por renegociação dos títulos-gatilho: entra no
+    // valor recuperado do contrato (ex.: R$ 99,90 renegociado em R$ 39,96 pagos).
+    const renegotiatedPaidCentsByContract = new Map<string, number>();
+    if (allTriggerTitleIds.length > 0) {
+      try {
+        const pool = this.getPool(config.db);
+        const rows = await this.fetchPaidRenegotiatedRows(
+          pool,
+          allTriggerTitleIds,
+        );
+        const contractByTitle = new Map<string, string>();
+        for (const [contractId, ids] of titleIdsByContract) {
+          for (const id of ids) {
+            contractByTitle.set(id, contractId);
+          }
+        }
+        const seenTitles = new Set<string>();
+        for (const row of rows) {
+          const contractId = contractByTitle.get(row.trigger_title_id);
+          if (!contractId || seenTitles.has(row.title_id)) {
+            continue;
+          }
+          seenTitles.add(row.title_id);
+          renegotiatedPaidCentsByContract.set(
+            contractId,
+            (renegotiatedPaidCentsByContract.get(contractId) ?? 0) +
+              Math.round(Number(row.title_amount ?? 0) * 100),
+          );
+        }
+      } catch (error) {
+        this.logger.error(
+          'Falha ao buscar titulos renegociados pagos no ERP. Reconciliacao abortada nesta rodada (nao credita valor incompleto).',
+          error instanceof Error ? error.stack : String(error),
+        );
+        return;
+      }
+    }
+
     const hasPaymentEvidence = (collectionCase: { contractId: string }) => {
       const ids = titleIdsByContract.get(collectionCase.contractId);
       return Boolean(ids && ids.some((id) => paidTitleIds.has(id)));
@@ -754,274 +1559,341 @@ export class ErpSyncService {
       CancellationStatus.AWAITING_PICKUP,
     ];
 
-    await this.prisma.$transaction(async (tx) => {
-      for (const collectionCase of casesToRefresh) {
-        await tx.contract.update({
-          where: { id: collectionCase.contractId },
-          data: {
-            status: collectionCase.contractStatus,
-            erpStatus: collectionCase.contractErpStatus ?? undefined,
-            updatedAt: now,
-          },
-        });
-
-        await tx.collectionCase.update({
-          where: { id: collectionCase.id },
-          data: {
-            outstandingAmount: collectionCase.outstandingAmount,
-            daysOverdue: collectionCase.daysOverdue,
-            updatedAt: now,
-          },
-        });
-      }
-
-      // Atualiza o status do contrato tambem para os casos que sairam da regra
-      // (pagos/cancelados), usando o v_status atual do ERP — senao ficaria
-      // preso no valor antigo (ex.: pagou, saiu do Bloqueio Financeiro no ERP,
-      // mas continuava SUSPENDED na plataforma).
-      for (const collectionCase of casesToRecover) {
-        const reconcileStatus = collectionCase.externalId
-          ? contractStatusByExternalId.get(collectionCase.externalId)
-          : undefined;
-        const erpStatus = reconcileStatus?.erpContractStatus ?? null;
-
-        if (erpStatus) {
-          const isCancelled = mapContractStatus(erpStatus) === 'CANCELLED';
-          await tx.contract.update({
-            where: { id: collectionCase.contractId },
-            data: {
-              status: mapContractStatus(erpStatus),
-              erpStatus,
-              // Guarda o motivo só quando cancelado; limpa ao reativar.
-              cancellationReason: isCancelled
-                ? reconcileStatus?.cancellationReason ?? null
-                : null,
-              updatedAt: now,
-            },
-          });
-        }
-      }
-
-      // Marca como PAGA SOMENTE as faturas cujos titulos foram de fato pagos no
-      // ERP (externalId em paidTitleIds). Antes marcava TODAS as faturas em
-      // aberto do contrato — inclusive mensalidades futuras nao pagas —, o que
-      // inflava a receita recuperada. Agora reflete so o que foi efetivamente
-      // quitado.
-      const invoicesToMarkAsPaid =
-        paidTitleIds.size > 0
-          ? await tx.invoice.findMany({
-              where: {
-                contractId: { in: contractIds },
-                externalId: { in: [...paidTitleIds] },
-                status: {
-                  in: [
-                    InvoiceStatus.OPEN,
-                    InvoiceStatus.OVERDUE,
-                    InvoiceStatus.PARTIALLY_PAID,
-                  ],
+    await retryOnWriteConflict(
+      () =>
+        this.prisma.$transaction(
+          async (tx) => {
+            for (const collectionCase of casesToRefresh) {
+              await tx.contract.update({
+                where: { id: collectionCase.contractId },
+                data: {
+                  status: collectionCase.contractStatus,
+                  erpStatus: collectionCase.contractErpStatus ?? undefined,
+                  updatedAt: now,
                 },
-              },
-              select: {
-                id: true,
-                amount: true,
-              },
-            })
-          : [];
+              });
 
-      for (const invoice of invoicesToMarkAsPaid) {
-        await tx.invoice.update({
-          where: { id: invoice.id },
-          data: {
-            status: InvoiceStatus.PAID,
-            paidAmount: invoice.amount,
-          },
-        });
-      }
-
-      // Distingue quem foi RECUPERADO por um atendente (teve pelo menos 1
-      // tentativa manual antes de pagar) de quem so PAGOU sem atendimento
-      // (PAYMENT_MADE). Assim a supervisao/ranking nao credita ao atendente um
-      // pagamento espontaneo.
-      const manualAttempts = await tx.collectionAttempt.findMany({
-        where: { collectionCaseId: { in: caseIds }, isAutomatic: false },
-        select: { collectionCaseId: true, attemptedAt: true, result: true },
-      });
-      // Conta só as tentativas manuais do ciclo ATUAL (a partir do
-      // cycleStartedAt), para não creditar recuperação por tentativas herdadas
-      // de um ciclo anterior (caso reaberto).
-      const cycleStartByCase = new Map<string, Date | null>(
-        paidCases.map((collectionCase) => [
-          collectionCase.id,
-          collectionCase.cycleStartedAt ?? null,
-        ]),
-      );
-      // Data da baixa por caso = menor client_paid_date entre os títulos-gatilho
-      // pagos do contrato. Usada p/ exigir que o contato efetivo seja até o dia
-      // do pagamento (Fase 2) — senão o crédito vai pra quem ligou DEPOIS de o
-      // cliente já ter pago sozinho.
-      const paymentDayByCase = new Map<string, Date | null>(
-        paidCases.map((collectionCase) => {
-          const titleIds = titleIdsByContract.get(collectionCase.contractId);
-          let earliest: Date | null = null;
-          for (const titleId of titleIds ?? []) {
-            const paidDate = paidDateByTitle.get(titleId);
-            if (paidDate && (!earliest || paidDate.getTime() < earliest.getTime())) {
-              earliest = paidDate;
+              await tx.collectionCase.update({
+                where: { id: collectionCase.id },
+                data: {
+                  outstandingAmount: collectionCase.outstandingAmount,
+                  daysOverdue: collectionCase.daysOverdue,
+                  updatedAt: now,
+                },
+              });
             }
-          }
-          return [collectionCase.id, earliest];
-        }),
-      );
-      const recoveredIds = resolveRecoveredCaseIds(
-        manualAttempts,
-        cycleStartByCase,
-        paymentDayByCase,
-      );
-      const recoveredCaseIds = caseIds.filter((id) => recoveredIds.has(id));
-      const paidCaseIds = caseIds.filter((id) => !recoveredIds.has(id));
 
-      if (recoveredCaseIds.length > 0) {
-        await tx.collectionCase.updateMany({
-          where: { id: { in: recoveredCaseIds } },
-          data: {
-            status: CollectionStatus.RECOVERED,
-            recoveredAt: now,
-            outstandingAmount: 0,
-            daysOverdue: 0,
-            updatedAt: now,
-          },
-        });
-      }
+            // Atualiza o status do contrato tambem para os casos que sairam da regra
+            // (pagos/cancelados), usando o v_status atual do ERP — senao ficaria
+            // preso no valor antigo (ex.: pagou, saiu do Bloqueio Financeiro no ERP,
+            // mas continuava SUSPENDED na plataforma).
+            for (const collectionCase of casesToRecover) {
+              const reconcileStatus = collectionCase.externalId
+                ? contractStatusByExternalId.get(collectionCase.externalId)
+                : undefined;
+              const erpStatus = reconcileStatus?.erpContractStatus ?? null;
 
-      if (paidCaseIds.length > 0) {
-        await tx.collectionCase.updateMany({
-          where: { id: { in: paidCaseIds } },
-          data: {
-            status: CollectionStatus.PAYMENT_MADE,
-            recoveredAt: now,
-            outstandingAmount: 0,
-            daysOverdue: 0,
-            updatedAt: now,
-          },
-        });
-      }
+              if (erpStatus) {
+                const isCancelled =
+                  mapContractStatus(erpStatus) === 'CANCELLED';
+                await tx.contract.update({
+                  where: { id: collectionCase.contractId },
+                  data: {
+                    status: mapContractStatus(erpStatus),
+                    erpStatus,
+                    // Guarda o motivo só quando cancelado; limpa ao reativar.
+                    cancellationReason: isCancelled
+                      ? (reconcileStatus?.cancellationReason ?? null)
+                      : null,
+                    updatedAt: now,
+                  },
+                });
+              }
+            }
 
-      await tx.cancellationProcess.updateMany({
-        where: {
-          collectionCaseId: { in: caseIds },
-          status: { in: cancellableProcessStatuses },
-        },
-        data: {
-          status: CancellationStatus.CANCELLED,
-          completedAt: now,
-        },
-      });
+            // Marca como PAGA SOMENTE as faturas cujos titulos foram de fato pagos no
+            // ERP (externalId em paidTitleIds). Antes marcava TODAS as faturas em
+            // aberto do contrato — inclusive mensalidades futuras nao pagas —, o que
+            // inflava a receita recuperada. Agora reflete so o que foi efetivamente
+            // quitado.
+            const invoicesToMarkAsPaid =
+              paidTitleIds.size > 0
+                ? await tx.invoice.findMany({
+                    where: {
+                      contractId: { in: contractIds },
+                      externalId: { in: [...paidTitleIds] },
+                      status: {
+                        in: [
+                          InvoiceStatus.OPEN,
+                          InvoiceStatus.OVERDUE,
+                          InvoiceStatus.PARTIALLY_PAID,
+                        ],
+                      },
+                    },
+                    select: {
+                      id: true,
+                      amount: true,
+                    },
+                  })
+                : [];
 
-      for (const collectionCase of paidCases) {
-        await tx.auditLog.create({
-          data: {
-            entityType: 'COLLECTION_CASE',
-            entityId: collectionCase.id,
-            action: AuditAction.STATUS_CHANGE,
-            beforeSnapshot: {
-              status: collectionCase.status,
-              outstandingAmount: collectionCase.outstandingAmount.toString(),
-              daysOverdue: collectionCase.daysOverdue,
-            },
-            afterSnapshot: {
-              status: recoveredIds.has(collectionCase.id)
-                ? CollectionStatus.RECOVERED
-                : CollectionStatus.PAYMENT_MADE,
-              outstandingAmount: '0',
-              daysOverdue: 0,
-              recoveredAt: now.toISOString(),
-            },
-            metadata: {
-              resourceType: 'COLLECTION_CASE',
-              action: 'ERP_SYNC_RECOVERY_RECONCILIATION',
-              source: ERP_SYNC_SOURCE,
-              reason: 'Contrato nao retornou mais na regra de elegibilidade do ERP.',
-              externalId: collectionCase.externalId,
-              cancelledCancellationProcessIds:
-                collectionCase.cancellationProcesses
-                  .filter((process) =>
-                    cancellableProcessStatuses.includes(process.status),
-                  )
-                  .map((process) => process.id),
-            },
-          },
-        });
-      }
+            for (const invoice of invoicesToMarkAsPaid) {
+              await tx.invoice.update({
+                where: { id: invoice.id },
+                data: {
+                  status: InvoiceStatus.PAID,
+                  paidAmount: invoice.amount,
+                },
+              });
+            }
 
-      // Casos que sairam da regra por CANCELAMENTO (nao pagamento): encerra o
-      // caso (para nao reprocessar/renotificar a cada rodada) SEM creditar
-      // recuperacao (recoveredAt fica nulo).
-      if (cancelledCaseIds.length > 0) {
-        await tx.collectionCase.updateMany({
-          where: { id: { in: cancelledCaseIds } },
-          data: {
-            status: CollectionStatus.CLOSED,
-            updatedAt: now,
-          },
-        });
+            // Valor efetivamente pago por contrato = soma dos títulos-gatilho pagos
+            // no ERP (inclui os que já tinham sido baixados antes). É a receita que
+            // o ranking credita: o saldo em aberto é zerado ao recuperar.
+            const paidInvoices =
+              paidTitleIds.size > 0
+                ? await tx.invoice.findMany({
+                    where: {
+                      contractId: { in: contractIds },
+                      externalId: { in: [...paidTitleIds] },
+                      status: InvoiceStatus.PAID,
+                    },
+                    select: { contractId: true, amount: true },
+                  })
+                : [];
+            const paidCentsByContract = new Map<string, number>();
+            for (const invoice of paidInvoices) {
+              paidCentsByContract.set(
+                invoice.contractId,
+                (paidCentsByContract.get(invoice.contractId) ?? 0) +
+                  Math.round(Number(invoice.amount.toString()) * 100),
+              );
+            }
+            const contractIdByCase = new Map(
+              paidCases.map((collectionCase) => [
+                collectionCase.id,
+                collectionCase.contractId,
+              ]),
+            );
+            const paidAmountFor = (caseId: string) => {
+              const contractId = contractIdByCase.get(caseId);
+              const cents = contractId
+                ? (paidCentsByContract.get(contractId) ?? 0) +
+                  (renegotiatedPaidCentsByContract.get(contractId) ?? 0)
+                : 0;
+              return (cents / 100).toFixed(2);
+            };
 
-        for (const collectionCase of cancelledCases) {
-          await tx.auditLog.create({
-            data: {
-              entityType: 'COLLECTION_CASE',
-              entityId: collectionCase.id,
-              action: AuditAction.STATUS_CHANGE,
-              beforeSnapshot: {
-                status: collectionCase.status,
-                outstandingAmount: collectionCase.outstandingAmount.toString(),
-                daysOverdue: collectionCase.daysOverdue,
+            // Distingue quem foi RECUPERADO por um atendente (teve pelo menos 1
+            // tentativa manual antes de pagar) de quem so PAGOU sem atendimento
+            // (PAYMENT_MADE). Assim a supervisao/ranking nao credita ao atendente um
+            // pagamento espontaneo.
+            const manualAttempts = await tx.collectionAttempt.findMany({
+              where: { collectionCaseId: { in: caseIds }, isAutomatic: false },
+              select: {
+                collectionCaseId: true,
+                attemptedAt: true,
+                result: true,
               },
-              afterSnapshot: {
-                status: CollectionStatus.CLOSED,
+            });
+            // Conta só as tentativas manuais do ciclo ATUAL (a partir do
+            // cycleStartedAt), para não creditar recuperação por tentativas herdadas
+            // de um ciclo anterior (caso reaberto).
+            const cycleStartByCase = new Map<string, Date | null>(
+              paidCases.map((collectionCase) => [
+                collectionCase.id,
+                collectionCase.cycleStartedAt ?? null,
+              ]),
+            );
+            // Data da baixa por caso = menor client_paid_date entre os títulos-gatilho
+            // pagos do contrato. Usada p/ exigir que o contato efetivo seja até o dia
+            // do pagamento (Fase 2) — senão o crédito vai pra quem ligou DEPOIS de o
+            // cliente já ter pago sozinho.
+            const paymentDayByCase = new Map<string, Date | null>(
+              paidCases.map((collectionCase) => {
+                const titleIds = titleIdsByContract.get(
+                  collectionCase.contractId,
+                );
+                let earliest: Date | null = null;
+                for (const titleId of titleIds ?? []) {
+                  const paidDate = paidDateByTitle.get(titleId);
+                  if (
+                    paidDate &&
+                    (!earliest || paidDate.getTime() < earliest.getTime())
+                  ) {
+                    earliest = paidDate;
+                  }
+                }
+                return [collectionCase.id, earliest];
+              }),
+            );
+            const recoveredIds = resolveRecoveredCaseIds(
+              manualAttempts,
+              cycleStartByCase,
+              paymentDayByCase,
+            );
+            const recoveredCaseIds = caseIds.filter((id) =>
+              recoveredIds.has(id),
+            );
+            const paidCaseIds = caseIds.filter((id) => !recoveredIds.has(id));
+
+            // Um update por caso: cada um grava o valor pago do próprio contrato.
+            for (const caseId of recoveredCaseIds) {
+              await tx.collectionCase.update({
+                where: { id: caseId },
+                data: {
+                  status: CollectionStatus.RECOVERED,
+                  recoveredAt: now,
+                  recoveredAmount: paidAmountFor(caseId),
+                  outstandingAmount: 0,
+                  daysOverdue: 0,
+                  updatedAt: now,
+                },
+              });
+            }
+
+            for (const caseId of paidCaseIds) {
+              await tx.collectionCase.update({
+                where: { id: caseId },
+                data: {
+                  status: CollectionStatus.PAYMENT_MADE,
+                  recoveredAt: now,
+                  recoveredAmount: paidAmountFor(caseId),
+                  outstandingAmount: 0,
+                  daysOverdue: 0,
+                  updatedAt: now,
+                },
+              });
+            }
+
+            await tx.cancellationProcess.updateMany({
+              where: {
+                collectionCaseId: { in: caseIds },
+                status: { in: cancellableProcessStatuses },
               },
-              metadata: {
-                resourceType: 'COLLECTION_CASE',
-                action: 'ERP_SYNC_CANCELLATION_RECONCILIATION',
+              data: {
+                status: CancellationStatus.CANCELLED,
+                completedAt: now,
+              },
+            });
+
+            for (const collectionCase of paidCases) {
+              await tx.auditLog.create({
+                data: {
+                  entityType: 'COLLECTION_CASE',
+                  entityId: collectionCase.id,
+                  action: AuditAction.STATUS_CHANGE,
+                  beforeSnapshot: {
+                    status: collectionCase.status,
+                    outstandingAmount:
+                      collectionCase.outstandingAmount.toString(),
+                    daysOverdue: collectionCase.daysOverdue,
+                  },
+                  afterSnapshot: {
+                    status: recoveredIds.has(collectionCase.id)
+                      ? CollectionStatus.RECOVERED
+                      : CollectionStatus.PAYMENT_MADE,
+                    outstandingAmount: '0',
+                    daysOverdue: 0,
+                    recoveredAt: now.toISOString(),
+                  },
+                  metadata: {
+                    resourceType: 'COLLECTION_CASE',
+                    action: 'ERP_SYNC_RECOVERY_RECONCILIATION',
+                    source: ERP_SYNC_SOURCE,
+                    reason:
+                      'Contrato nao retornou mais na regra de elegibilidade do ERP.',
+                    externalId: collectionCase.externalId,
+                    cancelledCancellationProcessIds:
+                      collectionCase.cancellationProcesses
+                        .filter((process) =>
+                          cancellableProcessStatuses.includes(process.status),
+                        )
+                        .map((process) => process.id),
+                  },
+                },
+              });
+            }
+
+            // Casos que sairam da regra por CANCELAMENTO (nao pagamento): encerra o
+            // caso (para nao reprocessar/renotificar a cada rodada) SEM creditar
+            // recuperacao (recoveredAt fica nulo).
+            if (cancelledCaseIds.length > 0) {
+              await tx.collectionCase.updateMany({
+                where: { id: { in: cancelledCaseIds } },
+                data: {
+                  status: CollectionStatus.CLOSED,
+                  updatedAt: now,
+                },
+              });
+
+              for (const collectionCase of cancelledCases) {
+                await tx.auditLog.create({
+                  data: {
+                    entityType: 'COLLECTION_CASE',
+                    entityId: collectionCase.id,
+                    action: AuditAction.STATUS_CHANGE,
+                    beforeSnapshot: {
+                      status: collectionCase.status,
+                      outstandingAmount:
+                        collectionCase.outstandingAmount.toString(),
+                      daysOverdue: collectionCase.daysOverdue,
+                    },
+                    afterSnapshot: {
+                      status: CollectionStatus.CLOSED,
+                    },
+                    metadata: {
+                      resourceType: 'COLLECTION_CASE',
+                      action: 'ERP_SYNC_CANCELLATION_RECONCILIATION',
+                      source: ERP_SYNC_SOURCE,
+                      reason:
+                        'Contrato saiu da regra do ERP por cancelamento/mudanca de status (nao houve pagamento).',
+                      externalId: collectionCase.externalId,
+                    },
+                  },
+                });
+              }
+            }
+
+            await tx.integrationEvent.create({
+              data: {
                 source: ERP_SYNC_SOURCE,
-                reason:
-                  'Contrato saiu da regra do ERP por cancelamento/mudanca de status (nao houve pagamento).',
-                externalId: collectionCase.externalId,
+                eventType: 'collection_cases.reconcile_recovered',
+                status: IntegrationEventStatus.COMPLETED,
+                payload: {
+                  recoveredCases: paidCases.length,
+                  cancelledCases: cancelledCases.length,
+                  unresolvedCases: unresolvedCases.length,
+                  unresolvedExternalIds: unresolvedCases.map(
+                    (collectionCase) => collectionCase.externalId,
+                  ),
+                  refreshedCases: casesToRefresh.length,
+                  refreshedContracts: casesToRefresh.length,
+                  checkedCases: syncedCases.length,
+                  openTitles: openTitleRows.length,
+                  recoveredExternalIds: paidCases.map(
+                    (collectionCase) => collectionCase.externalId,
+                  ),
+                  cancelledExternalIds: cancelledCases.map(
+                    (collectionCase) => collectionCase.externalId,
+                  ),
+                },
+                processedAt: now,
               },
-            },
-          });
-        }
-      }
-
-      await tx.integrationEvent.create({
-        data: {
-          source: ERP_SYNC_SOURCE,
-          eventType: 'collection_cases.reconcile_recovered',
-          status: IntegrationEventStatus.COMPLETED,
-          payload: {
-            recoveredCases: paidCases.length,
-            cancelledCases: cancelledCases.length,
-            unresolvedCases: unresolvedCases.length,
-            unresolvedExternalIds: unresolvedCases.map(
-              (collectionCase) => collectionCase.externalId,
-            ),
-            refreshedCases: casesToRefresh.length,
-            refreshedContracts: casesToRefresh.length,
-            checkedCases: syncedCases.length,
-            openTitles: openTitleRows.length,
-            recoveredExternalIds: paidCases.map(
-              (collectionCase) => collectionCase.externalId,
-            ),
-            cancelledExternalIds: cancelledCases.map(
-              (collectionCase) => collectionCase.externalId,
-            ),
+            });
           },
-          processedAt: now,
-        },
-      });
-    }, {
-      maxWait: 10_000,
-      timeout: 120_000,
-    });
+          {
+            maxWait: 10_000,
+            timeout: 120_000,
+          },
+        ),
+      {
+        onRetry: (attempt) =>
+          this.logger.warn(
+            `Reconciliacao ERP: conflito de escrita (tentativa ${attempt}); repetindo a transacao.`,
+          ),
+      },
+    );
 
     this.logger.log(
       `Reconciliacao ERP concluida: ${paidCases.length} recuperado(s), ${cancelledCases.length} cancelado(s), ${unresolvedCases.length} sem pagamento (nao finalizado).`,
@@ -1076,7 +1948,9 @@ export class ErpSyncService {
           type: 'CASES_CANCELLED_EXTERNAL_SUMMARY',
           title: supervisorSummary.title,
           body: supervisorSummary.body,
-          entityType: supervisorSummary.entityId ? 'COLLECTION_CASE' : undefined,
+          entityType: supervisorSummary.entityId
+            ? 'COLLECTION_CASE'
+            : undefined,
           entityId: supervisorSummary.entityId ?? undefined,
         });
       }
@@ -1137,7 +2011,9 @@ export class ErpSyncService {
           type: 'CASES_RECOVERED_SUMMARY',
           title: supervisorSummary.title,
           body: supervisorSummary.body,
-          entityType: supervisorSummary.entityId ? 'COLLECTION_CASE' : undefined,
+          entityType: supervisorSummary.entityId
+            ? 'COLLECTION_CASE'
+            : undefined,
           entityId: supervisorSummary.entityId ?? undefined,
         });
       }
@@ -1333,7 +2209,9 @@ export class ErpSyncService {
           currentStatus: collectionCase.status,
           isCurrentlyRenegotiated: (aggregate?.openBalance ?? 0) > 0,
           openRenegotiationAmount: (aggregate?.openBalance ?? 0).toFixed(2),
-          outstandingAmount: Number(collectionCase.outstandingAmount).toFixed(2),
+          outstandingAmount: Number(collectionCase.outstandingAmount).toFixed(
+            2,
+          ),
           assignedToName: collectionCase.assignedUser?.name ?? null,
         };
       },
@@ -1365,6 +2243,262 @@ export class ErpSyncService {
         totalOutstanding,
       },
     };
+  }
+
+  // Monta a conferência dos casos que atendem ao filtro: contatos do banco e
+  // pagamento lido ao vivo do ERP (null = ERP indisponível).
+  private async buildRecoveryAuditCases(
+    where: Prisma.CollectionCaseWhereInput,
+  ): Promise<{ cases: RecoveryAuditCase[]; erpAvailable: boolean }> {
+    const cases = await this.prisma.collectionCase.findMany({
+      where,
+      orderBy: { recoveredAt: 'desc' },
+      select: {
+        id: true,
+        recoveredAt: true,
+        recoveredAmount: true,
+        cycleStartedAt: true,
+        reactivatedAt: true,
+        customer: { select: { name: true } },
+        contract: {
+          select: {
+            code: true,
+            invoices: {
+              where: { externalId: { not: null } },
+              select: { externalId: true },
+            },
+          },
+        },
+        assignedUser: { select: { id: true, name: true } },
+        collectionAttempts: {
+          where: { isAutomatic: false },
+          orderBy: { attemptedAt: 'asc' },
+          select: {
+            id: true,
+            attemptedAt: true,
+            result: true,
+            channel: true,
+            notes: true,
+            performedBy: { select: { id: true, name: true } },
+          },
+        },
+      },
+    });
+
+    const titleIds = [
+      ...new Set(
+        cases.flatMap((item) =>
+          item.contract.invoices
+            .map((invoice) => invoice.externalId)
+            .filter((id): id is string => !!id && /^[0-9]+$/.test(id)),
+        ),
+      ),
+    ];
+
+    // Créditos manuais da supervisão (o mais recente por caso): a conferência
+    // mostra a atribuição como etapa própria em vez de "sem contato".
+    const manualCreditLogs =
+      cases.length > 0
+        ? await this.prisma.auditLog.findMany({
+            where: {
+              entityType: 'COLLECTION_CASE',
+              entityId: { in: cases.map((item) => item.id) },
+              metadata: { path: '$.action', equals: 'MANUAL_CREDIT' },
+            },
+            orderBy: { createdAt: 'desc' },
+            select: {
+              entityId: true,
+              createdAt: true,
+              metadata: true,
+              performedBy: { select: { id: true, name: true } },
+            },
+          })
+        : [];
+    const manualCreditByCase = new Map<
+      string,
+      {
+        at: Date;
+        by: { id: string; name: string } | null;
+        reason: string;
+      }
+    >();
+    for (const log of manualCreditLogs) {
+      if (manualCreditByCase.has(log.entityId)) {
+        continue;
+      }
+      const metadata =
+        log.metadata && typeof log.metadata === 'object'
+          ? (log.metadata as Record<string, unknown>)
+          : {};
+      manualCreditByCase.set(log.entityId, {
+        at: log.createdAt,
+        by: log.performedBy,
+        reason: typeof metadata.reason === 'string' ? metadata.reason : '',
+      });
+    }
+
+    // null = ERP indisponível (não dá para reconferir o pagamento agora).
+    let paymentsByTitle: Map<string, RecoveryAuditPaymentRow> | null = null;
+    let renegotiatedRows: PaidRenegotiatedRow[] = [];
+    const config = getErpSyncConfig();
+    if (titleIds.length === 0) {
+      paymentsByTitle = new Map();
+    } else if (config.db) {
+      try {
+        const pool = this.getPool(config.db);
+        const result = await pool.query<RecoveryAuditPaymentRow>(
+          RECOVERY_AUDIT_PAYMENTS_QUERY,
+          [titleIds],
+        );
+        paymentsByTitle = new Map(
+          result.rows.map((row) => [row.title_id, row]),
+        );
+        renegotiatedRows = await this.fetchPaidRenegotiatedRows(pool, titleIds);
+      } catch (error) {
+        paymentsByTitle = null;
+        this.logger.error(
+          'Falha ao buscar pagamentos no ERP para a conferência do ranking.',
+          error instanceof Error ? error.stack : String(error),
+        );
+      }
+    }
+
+    const auditCases = cases.map((item) => {
+      const triggerIds = new Set(
+        item.contract.invoices
+          .map((invoice) => invoice.externalId)
+          .filter((id): id is string => !!id),
+      );
+      const seenRenegotiated = new Set<string>();
+      const payments = paymentsByTitle
+        ? [
+            ...item.contract.invoices
+              .map((invoice) =>
+                invoice.externalId
+                  ? paymentsByTitle?.get(invoice.externalId)
+                  : undefined,
+              )
+              .filter((row): row is RecoveryAuditPaymentRow => !!row)
+              .map((row) => ({
+                titleNumber: row.title_number,
+                paidDate: new Date(row.paid_date),
+                registeredAt: row.registered_at
+                  ? new Date(row.registered_at)
+                  : null,
+                amount: Number(row.title_amount ?? 0),
+                receivedAmount: Number(row.received_amount ?? 0),
+                paymentForm: row.payment_form,
+                viaRenegotiation: false,
+              })),
+            // Títulos gerados por renegociação dos títulos deste contrato.
+            ...renegotiatedRows
+              .filter((row) => {
+                if (
+                  !triggerIds.has(row.trigger_title_id) ||
+                  seenRenegotiated.has(row.title_id)
+                ) {
+                  return false;
+                }
+                seenRenegotiated.add(row.title_id);
+                return true;
+              })
+              .map((row) => ({
+                titleNumber: row.title_number,
+                paidDate: new Date(row.paid_date),
+                registeredAt: row.registered_at
+                  ? new Date(row.registered_at)
+                  : null,
+                amount: Number(row.title_amount ?? 0),
+                receivedAmount: Number(row.received_amount ?? 0),
+                paymentForm: row.payment_form,
+                viaRenegotiation: true,
+              })),
+          ]
+        : null;
+
+      return buildRecoveryAuditCase({
+        caseId: item.id,
+        customerName: item.customer.name,
+        contractCode: item.contract.code,
+        recoveredAt: item.recoveredAt ?? new Date(0),
+        recoveredAmount: Number(item.recoveredAmount?.toString() ?? '0'),
+        cycleStartedAt: item.cycleStartedAt,
+        reactivatedAt: item.reactivatedAt,
+        manualCredit: manualCreditByCase.get(item.id) ?? null,
+        assignedUser: item.assignedUser,
+        attempts: item.collectionAttempts,
+        payments,
+      });
+    });
+
+    return { cases: auditCases, erpAvailable: paymentsByTitle !== null };
+  }
+
+  // Conferência do ranking (supervisão): para cada caso RECOVERED do atendente
+  // no período, mostra o pagamento no ERP (ao vivo), os contatos registrados e
+  // as verificações que sustentam o crédito. Se o ERP não responder, devolve os
+  // contatos mas marca o pagamento como não conferido (nunca assume ok).
+  async getRecoveryAudit(
+    userId: string,
+    period: RecoveryRankingPeriod,
+  ): Promise<RecoveryAuditResponse> {
+    const range = resolveRecoveryRankingRange(period, new Date());
+
+    // Modo mock (desenvolvimento): sem banco nem ERP, devolve um exemplo para
+    // a tela poder ser exercitada.
+    if (getDataSourceMode() !== 'database') {
+      return buildMockRecoveryAudit(userId, range.from, range.to);
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true, avatarUrl: true },
+    });
+
+    const { cases: auditCases, erpAvailable } =
+      await this.buildRecoveryAuditCases({
+        status: CollectionStatus.RECOVERED,
+        assignedUserId: userId,
+        recoveredAt: { gte: range.from, lt: range.to },
+      });
+
+    return {
+      periodFrom: range.from.toISOString(),
+      periodTo: range.to.toISOString(),
+      user: user
+        ? { id: user.id, name: user.name, avatarUrl: user.avatarUrl }
+        : null,
+      erpAvailable,
+      totalAmount: auditCases
+        .reduce((sum, item) => sum + Number(item.recoveredAmount), 0)
+        .toFixed(2),
+      verifiedCases: auditCases.filter((item) => item.verified).length,
+      cases: auditCases,
+    };
+  }
+
+  // Conferência de UM caso recuperado (página de detalhe do caso, supervisão).
+  async getCaseRecoveryAudit(
+    caseId: string,
+  ): Promise<{ erpAvailable: boolean; audit: RecoveryAuditCase | null }> {
+    if (getDataSourceMode() !== 'database') {
+      const sample = buildMockRecoveryAudit(
+        'usr_marina',
+        new Date(0),
+        new Date(),
+      ).cases[0];
+      return {
+        erpAvailable: true,
+        audit: sample ? { ...sample, caseId } : null,
+      };
+    }
+
+    const { cases, erpAvailable } = await this.buildRecoveryAuditCases({
+      id: caseId,
+      status: CollectionStatus.RECOVERED,
+    });
+
+    return { erpAvailable, audit: cases[0] ?? null };
   }
 
   // Busca AO VIVO no ERP os titulos renegociados e o saldo em aberto de um
@@ -1445,15 +2579,23 @@ export class ErpSyncService {
   }
 
   private getPool(db: ErpSyncDbConfig): Pool {
-    this.pool ??= new Pool({
-      host: db.host,
-      port: db.port,
-      database: db.database,
-      user: db.user,
-      password: db.password,
-      max: 2,
-      ssl: false,
-    });
+    if (!this.pool) {
+      this.pool = new Pool({
+        host: db.host,
+        port: db.port,
+        database: db.database,
+        user: db.user,
+        password: db.password,
+        max: 2,
+        ssl: false,
+      });
+      // Conexao ociosa derrubada pelo ERP emite 'error' no pool; sem listener o Node encerra o processo.
+      this.pool.on('error', (error: Error) => {
+        this.logger.error(
+          `Conexao ociosa do pool do ERP falhou: ${error.message}`,
+        );
+      });
+    }
 
     return this.pool;
   }

@@ -138,7 +138,8 @@ export class BulkContactJobMockRepository implements BulkContactJobRepository {
     if (!job.startedAt) job.startedAt = now;
 
     const stillPending = Array.from(items.values()).some(
-      (candidate) => candidate.jobId === jobId && candidate.status === 'PENDING',
+      (candidate) =>
+        candidate.jobId === jobId && candidate.status === 'PENDING',
     );
 
     job.status = stillPending ? 'PROCESSING' : 'COMPLETED';

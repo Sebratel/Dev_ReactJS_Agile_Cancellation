@@ -1,7 +1,10 @@
 import type { AuditAction } from '@prisma/client';
 import type { PaginatedResponse } from '@/common/pagination/paginated-response';
 import type { AuditLogListItemResponse } from '@/modules/audit-logs/dto/audit-log-list-item.response';
-import type { AuditLogsQueryDto } from '@/modules/audit-logs/dto/audit-logs-query.dto';
+import type {
+  AuditLogCategoryFilter,
+  AuditLogsQueryDto,
+} from '@/modules/audit-logs/dto/audit-logs-query.dto';
 
 export type AuditLogsListParams = {
   page?: number;
@@ -13,6 +16,7 @@ export type AuditLogsListParams = {
   startDate?: string;
   endDate?: string;
   search?: string;
+  category?: AuditLogCategoryFilter;
 };
 
 export interface AuditLogsRepository {
@@ -34,5 +38,6 @@ export function mapQueryDtoToListParams(
     startDate: query.startDate,
     endDate: query.endDate,
     search: query.search,
+    category: query.category,
   };
 }

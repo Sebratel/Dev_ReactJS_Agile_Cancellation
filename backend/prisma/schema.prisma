@@ -42,6 +42,12 @@ enum CollectionStatus {
   RECOVERED
   PAYMENT_MADE
   RENEGOTIATED
+  // Cliente cancelado devolvido pela supervisão a uma carteira para tentar a
+  // reativação. Continua cancelado até o ERP mostrar o contrato Normal de novo.
+  CANCELLED_IN_RECOVERY
+  // Contrato cancelado voltou a Normal no ERP SEM contato qualificado do
+  // atendente antes (voltou sozinho): não credita receita.
+  REACTIVATED
 }
 
 enum Priority {
@@ -270,6 +276,13 @@ model CollectionCase {
   externalId           String?          @unique
   slaDueAt             DateTime?
   recoveredAt          DateTime?
+  // Valor efetivamente PAGO que originou a recuperação (soma dos títulos-gatilho
+  // baixados no ERP). É a base da receita do ranking: o saldo em aberto
+  // (outstandingAmount) é zerado ao recuperar, então não serve para isso.
+  recoveredAmount      Decimal?         @db.Decimal(15, 2)
+  // Data da reativação do contrato no ERP (evento "Reativação de Contrato") de
+  // um cancelado devolvido à carteira. Base da janela de pagamentos creditados.
+  reactivatedAt        DateTime?
   // Momento em que o caso foi atribuido ao responsavel atual (assignedUserId).
   // Setado a cada atribuicao/redistribuicao e zerado ao remover o responsavel.
   // Usado pelo filtro "por data de atribuicao" na supervisao.

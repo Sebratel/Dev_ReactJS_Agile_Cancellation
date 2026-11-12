@@ -3,6 +3,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { getJwtConfig } from '@/config/jwt.config';
+import { AuditModule } from '@/modules/audit/audit.module';
 import { AuthController } from '@/modules/auth/auth.controller';
 import { AuthService } from '@/modules/auth/auth.service';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
@@ -17,6 +18,7 @@ import { JwtStrategy } from '@/modules/auth/strategies/jwt.strategy';
 
 @Module({
   imports: [
+    AuditModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       useFactory: () => {

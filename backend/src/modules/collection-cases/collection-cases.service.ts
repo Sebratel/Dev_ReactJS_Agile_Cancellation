@@ -1,10 +1,19 @@
-import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
+import {
+  HttpStatus,
+  Inject,
+  Injectable,
+  Logger,
+  Optional,
+} from '@nestjs/common';
+import { AuditAction } from '@prisma/client';
+import { AuditService } from '@/modules/audit/audit.service';
 import { COLLECTION_CASES_REPOSITORY } from '@/common/data-source/data-source.constants';
 import {
   assertCanActOnCase,
   isRestrictedToOwnCases,
 } from '@/modules/collection-cases/utils/case-ownership.util';
 import { AppException } from '@/common/exceptions/app.exception';
+import { CREDIT_LOCKED_MESSAGE } from '@/modules/collection-cases/utils/credit-locked-statuses';
 import { createApiResponse } from '@/common/responses/api-response';
 import type { CreateCollectionAttemptDto } from '@/modules/collection-cases/dto/create-collection-attempt.dto';
 import type { CreatePaymentPromiseDto } from '@/modules/collection-cases/dto/create-payment-promise.dto';
@@ -16,12 +25,12 @@ import type { RevertCancellationDto } from '@/modules/collection-cases/dto/rever
 import type { AssignCaseDto } from '@/modules/collection-cases/dto/assign-case.dto';
 import type { BulkAssignCasesDto } from '@/modules/collection-cases/dto/bulk-assign-cases.dto';
 import type { AutoDistributeDto } from '@/modules/collection-cases/dto/auto-distribute.dto';
+import type { ReopenCancelledDto } from '@/modules/collection-cases/dto/reopen-cancelled.dto';
 import type { AuthenticatedUser } from '@/modules/auth/types/authenticated-user.type';
 import type {
   CollectionCasesListParams,
   CollectionCasesRepository,
   PaymentPromiseStatusAction,
-  RecoverCancelledResult,
   RevertCancellationResult,
   SendToCancellationResult,
   UpdatePaymentPromiseStatusResult,
@@ -116,6 +125,22 @@ function canAccessCaseDetails(
   return assignedToId === user.id;
 }
 
+// Filtros efetivos da exportação (sem paginação/ordem), para a auditoria.
+function summarizeExportFilters(
+  params: CollectionCasesListParams,
+): Record<string, string> {
+  const ignored = new Set(['page', 'limit', 'sortBy', 'sortDirection']);
+  const summary: Record<string, string> = {};
+
+  for (const [key, value] of Object.entries(params)) {
+    if (ignored.has(key) || value === undefined || value === null) continue;
+    if (value === '' || (Array.isArray(value) && value.length === 0)) continue;
+    summary[key] = Array.isArray(value) ? value.join(',') : String(value);
+  }
+
+  return summary;
+}
+
 @Injectable()
 export class CollectionCasesService {
   private readonly logger = new Logger(CollectionCasesService.name);
@@ -127,6 +152,8 @@ export class CollectionCasesService {
     private readonly matrixWhatsappContactService: MatrixWhatsappContactService,
     private readonly notificationsService: NotificationsService,
     private readonly settingsService: SettingsService,
+    // Opcional: sem o serviço de auditoria (testes), nada é gravado.
+    @Optional() private readonly auditService?: AuditService,
   ) {}
 
   async listCases(params: CollectionCasesListParams) {
@@ -204,6 +231,7 @@ export class CollectionCasesService {
     actor?: AuthenticatedUser,
   ) {
     await this.assertActorOwnsCase(caseId, actor);
+    await this.assertAttemptNotesForCancelledRecovery(caseId, dto);
 
     const resolvedPerformerId =
       this.performedByResolver.resolve(performedByUserId);
@@ -221,6 +249,27 @@ export class CollectionCasesService {
     }
 
     return createApiResponse(attempt);
+  }
+
+  // Cancelado em recuperação: a observação é obrigatória em toda tentativa,
+  // porque ela (junto com o contato efetivo) é a prova que credita a receita
+  // quando o ERP reativar o contrato.
+  private async assertAttemptNotesForCancelledRecovery(
+    caseId: string,
+    dto: CreateCollectionAttemptDto,
+  ) {
+    if (dto.notes?.trim()) {
+      return;
+    }
+
+    const current = await this.collectionCasesRepository.getCaseById(caseId);
+
+    if (current?.status === 'CANCELLED_IN_RECOVERY') {
+      throw new AppException(
+        'Informe a observação do contato: ela é obrigatória em clientes cancelados em recuperação.',
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    }
   }
 
   async contactCustomerByWhatsApp(
@@ -563,24 +612,38 @@ export class CollectionCasesService {
     });
   }
 
-  async recoverCancelled(caseId: string, performedByUserId: string) {
+  // Supervisão devolve clientes cancelados a uma carteira (novo ciclo). O caso
+  // continua cancelado; só vira recuperado quando o ERP reativar o contrato.
+  async reopenCancelled(dto: ReopenCancelledDto, performedByUserId: string) {
     const resolvedPerformerId =
       this.performedByResolver.resolve(performedByUserId);
-    const result = await this.collectionCasesRepository.recoverCancelled({
-      caseId,
+    const result = await this.collectionCasesRepository.reopenCancelled({
+      caseIds: [...new Set(dto.caseIds)],
+      assignedUserId: dto.assignedUserId,
       performedByUserId: resolvedPerformerId,
     });
 
-    this.assertRecoverCancelledResult(result, caseId);
-
-    if (result.outcome !== 'success') {
+    if (result.outcome === 'user_not_found') {
       throw new AppException(
-        'Falha ao marcar o caso como recuperado.',
-        HttpStatus.INTERNAL_SERVER_ERROR,
+        'Atendente não encontrado, inativo ou sem perfil operacional.',
+        HttpStatus.UNPROCESSABLE_ENTITY,
       );
     }
 
-    return createApiResponse(result.case);
+    if (result.reopened > 0) {
+      await this.notificationsService.notify({
+        userId: dto.assignedUserId,
+        type: 'CASES_BULK_ASSIGNED',
+        title: 'Clientes cancelados na sua carteira',
+        body: `${result.reopened} ${result.reopened === 1 ? 'cliente cancelado foi devolvido' : 'clientes cancelados foram devolvidos'} à sua carteira para tentar a reativação.`,
+        entityType: 'collection_case',
+      });
+    }
+
+    return createApiResponse({
+      reopened: result.reopened,
+      skipped: result.skipped,
+    });
   }
 
   async revertCancellation(
@@ -631,6 +694,13 @@ export class CollectionCasesService {
       );
     }
 
+    if (result.outcome === 'case_locked') {
+      throw new AppException(
+        CREDIT_LOCKED_MESSAGE,
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    }
+
     if (result.outcome === 'user_not_found') {
       throw new AppException(
         'Usuario responsavel nao encontrado, inativo ou sem perfil operacional.',
@@ -653,7 +723,8 @@ export class CollectionCasesService {
   }
 
   async bulkAssignCases(dto: BulkAssignCasesDto, performedByUserId: string) {
-    const resolvedPerformerId = this.performedByResolver.resolve(performedByUserId);
+    const resolvedPerformerId =
+      this.performedByResolver.resolve(performedByUserId);
     const result = await this.collectionCasesRepository.bulkAssignCases({
       caseIds: dto.caseIds,
       assignedUserId: dto.assignedUserId ?? null,
@@ -674,7 +745,8 @@ export class CollectionCasesService {
   }
 
   async autoDistribute(dto: AutoDistributeDto, performedByUserId: string) {
-    const resolvedPerformerId = this.performedByResolver.resolve(performedByUserId);
+    const resolvedPerformerId =
+      this.performedByResolver.resolve(performedByUserId);
     const result = await this.collectionCasesRepository.autoDistributeCases({
       statuses: dto.statuses,
       targetRole: dto.targetRole,
@@ -772,32 +844,6 @@ export class CollectionCasesService {
     }
   }
 
-  private assertRecoverCancelledResult(
-    result: RecoverCancelledResult,
-    caseId: string,
-  ) {
-    if (result.outcome === 'case_not_found') {
-      throw new AppException(
-        `Caso de cobrança ${caseId} não encontrado.`,
-        HttpStatus.NOT_FOUND,
-      );
-    }
-
-    if (result.outcome === 'status_not_allowed') {
-      throw new AppException(
-        `Caso de cobrança ${caseId} não pode ser recuperado a partir do status ${result.currentStatus}.`,
-        HttpStatus.CONFLICT,
-      );
-    }
-
-    if (result.outcome === 'no_manual_attempt') {
-      throw new AppException(
-        'O caso precisa ter ao menos uma tentativa de contato manual registrada para ser marcado como recuperado.',
-        HttpStatus.UNPROCESSABLE_ENTITY,
-      );
-    }
-  }
-
   private assertRevertCancellationResult(
     result: RevertCancellationResult,
     caseId: string,
@@ -817,12 +863,29 @@ export class CollectionCasesService {
     }
   }
 
-  async exportCasesCsv(params: CollectionCasesListParams): Promise<string> {
+  async exportCasesCsv(
+    params: CollectionCasesListParams,
+    actor?: AuthenticatedUser,
+  ): Promise<string> {
     const result = await this.collectionCasesRepository.listCases({
       ...params,
       page: 1,
       limit: 5000,
     });
+
+    if (actor) {
+      await this.auditService?.record({
+        action: AuditAction.EXPORT,
+        entityType: 'EXPORT',
+        entityId: 'collection_cases',
+        performedByUserId: actor.id,
+        metadata: {
+          resourceType: 'COLLECTION_CASES_CSV',
+          rows: result.items.length,
+          filters: summarizeExportFilters(params),
+        },
+      });
+    }
 
     const headers = [
       'ID',

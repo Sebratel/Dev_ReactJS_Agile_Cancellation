@@ -28,7 +28,9 @@ describe('BulkContactWhatsAppByFilterAction', () => {
     );
 
     expect(
-      screen.getByRole('button', { name: 'Enviar HSM para os casos filtrados' }),
+      screen.getByRole('button', {
+        name: 'Enviar HSM para os casos filtrados',
+      }),
     ).toBeDisabled();
   });
 
@@ -68,9 +70,13 @@ describe('BulkContactWhatsAppByFilterAction', () => {
     );
 
     await user.click(
-      screen.getByRole('button', { name: 'Enviar HSM para os casos filtrados' }),
+      screen.getByRole('button', {
+        name: 'Enviar HSM para os casos filtrados',
+      }),
     );
-    expect(screen.getByText(/40 clientes que correspondem/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/40 clientes que correspondem/),
+    ).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Iniciar envio' }));
 

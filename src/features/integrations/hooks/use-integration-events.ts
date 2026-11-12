@@ -1,5 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
-import { getIntegrationEvents, getIntegrationEventsSummary, getSyncHealth } from '@/features/integrations/services/integration-events.service';
+import {
+  getIntegrationEvents,
+  getIntegrationEventsSummary,
+  getSyncHealth,
+} from '@/features/integrations/services/integration-events.service';
 import { type IntegrationEventsListParams } from '@/features/integrations/types/integration-events-api.types';
 import { queryKeys } from '@/services/api/query-keys';
 

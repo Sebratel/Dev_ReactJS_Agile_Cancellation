@@ -149,3 +149,22 @@ src/
 2. Substituir a autenticacao mockada por sessao/token reais.
 3. Implementar filtros, busca e acao operacional nos modulos de cobranca.
 4. Evoluir auditoria, historico e automacoes controladas.
+
+## CI/CD e deploy
+
+Fluxo (padrao Sebratel, modelo A: o Portainer builda do Git, sem registry):
+
+```
+feature/* --PR--> staging --> GitHub Actions (ci-ok) --> webhook --> stack de staging no Portainer
+                  main    --> GitHub Actions (ci-ok) --> stack de producao no Portainer
+```
+
+- **CI** (`.github/workflows/ci.yml`): `validacoes` (nomes do compose), `frontend` e `backend` (typecheck, lint, format, security scan, testes com **cobertura minima de 70%**, build), `imagem` (build das imagens e `up --wait` da stack com smoke de `/health` e do proxy `/api`) e o agregador **`ci-ok`**, unico check obrigatorio na protecao de branch (1 aprovacao, sem push direto, sem force push).
+- **CD de staging** (job `deploy-staging` no mesmo `ci.yml`): a cada push na `staging`, com o `ci-ok` verde, o GitHub chama o webhook da stack e o Portainer faz pull, rebuild e redeploy sozinho; se o CI falhar, nada e implantado. A URL do webhook fica no segredo de repositorio `PORTAINER_WEBHOOK_STAGING` (Settings > Secrets and variables > Actions) e nunca no codigo. O webhook responde na hora: o resultado do build aparece no Portainer. - **CD de producao** (job `deploy-production`): a cada push na `main`, com o `ci-ok` verde, chama o webhook da stack de producao, guardado no segredo `PORTAINER_WEBHOOK_PRODUCTION`. O job usa o ambiente `production` do GitHub, onde da para exigir aprovacao manual (Settings > Environments). Os dois jobs limpam aspas/espacos do segredo e validam o formato da URL (`https://<host>/api/stacks/webhooks/<uuid>`) sem imprimir o valor.
+- **Stack no Portainer**: nome `dev_reactjs_agile_cancellation` (repositorio em minusculas), arquivo `docker-compose.portainer.yml`, referencia `refs/heads/staging` (staging) ou `refs/heads/main` (producao). Webhook com _Re-pull image_ e _Force redeployment_.
+- **Servicos**: `frontend` (nginx), `backend` (NestJS, health em `/health`), `mariadb`. Sem `container_name`.
+- **Segredos**: so no painel _Environment_ da stack (veja `.env.example`). Staging usa banco, N8N e Google proprios de staging; nunca os de producao.
+- **Recursos**: perfis low/medium/high em `deploy/profiles/*.env` (veja `docs/dimensionamento.md`). Padrao: medium.
+- **Migrations**: rodam no start do container do backend (`prisma migrate deploy`). Escreva migrations compativeis com a versao anterior do codigo para permitir rollback sem rollback de banco.
+- **Rollback**: `git revert` do commit via PR e _Pull and redeploy_; em emergencia, aponte a stack para o commit/tag anterior.
+- **Observabilidade**: o backend ainda nao tem agente Elastic APM nem log JSON estruturado; pendencia registrada (skill `observabilidade-backend`).

@@ -36,7 +36,10 @@ vi.mock(
 
 vi.mock('@/features/users/hooks/use-users', () => ({
   useUsers: () => ({
-    data: { items: [], pagination: { page: 1, limit: 100, total: 0, totalPages: 0 } },
+    data: {
+      items: [],
+      pagination: { page: 1, limit: 100, total: 0, totalPages: 0 },
+    },
     isLoading: false,
     isError: false,
   }),
@@ -276,9 +279,7 @@ describe('SupervisionPage', () => {
       );
     });
     await waitFor(() => {
-      expect(screen.getByTestId('location-search')).toHaveTextContent(
-        'page=2',
-      );
+      expect(screen.getByTestId('location-search')).toHaveTextContent('page=2');
     });
   });
 

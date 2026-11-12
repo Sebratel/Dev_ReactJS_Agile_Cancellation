@@ -10,6 +10,8 @@ export const PORTFOLIO_ACTIVE_STATUSES: CollectionStatus[] = [
   CollectionStatus.NO_RESPONSE,
   CollectionStatus.ELIGIBLE_FOR_CANCELLATION,
   CollectionStatus.CANCELLATION_IN_PROGRESS,
+  // Cancelado devolvido pela supervisão: está na carteira do atendente.
+  CollectionStatus.CANCELLED_IN_RECOVERY,
 ];
 
 /**

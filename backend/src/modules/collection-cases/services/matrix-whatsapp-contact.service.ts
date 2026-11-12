@@ -74,7 +74,9 @@ function readExternalCode(value: unknown): string | null {
 
 function extractMatrixCode(
   responseBody: unknown,
-  keys: Array<'codAtendimento' | 'cod_atendimento' | 'codMensagem' | 'cod_mensagem'>,
+  keys: Array<
+    'codAtendimento' | 'cod_atendimento' | 'codMensagem' | 'cod_mensagem'
+  >,
 ): string | null {
   const root = readObject(responseBody);
 

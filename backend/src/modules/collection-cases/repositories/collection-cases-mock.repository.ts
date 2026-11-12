@@ -42,8 +42,8 @@ import type {
   CreatePaymentPromiseParams,
   RecordWhatsAppContactIntegrationParams,
   RecordWhatsAppContactIntegrationResult,
-  RecoverCancelledParams,
-  RecoverCancelledResult,
+  ReopenCancelledParams,
+  ReopenCancelledResult,
   RevertCancellationParams,
   RevertCancellationResult,
   SendToCancellationParams,
@@ -234,7 +234,9 @@ export class CollectionCasesMockRepository implements CollectionCasesRepository 
     return Promise.resolve(byStatus);
   }
 
-  getIntakeSummary(now: Date = new Date()): Promise<CollectionCaseIntakeSummary> {
+  getIntakeSummary(
+    now: Date = new Date(),
+  ): Promise<CollectionCaseIntakeSummary> {
     const todayStart = new Date(now);
     todayStart.setHours(0, 0, 0, 0);
     const tomorrowStart = new Date(todayStart);
@@ -246,7 +248,10 @@ export class CollectionCasesMockRepository implements CollectionCasesRepository 
     let yesterday = 0;
     for (const record of mockCollectionCaseListRecords) {
       const createdAt = new Date(record.createdAt).getTime();
-      if (createdAt >= todayStart.getTime() && createdAt < tomorrowStart.getTime()) {
+      if (
+        createdAt >= todayStart.getTime() &&
+        createdAt < tomorrowStart.getTime()
+      ) {
         today += 1;
       } else if (
         createdAt >= yesterdayStart.getTime() &&
@@ -483,7 +488,8 @@ export class CollectionCasesMockRepository implements CollectionCasesRepository 
         attendanceCode: matrixAttendanceCode ?? null,
         messageCode: matrixMessageCode ?? null,
         awaitingReply: status === 'COMPLETED' && Boolean(matrixAttendanceCode),
-        lastOutboundAt: status === 'COMPLETED' ? now : details.matrixContact.lastOutboundAt,
+        lastOutboundAt:
+          status === 'COMPLETED' ? now : details.matrixContact.lastOutboundAt,
         lastReplyAt: details.matrixContact.lastReplyAt,
       };
       details.updatedAt = now;
@@ -885,55 +891,34 @@ export class CollectionCasesMockRepository implements CollectionCasesRepository 
     return Promise.resolve({ outcome: 'success', case: details });
   }
 
-  recoverCancelled({
-    caseId,
-    performedByUserId,
-  }: RecoverCancelledParams): Promise<RecoverCancelledResult> {
-    const details = mockCollectionCaseDetails[caseId];
+  reopenCancelled({
+    caseIds,
+    assignedUserId,
+  }: ReopenCancelledParams): Promise<ReopenCancelledResult> {
+    let reopened = 0;
 
-    if (!details) {
-      return Promise.resolve({ outcome: 'case_not_found' });
+    for (const caseId of caseIds) {
+      const record = mockCollectionCaseListRecords.find((r) => r.id === caseId);
+
+      if (!record || record.status !== 'CLOSED') continue;
+
+      record.status = 'CANCELLED_IN_RECOVERY';
+      record.assignedUserId = assignedUserId;
+      reopened++;
+
+      const details = mockCollectionCaseDetails[caseId];
+
+      if (details) {
+        details.status = 'CANCELLED_IN_RECOVERY';
+        details.assignedTo = { id: assignedUserId, name: assignedUserId };
+      }
     }
 
-    if (details.status !== 'CLOSED') {
-      return Promise.resolve({
-        outcome: 'status_not_allowed',
-        currentStatus: details.status,
-      });
-    }
-
-    const hasManualAttempt = details.attempts.some((a) => !a.isAutomatic);
-
-    if (!hasManualAttempt) {
-      return Promise.resolve({ outcome: 'no_manual_attempt' });
-    }
-
-    const now = new Date().toISOString();
-    const previousStatus = details.status;
-    details.status = 'RECOVERED';
-    details.updatedAt = now;
-
-    const record = mockCollectionCaseListRecords.find((item) => item.id === caseId);
-    if (record) {
-      record.status = 'RECOVERED';
-      record.updatedAt = now;
-    }
-
-    pushMockAuditLog({
-      entityType: 'COLLECTION_CASE',
-      entityId: caseId,
-      action: 'STATUS_CHANGE',
-      performedByUserId,
-      beforeSnapshot: { status: previousStatus },
-      afterSnapshot: { status: 'RECOVERED', recoveredAt: now },
-      metadata: {
-        resourceType: 'COLLECTION_CASE',
-        action: 'RECOVER_CANCELLED',
-        description: 'Cliente cancelado recuperado',
-      },
+    return Promise.resolve({
+      outcome: 'success',
+      reopened,
+      skipped: caseIds.length - reopened,
     });
-
-    return Promise.resolve({ outcome: 'success', case: details });
   }
 
   assignCase({

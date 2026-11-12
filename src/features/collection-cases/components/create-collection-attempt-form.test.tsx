@@ -107,6 +107,35 @@ describe('CreateCollectionAttemptForm', () => {
     expect(screen.getByLabelText('Observação')).toHaveValue('');
   });
 
+  it('exige observacao quando o caso e cancelado em recuperacao', async () => {
+    mutateAsync.mockClear();
+    useCreateCollectionAttemptMock.mockReturnValue({
+      mutateAsync,
+      isPending: false,
+      isError: false,
+      error: null,
+    });
+
+    const user = userEvent.setup();
+
+    renderWithProviders(
+      <CreateCollectionAttemptForm caseId="case_0001" notesRequired />,
+    );
+
+    expect(
+      screen.getByLabelText('Observação (obrigatória)'),
+    ).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText('Canal'), 'WHATSAPP');
+    await user.selectOptions(screen.getByLabelText('Resultado'), 'CONTACTED');
+    await user.click(screen.getByRole('button', { name: 'Salvar tentativa' }));
+
+    expect(
+      await screen.findByText('Informe a observação do contato.'),
+    ).toBeInTheDocument();
+    expect(mutateAsync).not.toHaveBeenCalled();
+  });
+
   it('mostra feedback de erro', () => {
     useCreateCollectionAttemptMock.mockReturnValue({
       mutateAsync,

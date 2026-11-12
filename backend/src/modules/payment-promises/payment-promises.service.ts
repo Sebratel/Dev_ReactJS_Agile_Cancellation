@@ -19,6 +19,7 @@ export class PaymentPromisesService {
       from: dto.from,
       to: dto.to,
       assignedUserId: dto.assignedUserId,
+      caseSituation: dto.caseSituation,
       search: dto.search?.trim() || undefined,
       page: dto.page ?? 1,
       limit: dto.limit ?? 20,

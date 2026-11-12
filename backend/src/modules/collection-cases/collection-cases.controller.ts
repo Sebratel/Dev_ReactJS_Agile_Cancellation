@@ -19,6 +19,7 @@ import { CreateCollectionAttemptDto } from '@/modules/collection-cases/dto/creat
 import { CreatePaymentPromiseDto } from '@/modules/collection-cases/dto/create-payment-promise.dto';
 import { SendToCancellationDto } from '@/modules/collection-cases/dto/send-to-cancellation.dto';
 import { BulkSendToCancellationDto } from '@/modules/collection-cases/dto/bulk-send-to-cancellation.dto';
+import { ReopenCancelledDto } from '@/modules/collection-cases/dto/reopen-cancelled.dto';
 import { RevertCancellationDto } from '@/modules/collection-cases/dto/revert-cancellation.dto';
 import { UpdatePaymentPromiseStatusDto } from '@/modules/collection-cases/dto/update-payment-promise-status.dto';
 import { CollectionCasesService } from '@/modules/collection-cases/collection-cases.service';
@@ -82,12 +83,7 @@ export class CollectionCasesController {
     @Body() body: CreateCollectionAttemptDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.collectionCasesService.createAttempt(
-      id,
-      body,
-      user.id,
-      user,
-    );
+    return this.collectionCasesService.createAttempt(id, body, user.id, user);
   }
 
   @Roles('COLLECTION_AGENT', 'SUPERVISOR', 'ADMIN')
@@ -110,12 +106,7 @@ export class CollectionCasesController {
     @Body() body: CreatePaymentPromiseDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.collectionCasesService.createPromise(
-      id,
-      body,
-      user.id,
-      user,
-    );
+    return this.collectionCasesService.createPromise(id, body, user.id, user);
   }
 
   @Roles('COLLECTION_AGENT', 'SUPERVISOR', 'ADMIN')
@@ -197,6 +188,7 @@ export class CollectionCasesController {
   ) {
     return this.collectionCasesService.exportCasesCsv(
       restrictToOwnCasesIfAgent(mapQueryDtoToListParams(query), user),
+      user,
     );
   }
 
@@ -229,13 +221,14 @@ export class CollectionCasesController {
     return this.collectionCasesService.bulkSendToCancellation(body, user);
   }
 
-  @Roles('COLLECTION_AGENT', 'SUPERVISOR', 'ADMIN')
-  @Post(':id/recover-cancelled')
-  recoverCancelled(
-    @Param('id') caseId: string,
+  // Só supervisão/administração devolve cancelados às carteiras.
+  @Roles('SUPERVISOR', 'ADMIN')
+  @Post('reopen-cancelled')
+  reopenCancelled(
+    @Body() body: ReopenCancelledDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.collectionCasesService.recoverCancelled(caseId, user.id);
+    return this.collectionCasesService.reopenCancelled(body, user.id);
   }
 
   @Roles('COLLECTION_AGENT', 'SUPERVISOR', 'ADMIN', 'CANCELLATION_AGENT')
@@ -264,10 +257,7 @@ export class CollectionCasesController {
 
   @Roles('ADMIN', 'SUPERVISOR', 'COLLECTION_AGENT', 'CANCELLATION_AGENT')
   @Get(':id')
-  getCaseById(
-    @Param('id') id: string,
-    @CurrentUser() user: AuthenticatedUser,
-  ) {
+  getCaseById(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.collectionCasesService.getCaseById(id, user);
   }
 }

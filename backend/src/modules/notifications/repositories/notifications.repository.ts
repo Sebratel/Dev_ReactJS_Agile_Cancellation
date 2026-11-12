@@ -24,10 +24,7 @@ export interface NotificationsRepository {
     params: ListNotificationsParams,
   ): Promise<PaginatedResponse<NotificationResponse>>;
   countUnread(userId: string): Promise<number>;
-  markAsRead(
-    id: string,
-    userId: string,
-  ): Promise<NotificationResponse | null>;
+  markAsRead(id: string, userId: string): Promise<NotificationResponse | null>;
   markAllAsRead(userId: string): Promise<number>;
 }
 

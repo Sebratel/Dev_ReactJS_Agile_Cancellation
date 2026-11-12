@@ -9,7 +9,9 @@ export function useContactCustomerWhatsApp(caseId: string) {
     mutationFn: () => contactCustomerByWhatsApp(caseId),
     onSuccess: async () => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.collectionCases.all }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.collectionCases.all,
+        }),
         queryClient.invalidateQueries({
           queryKey: queryKeys.collectionCases.detail(caseId),
         }),

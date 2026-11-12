@@ -46,9 +46,7 @@ export class CaseNotesPrismaRepository implements CaseNotesRepository {
     }));
   }
 
-  async create(
-    params: CreateCaseNoteParams,
-  ): Promise<CaseNoteResponse | null> {
+  async create(params: CreateCaseNoteParams): Promise<CaseNoteResponse | null> {
     const caseExists = await this.prisma.collectionCase.findUnique({
       where: { id: params.caseId },
       select: { id: true },

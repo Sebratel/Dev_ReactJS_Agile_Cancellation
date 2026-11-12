@@ -2,13 +2,17 @@ import {
   AuditAction,
   CancellationStatus,
   CollectionStatus,
+  ContractStatus,
   InvoiceStatus,
   PaymentPromiseStatus,
   Prisma,
   UserStatus,
   IntegrationEventStatus,
 } from '@prisma/client';
-import { Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { sumReceivableInvoices } from '@/modules/collection-cases/utils/receivable-invoices.util';
+import { AppException } from '@/common/exceptions/app.exception';
+import { CREDIT_LOCKED_CASE_STATUSES } from '@/modules/collection-cases/utils/credit-locked-statuses';
 import { createPaginatedResponse } from '@/common/pagination/paginated-response';
 import {
   cancellationReasonCategoryLabel,
@@ -54,8 +58,8 @@ import type {
   CreatePaymentPromiseParams,
   RecordWhatsAppContactIntegrationParams,
   RecordWhatsAppContactIntegrationResult,
-  RecoverCancelledParams,
-  RecoverCancelledResult,
+  ReopenCancelledParams,
+  ReopenCancelledResult,
   RevertCancellationParams,
   RevertCancellationResult,
   SendToCancellationParams,
@@ -131,9 +135,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
   private async resolveStaleContactCaseIds(
     params: CollectionCasesListParams,
   ): Promise<string[]> {
-    return params.interactionStatus
-      ? findStaleContactCaseIds(this.prisma)
-      : [];
+    return params.interactionStatus ? findStaleContactCaseIds(this.prisma) : [];
   }
 
   async listCases(params: CollectionCasesListParams) {
@@ -148,12 +150,16 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
     const dueDateFilteredIds = await this.resolveDueDateFilteredIds(
       where,
       normalized,
-      now,
     );
 
     if (dueDateFilteredIds !== null) {
       if (dueDateFilteredIds.length === 0) {
-        return createPaginatedResponse([], normalized.page, normalized.limit, 0);
+        return createPaginatedResponse(
+          [],
+          normalized.page,
+          normalized.limit,
+          0,
+        );
       }
 
       where.id = { in: dueDateFilteredIds };
@@ -239,7 +245,8 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
         matrixLastReplyAt: matrix.matrixLastReplyAt?.toISOString() ?? null,
         hsmDeliveryState: record.hsmDeliveryState ?? null,
         hsmDeliveryDetail: record.hsmDeliveryDetail ?? null,
-        lastContactAt: record.collectionAttempts[0]?.attemptedAt?.toISOString() ?? null,
+        lastContactAt:
+          record.collectionAttempts[0]?.attemptedAt?.toISOString() ?? null,
         origin: record.origin ?? null,
       };
     });
@@ -264,7 +271,6 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
   private async resolveDueDateFilteredIds(
     where: Prisma.CollectionCaseWhereInput,
     normalized: CollectionCasesListParams,
-    now: Date,
   ): Promise<string[] | null> {
     if (!normalized.firstDueDate && !normalized.secondDueDate) {
       return null;
@@ -305,12 +311,10 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
     const where = buildCollectionCasesWhere(normalized, new Date(), {
       staleContactCaseIds: await this.resolveStaleContactCaseIds(normalized),
     });
-    const now = new Date();
 
     const dueDateFilteredIds = await this.resolveDueDateFilteredIds(
       where,
       normalized,
-      now,
     );
 
     if (dueDateFilteredIds !== null) {
@@ -342,7 +346,9 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
     const baseWhere = buildCollectionCasesWhere(
       { ...normalized, firstDueDate: undefined, secondDueDate: undefined },
       now,
-      { staleContactCaseIds: await this.resolveStaleContactCaseIds(normalized) },
+      {
+        staleContactCaseIds: await this.resolveStaleContactCaseIds(normalized),
+      },
     );
 
     const candidates = await this.prisma.collectionCase.findMany({
@@ -410,32 +416,28 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
       },
     } satisfies Prisma.CollectionCaseWhereInput;
 
-    const [
-      totals,
-      slaOverdue,
-      awaitingReply,
-      interactedMap,
-    ] = await Promise.all([
-      this.prisma.collectionCase.groupBy({
-        by: ['assignedUserId'],
-        where: activeStatus,
-        _count: { _all: true },
-        _sum: { outstandingAmount: true },
-      }),
-      this.prisma.collectionCase.groupBy({
-        by: ['assignedUserId'],
-        where: { ...activeStatus, slaDueAt: { lt: now } },
-        _count: { _all: true },
-      }),
-      this.prisma.collectionCase.groupBy({
-        by: ['assignedUserId'],
-        where: { ...activeStatus, matrixAwaitingReply: true },
-        _count: { _all: true },
-      }),
-      // Contatados: ativos com contato manual no ciclo atual (SQL — compara
-      // attemptedAt com o cycleStartedAt do proprio caso).
-      countContactedInCycleByAgent(this.prisma),
-    ]);
+    const [totals, slaOverdue, awaitingReply, interactedMap] =
+      await Promise.all([
+        this.prisma.collectionCase.groupBy({
+          by: ['assignedUserId'],
+          where: activeStatus,
+          _count: { _all: true },
+          _sum: { outstandingAmount: true },
+        }),
+        this.prisma.collectionCase.groupBy({
+          by: ['assignedUserId'],
+          where: { ...activeStatus, slaDueAt: { lt: now } },
+          _count: { _all: true },
+        }),
+        this.prisma.collectionCase.groupBy({
+          by: ['assignedUserId'],
+          where: { ...activeStatus, matrixAwaitingReply: true },
+          _count: { _all: true },
+        }),
+        // Contatados: ativos com contato manual no ciclo atual (SQL — compara
+        // attemptedAt com o cycleStartedAt do proprio caso).
+        countContactedInCycleByAgent(this.prisma),
+      ]);
 
     const countByUser = (
       rows: Array<{ assignedUserId: string | null; _count: { _all: number } }>,
@@ -502,7 +504,9 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
     return byStatus;
   }
 
-  async getIntakeSummary(now: Date = new Date()): Promise<CollectionCaseIntakeSummary> {
+  async getIntakeSummary(
+    now: Date = new Date(),
+  ): Promise<CollectionCaseIntakeSummary> {
     const todayStart = new Date(now);
     todayStart.setHours(0, 0, 0, 0);
     const tomorrowStart = new Date(todayStart);
@@ -789,6 +793,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
         data: {
           status: CollectionStatus.IN_COLLECTION,
           recoveredAt: null,
+          recoveredAmount: null,
           assignedUserId,
           assignedAt: now,
           updatedAt: now,
@@ -1063,6 +1068,25 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
     const now = new Date();
 
     const promise = await this.prisma.$transaction(async (tx) => {
+      // Evita promessa repetida (duplo clique, reenvio): mesma data e mesmo
+      // valor ainda ativos no caso. Para mudar o acordo, cancele a anterior.
+      const duplicate = await tx.paymentPromise.findFirst({
+        where: {
+          collectionCaseId: caseId,
+          status: PaymentPromiseStatus.ACTIVE,
+          promisedDate: new Date(input.promisedDate),
+          promisedAmount: new Prisma.Decimal(input.promisedAmount),
+        },
+        select: { id: true },
+      });
+
+      if (duplicate) {
+        throw new AppException(
+          'Este caso já tem uma promessa ativa com a mesma data e o mesmo valor. Cancele a anterior se quiser alterar o acordo.',
+          HttpStatus.CONFLICT,
+        );
+      }
+
       const createdPromise = await tx.paymentPromise.create({
         data: {
           collectionCaseId: caseId,
@@ -1220,11 +1244,15 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
   }: AssignCaseParams): Promise<AssignCaseResult> {
     const existingCase = await this.prisma.collectionCase.findUnique({
       where: { id: caseId },
-      select: { id: true, assignedUserId: true },
+      select: { id: true, assignedUserId: true, status: true },
     });
 
     if (!existingCase) {
       return { outcome: 'case_not_found' };
+    }
+
+    if (CREDIT_LOCKED_CASE_STATUSES.includes(existingCase.status)) {
+      return { outcome: 'case_locked' };
     }
 
     if (assignedUserId) {
@@ -1254,7 +1282,11 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
         // assignedAt acompanha o responsavel: data da atribuicao quando ha
         // responsavel, null ao remover (para o filtro por data nao casar casos
         // sem dono).
-        data: { assignedUserId, assignedAt: assignedUserId ? now : null, updatedAt: now },
+        data: {
+          assignedUserId,
+          assignedAt: assignedUserId ? now : null,
+          updatedAt: now,
+        },
       });
 
       await tx.auditLog.create({
@@ -1307,10 +1339,15 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
 
     const existing = await this.prisma.collectionCase.findMany({
       where: { id: { in: caseIds } },
-      select: { id: true, assignedUserId: true },
+      select: { id: true, assignedUserId: true, status: true },
     });
 
-    const existingMap = new Map(existing.map((c) => [c.id, c]));
+    // Recuperados/pagos ficam de fora: reatribuir moveria o crédito do ranking.
+    const existingMap = new Map(
+      existing
+        .filter((c) => !CREDIT_LOCKED_CASE_STATUSES.includes(c.status))
+        .map((c) => [c.id, c]),
+    );
     const validIds = caseIds.filter((id) => existingMap.has(id));
     const now = new Date();
 
@@ -1321,7 +1358,11 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
     await this.prisma.$transaction([
       this.prisma.collectionCase.updateMany({
         where: { id: { in: validIds } },
-        data: { assignedUserId, assignedAt: assignedUserId ? now : null, updatedAt: now },
+        data: {
+          assignedUserId,
+          assignedAt: assignedUserId ? now : null,
+          updatedAt: now,
+        },
       }),
       ...validIds.map((id) =>
         this.prisma.auditLog.create({
@@ -1330,86 +1371,111 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
             entityId: id,
             action: AuditAction.UPDATE,
             performedByUserId,
-            beforeSnapshot: { assignedUserId: existingMap.get(id)?.assignedUserId ?? null },
+            beforeSnapshot: {
+              assignedUserId: existingMap.get(id)?.assignedUserId ?? null,
+            },
             afterSnapshot: { assignedUserId },
-            metadata: { resourceType: 'COLLECTION_CASE', field: 'assignedUserId', bulk: true },
+            metadata: {
+              resourceType: 'COLLECTION_CASE',
+              field: 'assignedUserId',
+              bulk: true,
+            },
           },
         }),
       ),
     ]);
 
-    return { assigned: validIds.length, skipped: caseIds.length - validIds.length };
+    return {
+      assigned: validIds.length,
+      skipped: caseIds.length - validIds.length,
+    };
   }
 
-  async recoverCancelled({
-    caseId,
+  async reopenCancelled({
+    caseIds,
+    assignedUserId,
     performedByUserId,
-  }: RecoverCancelledParams): Promise<RecoverCancelledResult> {
-    const existingCase = await this.prisma.collectionCase.findUnique({
-      where: { id: caseId },
-      include: { collectionAttempts: { select: { id: true, isAutomatic: true } } },
+  }: ReopenCancelledParams): Promise<ReopenCancelledResult> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: assignedUserId },
+      select: {
+        id: true,
+        status: true,
+        userRoles: { select: { role: { select: { code: true } } } },
+      },
     });
 
-    if (!existingCase) {
-      return { outcome: 'case_not_found' };
+    if (
+      !user ||
+      user.status !== UserStatus.ACTIVE ||
+      !hasAssignableCaseRole(user)
+    ) {
+      return { outcome: 'user_not_found' };
     }
 
-    if (existingCase.status !== CollectionStatus.CLOSED) {
-      return { outcome: 'status_not_allowed', currentStatus: existingCase.status };
-    }
+    // Só encerrados cujo contrato está cancelado no ERP podem voltar.
+    const eligible = await this.prisma.collectionCase.findMany({
+      where: {
+        id: { in: caseIds },
+        status: CollectionStatus.CLOSED,
+        contract: { is: { status: ContractStatus.CANCELLED } },
+      },
+      select: { id: true, assignedUserId: true },
+    });
 
-    const hasManualAttempt = existingCase.collectionAttempts.some(
-      (a) => !a.isAutomatic,
-    );
-
-    if (!hasManualAttempt) {
-      return { outcome: 'no_manual_attempt' };
+    if (eligible.length === 0) {
+      return { outcome: 'success', reopened: 0, skipped: caseIds.length };
     }
 
     const now = new Date();
 
-    const beforeSnapshot: Prisma.InputJsonValue = {
-      status: existingCase.status,
-      recoveredAt: existingCase.recoveredAt?.toISOString() ?? null,
-    };
-
-    await this.prisma.$transaction(async (tx) => {
-      await tx.collectionCase.update({
-        where: { id: caseId },
+    await this.prisma.$transaction([
+      this.prisma.collectionCase.updateMany({
+        where: { id: { in: eligible.map((item) => item.id) } },
         data: {
-          status: CollectionStatus.RECOVERED,
-          recoveredAt: now,
+          status: CollectionStatus.CANCELLED_IN_RECOVERY,
+          assignedUserId,
+          assignedAt: now,
+          // Novo ciclo: só contatos feitos a partir de agora contam.
+          cycleStartedAt: now,
+          recoveredAt: null,
+          recoveredAmount: null,
+          reactivatedAt: null,
+          matrixAwaitingReply: false,
           updatedAt: now,
         },
-      });
-
-      await tx.auditLog.create({
-        data: {
-          entityType: 'COLLECTION_CASE',
-          entityId: caseId,
-          action: AuditAction.STATUS_CHANGE,
-          performedByUserId,
-          beforeSnapshot,
-          afterSnapshot: {
-            status: CollectionStatus.RECOVERED,
-            recoveredAt: now.toISOString(),
+      }),
+      ...eligible.map((item) =>
+        this.prisma.auditLog.create({
+          data: {
+            entityType: 'COLLECTION_CASE',
+            entityId: item.id,
+            action: AuditAction.UPDATE,
+            performedByUserId,
+            beforeSnapshot: {
+              status: CollectionStatus.CLOSED,
+              assignedUserId: item.assignedUserId,
+            },
+            afterSnapshot: {
+              status: CollectionStatus.CANCELLED_IN_RECOVERY,
+              assignedUserId,
+            },
+            metadata: {
+              resourceType: 'COLLECTION_CASE',
+              action: 'REOPEN_CANCELLED',
+              field: 'assignedUserId',
+              bulk: true,
+            },
           },
-          metadata: {
-            resourceType: 'COLLECTION_CASE',
-            action: 'RECOVER_CANCELLED',
-            description: 'Cliente cancelado recuperado',
-          },
-        },
-      });
-    });
+        }),
+      ),
+    ]);
 
-    const details = await this.getCaseById(caseId);
-
-    if (!details) {
-      return { outcome: 'case_not_found' };
-    }
-
-    return { outcome: 'success', case: details };
+    return {
+      outcome: 'success',
+      reopened: eligible.length,
+      skipped: caseIds.length - eligible.length,
+    };
   }
 
   async autoDistributeCases({
@@ -1473,7 +1539,11 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
             performedByUserId,
             beforeSnapshot: { assignedUserId: null },
             afterSnapshot: { assignedUserId: agentId },
-            metadata: { resourceType: 'COLLECTION_CASE', field: 'assignedUserId', autoDistribute: true },
+            metadata: {
+              resourceType: 'COLLECTION_CASE',
+              field: 'assignedUserId',
+              autoDistribute: true,
+            },
           },
         }),
       ),
@@ -1522,11 +1592,7 @@ export class CollectionCasesPrismaRepository implements CollectionCasesRepositor
       paidAmount: formatDecimal(invoice.paidAmount),
     }));
 
-    const totalOutstanding = invoices.reduce((total, invoice) => {
-      const amount = Number(invoice.amount);
-      const paidAmount = Number(invoice.paidAmount);
-      return total + Math.max(amount - paidAmount, 0);
-    }, 0);
+    const totalOutstanding = sumReceivableInvoices(invoices);
 
     const cancellation = record.cancellationProcesses[0];
 

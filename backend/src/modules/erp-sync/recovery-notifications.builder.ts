@@ -77,14 +77,20 @@ export function buildRecoveryWebhookPayload(
       recoveredAmount: caseData.recoveredAmount,
       hadActivePromise: caseData.hadActivePromise,
       agent: caseData.assignedUser
-        ? { name: caseData.assignedUser.name, email: caseData.assignedUser.email }
+        ? {
+            name: caseData.assignedUser.name,
+            email: caseData.assignedUser.email,
+          }
         : null,
     })),
   };
 }
 
 function formatBRL(value: number): string {
-  return `R$ ${value.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
+  return `R$ ${value
+    .toFixed(2)
+    .replace('.', ',')
+    .replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
 }
 
 function buildAgentBody(caseData: RecoveredCaseForNotification): string {

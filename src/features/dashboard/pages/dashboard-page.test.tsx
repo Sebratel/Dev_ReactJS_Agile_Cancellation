@@ -1,5 +1,5 @@
 import { type ReactNode } from 'react';
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DashboardPage from '@/features/dashboard/pages/dashboard-page';
 import { createMockSession } from '@/test/auth-test-utils';
@@ -20,6 +20,17 @@ vi.mock('recharts', async () => {
 vi.mock('@/features/dashboard/services/dashboard.service', () => ({
   getDashboardSummary: vi.fn(),
   getDashboardOperations: vi.fn(),
+}));
+
+// Mini-ranking do painel: fora do foco destes testes (evita chamada de rede real).
+vi.mock('@/features/ranking/services/ranking.service', () => ({
+  getRecoveryRanking: vi.fn().mockResolvedValue({
+    periodFrom: '2026-11-01T00:00:00.000Z',
+    periodTo: '2026-12-01T00:00:00.000Z',
+    totalRecoveredAmount: '0.00',
+    totalRecoveredCases: 0,
+    ranking: [],
+  }),
 }));
 
 vi.mock(
@@ -45,11 +56,18 @@ import {
 describe('DashboardPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(getCollectionCasePortfolios).mockResolvedValue({ portfolios: [] });
+    vi.mocked(getCollectionCasePortfolios).mockResolvedValue({
+      portfolios: [],
+    });
     vi.mocked(getRenegotiationSummary).mockResolvedValue({
       available: true,
       count: 38,
       openAmount: '5416.01',
+    });
+    // Cartão de HSM: contagens por estado de entrega (limit 1, só o total).
+    vi.mocked(getCollectionCases).mockResolvedValue({
+      items: [],
+      pagination: { page: 1, limit: 1, total: 0, totalPages: 1 },
     });
   });
 
@@ -73,10 +91,30 @@ describe('DashboardPage', () => {
     // Card "Renegociados em aberto" vem da fonte da aba (38), nao do status extinto.
     expect(await screen.findByText('38')).toBeInTheDocument();
     expect(getDashboardOperations).not.toHaveBeenCalled();
-    expect(getCollectionCases).not.toHaveBeenCalled();
   });
 
-  it('ERP indisponivel: card de renegociados mostra "Indisponível", nao 0', async () => {
+  it('mostra recuperado após contato e os que pagaram sozinhos separados', async () => {
+    vi.mocked(getDashboardSummary).mockResolvedValue({
+      ...mockDashboardSummaryResponse,
+      metrics: {
+        ...mockDashboardSummaryResponse.metrics,
+        recoveredMonth: '7826.10',
+        recoveredAfterContactMonth: '299.70',
+      },
+    });
+
+    renderWithProviders(<DashboardPage />, {
+      session: createMockSession(),
+    });
+
+    expect(await screen.findByText('Recuperado no mês')).toBeInTheDocument();
+    expect(screen.getByText('R$ 299,70')).toBeInTheDocument();
+    expect(
+      screen.getByText(/R\$ 7\.526,40 pagaram sozinhos/),
+    ).toBeInTheDocument();
+  });
+
+  it('ERP indisponivel: renegociados mostra "—" e aviso, nao 0', async () => {
     vi.mocked(getDashboardSummary).mockResolvedValue(
       mockDashboardSummaryResponse,
     );
@@ -90,7 +128,12 @@ describe('DashboardPage', () => {
       session: createMockSession(),
     });
 
-    expect(await screen.findByText('Indisponível')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('não foi possível carregar')).toBeInTheDocument();
+    });
+    expect(
+      screen.getByRole('button', { name: 'tentar novamente' }),
+    ).toBeInTheDocument();
   });
 
   it('exibe estado de erro quando a API falha', async () => {

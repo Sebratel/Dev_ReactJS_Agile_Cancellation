@@ -1,0 +1,152 @@
+# Stack do Portainer = nome do repositorio no GitHub, em minusculas.
+name: dev_reactjs_agile_cancellation
+
+services:
+  mariadb:
+    init: true
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+    # versao menor FIXA (nao usar tag flutuante): a partir da 11.6.2 o MariaDB liga innodb_snapshot_isolation
+    # (erro 1020 em escritas concorrentes); a API repete essas escritas (retryOnWriteConflict). Ver loadtest/README.md
+    image: mariadb:11.8
+    restart: unless-stopped
+    cpus: ${MARIADB_CPUS:-1.0}
+    mem_limit: ${MARIADB_MEM_LIMIT:-1g}
+    memswap_limit: ${MARIADB_MEM_LIMIT:-1g}
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+      MARIADB_DATABASE: DB_Cancellation_Plataform
+      MARIADB_USER: ${MARIADB_USER}
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD}
+    command:
+      - --innodb-buffer-pool-size=${MARIADB_BUFFER_POOL:-512M}
+      - --max-connections=${MARIADB_MAX_CONNECTIONS:-100}
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ['CMD', 'healthcheck.sh', '--connect', '--innodb_initialized']
+      start_period: 60s
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  backend:
+    init: true
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 4000
+      DATABASE_URL: ${DATABASE_URL:-mysql://${MARIADB_USER}:${MARIADB_PASSWORD}@mariadb:3306/DB_Cancellation_Plataform?connection_limit=5}
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      APP_TIMEZONE: ${APP_TIMEZONE:-UTC}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_AUTH_MODE: ${GOOGLE_AUTH_MODE:-real}
+      GOOGLE_WORKSPACE_DOMAIN: ${GOOGLE_WORKSPACE_DOMAIN:-}
+      TZ: America/Sao_Paulo
+      # heap do V8 = ~75% do mem_limit (ver deploy/profiles)
+      NODE_OPTIONS: --max-old-space-size=${BACKEND_HEAP_MB:-768}
+      DATA_SOURCE_MODE: database
+      PRISMA_AUTO_CONNECT: 'true'
+      ALLOW_DATABASE_UNAVAILABLE: ${ALLOW_DATABASE_UNAVAILABLE:-true}
+      ELEVEN_MODE: ${ELEVEN_MODE:-disabled}
+      N8N_WEBHOOK_SECRET: ${N8N_WEBHOOK_SECRET:-}
+      N8N_MATRIX_HSM_WEBHOOK_URL: ${N8N_MATRIX_HSM_WEBHOOK_URL:-}
+      N8N_MATRIX_HSM_WEBHOOK_SECRET: ${N8N_MATRIX_HSM_WEBHOOK_SECRET:-}
+      N8N_MATRIX_HSM_TIMEOUT_MS: ${N8N_MATRIX_HSM_TIMEOUT_MS:-15000}
+      N8N_RECOVERY_WEBHOOK_URL: ${N8N_RECOVERY_WEBHOOK_URL:-}
+      N8N_RECOVERY_WEBHOOK_SECRET: ${N8N_RECOVERY_WEBHOOK_SECRET:-}
+      N8N_RECOVERY_TIMEOUT_MS: ${N8N_RECOVERY_TIMEOUT_MS:-15000}
+      ERP_SYNC_ENABLED: ${ERP_SYNC_ENABLED:-false}
+      ERP_DB_HOST: ${ERP_DB_HOST:-}
+      ERP_DB_PORT: ${ERP_DB_PORT:-5432}
+      ERP_DB_NAME: ${ERP_DB_NAME:-}
+      ERP_DB_USER: ${ERP_DB_USER:-}
+      ERP_DB_PASSWORD: ${ERP_DB_PASSWORD:-}
+      ERP_DB_SSL: ${ERP_DB_SSL:-false}
+      # banco MySQL do Matrix (status de entrega do HSM); sem estas variaveis o job fica desligado
+      MYSQL_HOST: ${MYSQL_HOST:-}
+      MYSQL_PORT: ${MYSQL_PORT:-3306}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-}
+      MYSQL_USER: ${MYSQL_USER:-}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-}
+    cpus: ${BACKEND_CPUS:-1.0}
+    mem_limit: ${BACKEND_MEM_LIMIT:-1g}
+    memswap_limit: ${BACKEND_MEM_LIMIT:-1g}
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'wget',
+          '--quiet',
+          '--tries=1',
+          '--spider',
+          'http://127.0.0.1:4000/health',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    ports:
+      - '${API_PORT:-4000}:4000'
+
+  frontend:
+    init: true
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
+        VITE_APP_NAME: ${VITE_APP_NAME:-GER - Gestao de Cobranca e Cancelamento}
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
+    restart: unless-stopped
+    cpus: ${FRONTEND_CPUS:-0.5}
+    mem_limit: ${FRONTEND_MEM_LIMIT:-128m}
+    memswap_limit: ${FRONTEND_MEM_LIMIT:-128m}
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'wget',
+          '--quiet',
+          '--tries=1',
+          '--spider',
+          'http://127.0.0.1:8080/',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    ports:
+      - '${WEB_PORT:-80}:8080'
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  db_data:
+    # Nome do volume configuravel: na migracao da stack antiga (agile-cancellation-platform) aponte
+    # DB_VOLUME_NAME=agile-cancellation-platform_db_data para REAPROVEITAR o banco existente (sem copia).
+    # Sem a variavel, usa o nome padrao da stack (identico ao que o Compose criaria).
+    name: ${DB_VOLUME_NAME:-dev_reactjs_agile_cancellation_db_data}

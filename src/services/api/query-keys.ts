@@ -27,6 +27,10 @@ export const queryKeys = {
     recoveryRanking: (period: string) =>
       ['dashboard', 'recovery-ranking', period] as const,
     recoveryRankingAll: ['dashboard', 'recovery-ranking'] as const,
+    caseRecoveryAudit: (caseId: string) =>
+      ['dashboard', 'case-recovery-audit', caseId] as const,
+    recoveryAudit: (userId: string, period: string) =>
+      ['dashboard', 'recovery-audit', userId, period] as const,
     cancellationReasons: ['dashboard', 'cancellation-reasons'] as const,
   },
   collectionCases: {
@@ -36,8 +40,7 @@ export const queryKeys = {
     detail: (caseId: string) => ['collection-cases', 'detail', caseId] as const,
     timeline: (caseId: string) =>
       ['collection-cases', 'timeline', caseId] as const,
-    notes: (caseId: string) =>
-      ['collection-cases', 'notes', caseId] as const,
+    notes: (caseId: string) => ['collection-cases', 'notes', caseId] as const,
     overdueDateSummary: (params: CollectionCasesListParams) =>
       ['collection-cases', 'overdue-date-summary', params] as const,
     portfolios: ['collection-cases', 'portfolios'] as const,
@@ -63,6 +66,7 @@ export const queryKeys = {
     all: ['users'] as const,
     list: (params: UsersListParams) => ['users', 'list', params] as const,
     workload: ['users', 'workload'] as const,
+    cancellationAgents: ['users', 'cancellation-agents'] as const,
   },
   customers: {
     all: ['customers'] as const,

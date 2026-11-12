@@ -6,14 +6,12 @@ import { useGoogleIdentityServices } from '@/features/auth/hooks/use-google-iden
 export function LoginForm() {
   const { loginWithGoogle, errorMessage, clearError } = useAuth();
 
-  const { enabled, loadError, buttonContainerRef } = useGoogleIdentityServices(
-    {
-      onCredential: (idToken) => {
-        clearError();
-        void loginWithGoogle(idToken).catch(() => undefined);
-      },
+  const { enabled, loadError, buttonContainerRef } = useGoogleIdentityServices({
+    onCredential: (idToken) => {
+      clearError();
+      void loginWithGoogle(idToken).catch(() => undefined);
     },
-  );
+  });
 
   useEffect(() => {
     return clearError;

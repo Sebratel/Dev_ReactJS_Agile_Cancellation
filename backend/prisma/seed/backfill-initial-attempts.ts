@@ -30,7 +30,9 @@ async function main() {
   });
 
   if (casesWithoutAutoAttempt.length === 0) {
-    console.log('✅ Nenhum caso pendente — todos já possuem tentativa automática.');
+    console.log(
+      '✅ Nenhum caso pendente — todos já possuem tentativa automática.',
+    );
     return;
   }
 

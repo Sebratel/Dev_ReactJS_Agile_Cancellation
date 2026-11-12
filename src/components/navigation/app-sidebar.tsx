@@ -2,9 +2,10 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { PanelLeftClose } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { UserAvatar } from '@/components/ui/user-avatar';
 import { roleLabels } from '@/features/auth/auth.constants';
 import { useAuth } from '@/features/auth/auth-context';
-import { getRoutesForRole } from '@/features/auth/utils/route-access';
+import { getRoutesForRoles } from '@/features/auth/utils/route-access';
 import { cn } from '@/lib/utils';
 import { theme } from '@/design-system/theme';
 import { type AppRouteItem } from '@/app/router/route-config';
@@ -14,27 +15,13 @@ const NAV_GROUPS: Array<{ key: AppRouteItem['group']; label: string }> = [
   { key: 'gestao', label: 'Gestão' },
 ];
 
-function getUserInitials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-
-  if (parts.length === 0) {
-    return '?';
-  }
-
-  const first = parts[0]?.charAt(0) ?? '';
-  const last =
-    parts.length > 1 ? (parts[parts.length - 1]?.charAt(0) ?? '') : '';
-
-  return `${first}${last}`.toUpperCase() || '?';
-}
-
 type SidebarContentProps = {
   onNavigate?: () => void;
 };
 
 function SidebarContent({ onNavigate }: SidebarContentProps) {
   const { session } = useAuth();
-  const routes = session ? getRoutesForRole(session.user.role) : [];
+  const routes = session ? getRoutesForRoles(session.user.roles) : [];
 
   return (
     <div className="flex h-full flex-col border-r border-border bg-card">
@@ -85,8 +72,8 @@ function SidebarContent({ onNavigate }: SidebarContentProps) {
                       cn(
                         'group relative flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm transition-colors duration-150',
                         isActive
-              ? 'bg-primary/10 font-semibold text-foreground shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.22)]'
-              : 'font-medium text-neutral hover:bg-muted/80 hover:text-foreground',
+                          ? 'bg-primary/10 font-semibold text-foreground shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.22)]'
+                          : 'font-medium text-neutral hover:bg-muted/80 hover:text-foreground',
                       )
                     }
                   >
@@ -95,7 +82,9 @@ function SidebarContent({ onNavigate }: SidebarContentProps) {
                         <span
                           className={cn(
                             'absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-primary transition-[opacity,transform] duration-200',
-                            isActive ? 'opacity-100 scale-y-100' : 'opacity-0 scale-y-50',
+                            isActive
+                              ? 'opacity-100 scale-y-100'
+                              : 'opacity-0 scale-y-50',
                           )}
                           aria-hidden="true"
                         />
@@ -121,18 +110,17 @@ function SidebarContent({ onNavigate }: SidebarContentProps) {
       {session ? (
         <div className="border-t border-border px-4 py-3">
           <div className="flex items-center gap-3">
-            <div
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-foreground"
-              aria-hidden="true"
-            >
-              {getUserInitials(session.user.name)}
-            </div>
+            <UserAvatar
+              name={session.user.name}
+              avatarUrl={session.user.avatarUrl}
+              className="h-8 w-8 text-xs font-semibold"
+            />
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold leading-tight">
                 {session.user.name}
               </p>
               <p className="truncate text-xs text-neutral">
-                {roleLabels[session.user.role]}
+                {session.user.roles.map((role) => roleLabels[role]).join(' · ')}
               </p>
             </div>
           </div>
@@ -166,7 +154,7 @@ export function AppSidebarMobile({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-      <Dialog.Overlay className="fixed inset-0 z-40 bg-foreground/25 backdrop-blur-[2px] data-[state=open]:animate-fade-in data-[state=closed]:animate-fade-out lg:hidden" />
+        <Dialog.Overlay className="fixed inset-0 z-40 bg-foreground/25 backdrop-blur-[2px] data-[state=open]:animate-fade-in data-[state=closed]:animate-fade-out lg:hidden" />
         <Dialog.Content
           className="fixed left-0 top-0 z-50 h-full data-[state=open]:animate-drawer-in-left data-[state=closed]:animate-drawer-out-left lg:hidden"
           style={{ width: theme.sidebarWidth }}

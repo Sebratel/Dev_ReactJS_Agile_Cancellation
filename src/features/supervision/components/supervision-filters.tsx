@@ -1,6 +1,5 @@
 import { ChevronDown, ChevronUp, Search, X } from 'lucide-react';
 import { useState } from 'react';
-import { SectionCard } from '@/components/data-display/section-card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -29,6 +28,8 @@ const STATUS_OPTIONS = [
   'RECOVERED',
   'PAYMENT_MADE',
   'RENEGOTIATED',
+  'CANCELLED_IN_RECOVERY',
+  'REACTIVATED',
   'CLOSED',
 ] as const;
 
@@ -297,12 +298,11 @@ export function SupervisionFilters({
   }
 
   return (
-    <SectionCard
-      title="Filtros"
-      description="Busque pelo cliente, pela data exata de cada vencimento em aberto e pelo status do contrato. Os demais critérios ficam em 'Mais filtros'."
-      contentClassName="space-y-3"
+    <section
+      aria-label="Filtros"
+      className="space-y-3 rounded-xl border border-border bg-card px-4 py-3 shadow-card"
     >
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))_auto]">
         <label className="space-y-1 text-sm">
           <span className={labelClassName}>Cliente</span>
           <div className="relative">
@@ -376,216 +376,269 @@ export function SupervisionFilters({
             ))}
           </Select>
         </label>
+
+        <div className="flex items-end gap-2">
+          <Button
+            variant="secondary"
+            onClick={() => setAdvancedOpen((open) => !open)}
+            aria-expanded={advancedOpen}
+          >
+            {advancedOpen ? (
+              <ChevronUp className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <ChevronDown className="h-4 w-4" aria-hidden="true" />
+            )}
+            Mais filtros
+            {advancedCount > 0 ? (
+              <span
+                className={cn(
+                  'inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary/15 px-1.5 text-xs font-semibold text-foreground',
+                )}
+              >
+                {advancedCount}
+              </span>
+            ) : null}
+          </Button>
+          {hasActiveFilters ? (
+            <Button variant="ghost" onClick={onClearFilters}>
+              Limpar filtros
+            </Button>
+          ) : null}
+        </div>
       </div>
 
-      {advancedOpen ? (
-        <div className="grid gap-3 border-t border-border pt-3 md:grid-cols-2 xl:grid-cols-4">
-          <label className="space-y-1 text-sm">
-            <span className={labelClassName}>Status do caso</span>
-            <Select
-              value={filters.status}
-              onChange={(event) =>
-                onFilterChange({ status: event.target.value, page: 1 })
-              }
-            >
-              <option value="">Todos os status</option>
-              {STATUS_OPTIONS.map((status) => (
-                <option key={status} value={status}>
-                  {getCollectionStatusLabel(status)}
-                </option>
-              ))}
-            </Select>
-          </label>
+      {/* Sempre montado: a altura anima de 0 a 1fr (grid-rows) e o conteúdo some
+          da navegação por teclado quando fechado (visibility). */}
+      <div
+        aria-hidden={!advancedOpen}
+        className={cn(
+          '!mt-0 grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none',
+          advancedOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
+        )}
+      >
+        <div
+          className={cn(
+            'min-h-0 overflow-hidden transition-[opacity,visibility] duration-300 ease-out motion-reduce:transition-none',
+            advancedOpen ? 'visible opacity-100' : 'invisible opacity-0',
+          )}
+        >
+          <div className="mt-3 grid gap-3 border-t border-border pt-3 md:grid-cols-2 xl:grid-cols-4">
+            <label className="space-y-1 text-sm">
+              <span className={labelClassName}>Status do caso</span>
+              <Select
+                value={filters.status}
+                onChange={(event) =>
+                  onFilterChange({ status: event.target.value, page: 1 })
+                }
+              >
+                <option value="">Todos os status</option>
+                {STATUS_OPTIONS.map((status) => (
+                  <option key={status} value={status}>
+                    {getCollectionStatusLabel(status)}
+                  </option>
+                ))}
+              </Select>
+            </label>
 
-          <label className="space-y-1 text-sm">
-            <span className={labelClassName}>Prioridade</span>
-            <Select
-              value={filters.priority}
-              onChange={(event) =>
-                onFilterChange({ priority: event.target.value, page: 1 })
-              }
-            >
-              <option value="">Todas as prioridades</option>
-              {PRIORITY_OPTIONS.map((priority) => (
-                <option key={priority} value={priority}>
-                  {getPriorityLabel(priority)}
-                </option>
-              ))}
-            </Select>
-          </label>
+            <label className="space-y-1 text-sm">
+              <span className={labelClassName}>Prioridade</span>
+              <Select
+                value={filters.priority}
+                onChange={(event) =>
+                  onFilterChange({ priority: event.target.value, page: 1 })
+                }
+              >
+                <option value="">Todas as prioridades</option>
+                {PRIORITY_OPTIONS.map((priority) => (
+                  <option key={priority} value={priority}>
+                    {getPriorityLabel(priority)}
+                  </option>
+                ))}
+              </Select>
+            </label>
 
-          <label className="space-y-1 text-sm">
-            <span className={labelClassName}>SLA</span>
-            <Select
-              value={filters.slaStatus}
-              onChange={(event) =>
-                onFilterChange({ slaStatus: event.target.value, page: 1 })
-              }
-            >
-              <option value="">Todos os SLAs</option>
-              {SLA_STATUS_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </Select>
-          </label>
+            <label className="space-y-1 text-sm">
+              <span className={labelClassName}>SLA</span>
+              <Select
+                value={filters.slaStatus}
+                onChange={(event) =>
+                  onFilterChange({ slaStatus: event.target.value, page: 1 })
+                }
+              >
+                <option value="">Todos os SLAs</option>
+                {SLA_STATUS_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+            </label>
 
-          <label className="space-y-1 text-sm">
-            <span className={labelClassName}>Criados hoje</span>
-            <Select
-              value={filters.createdToday}
-              onChange={(event) =>
-                onFilterChange({ createdToday: event.target.value, page: 1 })
-              }
-            >
-              <option value="">Qualquer data</option>
-              <option value="true">Somente hoje</option>
-            </Select>
-          </label>
+            <label className="space-y-1 text-sm">
+              <span className={labelClassName}>Criados hoje</span>
+              <Select
+                value={filters.createdToday}
+                onChange={(event) =>
+                  onFilterChange({ createdToday: event.target.value, page: 1 })
+                }
+              >
+                <option value="">Qualquer data</option>
+                <option value="true">Somente hoje</option>
+              </Select>
+            </label>
 
-          <label className="space-y-1 text-sm">
-            <span className={labelClassName}>Interação</span>
-            <Select
-              value={filters.interactionStatus}
-              onChange={(event) =>
-                onFilterChange({
-                  interactionStatus: event.target.value,
-                  page: 1,
-                })
-              }
-            >
-              <option value="">Qualquer interação</option>
-              <option value="contacted">Já contatados</option>
-              <option value="not_contacted">Não contatados</option>
-            </Select>
-          </label>
+            <label className="space-y-1 text-sm">
+              <span className={labelClassName}>Interação</span>
+              <Select
+                value={filters.interactionStatus}
+                onChange={(event) =>
+                  onFilterChange({
+                    interactionStatus: event.target.value,
+                    page: 1,
+                  })
+                }
+              >
+                <option value="">Qualquer interação</option>
+                <option value="contacted">Já contatados</option>
+                <option value="not_contacted">Não contatados</option>
+              </Select>
+            </label>
 
-          <label className="space-y-1 text-sm">
-            <span className={labelClassName}>Promessa</span>
-            <Select
-              value={filters.promiseStatus}
-              onChange={(event) =>
-                onFilterChange({ promiseStatus: event.target.value, page: 1 })
-              }
-            >
-              <option value="">Qualquer promessa</option>
-              {PROMISE_STATUS_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </Select>
-          </label>
+            <label className="space-y-1 text-sm">
+              <span className={labelClassName}>Promessa</span>
+              <Select
+                value={filters.promiseStatus}
+                onChange={(event) =>
+                  onFilterChange({ promiseStatus: event.target.value, page: 1 })
+                }
+              >
+                <option value="">Qualquer promessa</option>
+                {PROMISE_STATUS_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+            </label>
 
-          <label className="space-y-1 text-sm">
-            <span className={labelClassName}>Entrega do HSM</span>
-            <Select
-              value={filters.hsmDeliveryState}
-              onChange={(event) =>
-                onFilterChange({ hsmDeliveryState: event.target.value, page: 1 })
-              }
-            >
-              <option value="">Todos</option>
-              {HSM_DELIVERY_STATES.map((state) => (
-                <option key={state} value={state}>
-                  {getHsmDeliveryFilterLabel(state)}
-                </option>
-              ))}
-            </Select>
-          </label>
+            <label className="space-y-1 text-sm">
+              <span className={labelClassName}>Entrega do HSM</span>
+              <Select
+                value={filters.hsmDeliveryState}
+                onChange={(event) =>
+                  onFilterChange({
+                    hsmDeliveryState: event.target.value,
+                    page: 1,
+                  })
+                }
+              >
+                <option value="">Todos</option>
+                {HSM_DELIVERY_STATES.map((state) => (
+                  <option key={state} value={state}>
+                    {getHsmDeliveryFilterLabel(state)}
+                  </option>
+                ))}
+              </Select>
+            </label>
 
-          <label className="space-y-1 text-sm">
-            <span className={labelClassName}>Origem</span>
-            <Select
-              value={filters.origin}
-              onChange={(event) =>
-                onFilterChange({ origin: event.target.value, page: 1 })
-              }
-            >
-              <option value="">Todas as origens</option>
-              <option value="PRE_COLLECTION">Pré-cobrança</option>
-              <option value="ERP_SYNC">Cobrança</option>
-            </Select>
-          </label>
+            <label className="space-y-1 text-sm">
+              <span className={labelClassName}>Origem</span>
+              <Select
+                value={filters.origin}
+                onChange={(event) =>
+                  onFilterChange({ origin: event.target.value, page: 1 })
+                }
+              >
+                <option value="">Todas as origens</option>
+                <option value="PRE_COLLECTION">Pré-cobrança</option>
+                <option value="ERP_SYNC">Cobrança</option>
+              </Select>
+            </label>
 
-          <label className="space-y-1 text-sm">
-            <span className={labelClassName}>Dias em atraso (min)</span>
-            <Input
-              inputMode="numeric"
-              placeholder="Ex.: 30"
-              value={filters.daysOverdueMin}
-              onChange={(event) =>
-                onFilterChange({ daysOverdueMin: event.target.value, page: 1 })
-              }
-            />
-          </label>
+            <label className="space-y-1 text-sm">
+              <span className={labelClassName}>Dias em atraso (min)</span>
+              <Input
+                inputMode="numeric"
+                placeholder="Ex.: 30"
+                value={filters.daysOverdueMin}
+                onChange={(event) =>
+                  onFilterChange({
+                    daysOverdueMin: event.target.value,
+                    page: 1,
+                  })
+                }
+              />
+            </label>
 
-          <label className="space-y-1 text-sm">
-            <span className={labelClassName}>Dias em atraso (max)</span>
-            <Input
-              inputMode="numeric"
-              placeholder="Ex.: 120"
-              value={filters.daysOverdueMax}
-              onChange={(event) =>
-                onFilterChange({ daysOverdueMax: event.target.value, page: 1 })
-              }
-            />
-          </label>
+            <label className="space-y-1 text-sm">
+              <span className={labelClassName}>Dias em atraso (max)</span>
+              <Input
+                inputMode="numeric"
+                placeholder="Ex.: 120"
+                value={filters.daysOverdueMax}
+                onChange={(event) =>
+                  onFilterChange({
+                    daysOverdueMax: event.target.value,
+                    page: 1,
+                  })
+                }
+              />
+            </label>
 
-          <label className="space-y-1 text-sm">
-            <span className={labelClassName}>Valor em aberto (min)</span>
-            <Input
-              inputMode="decimal"
-              placeholder="Ex.: 1000"
-              value={filters.totalOutstandingMin}
-              onChange={(event) =>
-                onFilterChange({
-                  totalOutstandingMin: event.target.value,
-                  page: 1,
-                })
-              }
-            />
-          </label>
+            <label className="space-y-1 text-sm">
+              <span className={labelClassName}>Valor em aberto (min)</span>
+              <Input
+                inputMode="decimal"
+                placeholder="Ex.: 1000"
+                value={filters.totalOutstandingMin}
+                onChange={(event) =>
+                  onFilterChange({
+                    totalOutstandingMin: event.target.value,
+                    page: 1,
+                  })
+                }
+              />
+            </label>
 
-          <label className="space-y-1 text-sm">
-            <span className={labelClassName}>Valor em aberto (max)</span>
-            <Input
-              inputMode="decimal"
-              placeholder="Ex.: 20000"
-              value={filters.totalOutstandingMax}
-              onChange={(event) =>
-                onFilterChange({
-                  totalOutstandingMax: event.target.value,
-                  page: 1,
-                })
-              }
-            />
-          </label>
+            <label className="space-y-1 text-sm">
+              <span className={labelClassName}>Valor em aberto (max)</span>
+              <Input
+                inputMode="decimal"
+                placeholder="Ex.: 20000"
+                value={filters.totalOutstandingMax}
+                onChange={(event) =>
+                  onFilterChange({
+                    totalOutstandingMax: event.target.value,
+                    page: 1,
+                  })
+                }
+              />
+            </label>
 
-          <label className="space-y-1 text-sm">
-            <span className={labelClassName}>Atribuído de</span>
-            <Input
-              type="date"
-              value={filters.assignedFrom}
-              onChange={(event) =>
-                onFilterChange({ assignedFrom: event.target.value, page: 1 })
-              }
-            />
-          </label>
+            <label className="space-y-1 text-sm">
+              <span className={labelClassName}>Atribuído de</span>
+              <Input
+                type="date"
+                value={filters.assignedFrom}
+                onChange={(event) =>
+                  onFilterChange({ assignedFrom: event.target.value, page: 1 })
+                }
+              />
+            </label>
 
-          <label className="space-y-1 text-sm">
-            <span className={labelClassName}>Atribuído até</span>
-            <Input
-              type="date"
-              value={filters.assignedTo}
-              onChange={(event) =>
-                onFilterChange({ assignedTo: event.target.value, page: 1 })
-              }
-            />
-          </label>
+            <label className="space-y-1 text-sm">
+              <span className={labelClassName}>Atribuído até</span>
+              <Input
+                type="date"
+                value={filters.assignedTo}
+                onChange={(event) =>
+                  onFilterChange({ assignedTo: event.target.value, page: 1 })
+                }
+              />
+            </label>
+          </div>
         </div>
-      ) : null}
+      </div>
 
       {chips.length > 0 ? (
         <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
@@ -606,36 +659,6 @@ export function SupervisionFilters({
           ))}
         </div>
       ) : null}
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setAdvancedOpen((open) => !open)}
-          aria-expanded={advancedOpen}
-        >
-          {advancedOpen ? (
-            <ChevronUp className="h-4 w-4" aria-hidden="true" />
-          ) : (
-            <ChevronDown className="h-4 w-4" aria-hidden="true" />
-          )}
-          Mais filtros
-          {advancedCount > 0 ? (
-            <span
-              className={cn(
-                'inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary/15 px-1.5 text-xs font-semibold text-foreground',
-              )}
-            >
-              {advancedCount}
-            </span>
-          ) : null}
-        </Button>
-        {hasActiveFilters ? (
-          <Button variant="secondary" size="sm" onClick={onClearFilters}>
-            Limpar filtros
-          </Button>
-        ) : null}
-      </div>
-    </SectionCard>
+    </section>
   );
 }

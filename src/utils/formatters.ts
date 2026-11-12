@@ -53,6 +53,32 @@ export function formatDateTimePtBR(value: Date | string | number) {
   return dateTimeFormatter.format(new Date(value));
 }
 
+// "há 3 dias", "há 2 h", "agora" — leitura rápida em listas; o horário exato
+// fica no tooltip de quem usa.
+export function formatRelativeTimePtBR(
+  value: Date | string | number,
+  now: Date = new Date(),
+) {
+  const diffMs = now.getTime() - new Date(value).getTime();
+
+  if (Number.isNaN(diffMs)) {
+    return '—';
+  }
+
+  const minutes = Math.floor(diffMs / 60_000);
+
+  if (minutes < 1) return 'agora';
+  if (minutes < 60) return `há ${minutes} min`;
+
+  const hours = Math.floor(minutes / 60);
+
+  if (hours < 24) return `há ${hours} h`;
+
+  const days = Math.floor(hours / 24);
+
+  return days === 1 ? 'há 1 dia' : `há ${days} dias`;
+}
+
 export function formatCurrencyFromDecimalString(value: string) {
   const parsed = Number(value);
 

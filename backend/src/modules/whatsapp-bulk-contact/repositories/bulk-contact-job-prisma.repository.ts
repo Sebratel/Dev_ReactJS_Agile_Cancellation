@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { createPaginatedResponse } from '@/common/pagination/paginated-response';
+import { retryOnWriteConflict } from '@/common/utils/retry-on-write-conflict.util';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import type { BulkContactJobResponse } from '@/modules/whatsapp-bulk-contact/dto/bulk-contact-job.response';
 import type {
@@ -122,30 +123,36 @@ export class BulkContactJobPrismaRepository implements BulkContactJobRepository 
           ? 'failedCount'
           : 'skippedCount';
 
-    await this.prisma.$transaction(async (tx) => {
-      await tx.bulkContactJobItem.update({
-        where: { id: itemId },
-        data: { status, errorMessage: errorMessage ?? null, processedAt: now },
-      });
+    await retryOnWriteConflict(() =>
+      this.prisma.$transaction(async (tx) => {
+        await tx.bulkContactJobItem.update({
+          where: { id: itemId },
+          data: {
+            status,
+            errorMessage: errorMessage ?? null,
+            processedAt: now,
+          },
+        });
 
-      const currentJob = await tx.bulkContactJob.findUniqueOrThrow({
-        where: { id: jobId },
-        select: { startedAt: true },
-      });
+        const currentJob = await tx.bulkContactJob.findUniqueOrThrow({
+          where: { id: jobId },
+          select: { startedAt: true },
+        });
 
-      const remainingCount = await tx.bulkContactJobItem.count({
-        where: { jobId, status: 'PENDING' },
-      });
+        const remainingCount = await tx.bulkContactJobItem.count({
+          where: { jobId, status: 'PENDING' },
+        });
 
-      await tx.bulkContactJob.update({
-        where: { id: jobId },
-        data: {
-          [counterField]: { increment: 1 },
-          startedAt: currentJob.startedAt ?? now,
-          status: remainingCount === 0 ? 'COMPLETED' : 'PROCESSING',
-          finishedAt: remainingCount === 0 ? now : undefined,
-        },
-      });
-    });
+        await tx.bulkContactJob.update({
+          where: { id: jobId },
+          data: {
+            [counterField]: { increment: 1 },
+            startedAt: currentJob.startedAt ?? now,
+            status: remainingCount === 0 ? 'COMPLETED' : 'PROCESSING',
+            finishedAt: remainingCount === 0 ? now : undefined,
+          },
+        });
+      }),
+    );
   }
 }

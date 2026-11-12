@@ -1,4 +1,8 @@
-export type PaymentPromiseStatus = 'ACTIVE' | 'FULFILLED' | 'BROKEN' | 'CANCELLED';
+export type PaymentPromiseStatus =
+  | 'ACTIVE'
+  | 'FULFILLED'
+  | 'BROKEN'
+  | 'CANCELLED';
 
 export type PaymentPromiseListItemResponse = {
   id: string;
@@ -12,6 +16,9 @@ export type PaymentPromiseListItemResponse = {
   cancelledAt: string | null;
   createdAt: string;
   isOverdue: boolean;
+  // Situação atual do caso e quando foi retido/regularizado (se foi).
+  caseStatus: string;
+  caseRecoveredAt: string | null;
   customer: {
     id: string;
     name: string;
@@ -31,12 +38,23 @@ export type PaymentPromiseListItemResponse = {
 export type PaymentPromisesSummaryResponse = {
   active: number;
   overdue: number;
+  // Dentre as vencidas, as de clientes que já pagaram (retido ou pago).
+  overduePaid: number;
   fulfilledThisMonth: number;
   brokenThisMonth: number;
 };
 
+export type PromiseCaseSituation =
+  | 'PAID'
+  | 'RECOVERED'
+  | 'PAYMENT_MADE'
+  | 'IN_COLLECTION'
+  | 'CANCELLATION'
+  | 'CLOSED';
+
 export type PaymentPromisesListParams = {
   status?: PaymentPromiseStatus | '';
+  caseSituation?: PromiseCaseSituation | '';
   from?: string;
   to?: string;
   assignedUserId?: string;

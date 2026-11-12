@@ -9,13 +9,16 @@ export type ListPaymentPromisesParams = {
   from?: string;
   to?: string;
   assignedUserId?: string;
+  caseSituation?: string;
   search?: string;
   page: number;
   limit: number;
 };
 
 export interface PaymentPromisesRepository {
-  list(params: ListPaymentPromisesParams): Promise<PaginatedResponse<PaymentPromiseListItemResponse>>;
+  list(
+    params: ListPaymentPromisesParams,
+  ): Promise<PaginatedResponse<PaymentPromiseListItemResponse>>;
   getSummary(): Promise<PaymentPromisesSummaryResponse>;
 }
 

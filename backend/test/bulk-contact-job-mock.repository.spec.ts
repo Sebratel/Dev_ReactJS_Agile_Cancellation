@@ -22,9 +22,9 @@ describe('BulkContactJobMockRepository', () => {
     const pending = await repository.getPendingItems(10);
     expect(pending).toHaveLength(2);
     expect(pending.every((item) => item.jobId === job.id)).toBe(true);
-    expect(pending.every((item) => item.createdByUserId === 'usr_supervisor')).toBe(
-      true,
-    );
+    expect(
+      pending.every((item) => item.createdByUserId === 'usr_supervisor'),
+    ).toBe(true);
   });
 
   it('retorna null para job inexistente', async () => {

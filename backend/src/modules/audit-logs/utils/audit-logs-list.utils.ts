@@ -1,7 +1,9 @@
 import { AuditAction, type Prisma } from '@prisma/client';
+import type { AuditLogCategoryFilter } from '@/modules/audit-logs/dto/audit-logs-query.dto';
 import type { AuditLogListItemResponse } from '@/modules/audit-logs/dto/audit-log-list-item.response';
 import type { AuditLogsListParams } from '@/modules/audit-logs/repositories/audit-logs.repository';
 import { sanitizeAuditMetadata } from '@/modules/audit-logs/utils/audit-log-sanitize.util';
+import { resolveAuditLogPresentation } from '@/modules/audit-logs/utils/audit-log-presentation.util';
 import { resolveAuditLogSummary } from '@/modules/audit-logs/utils/audit-log-summary.util';
 
 export const AUDIT_LOGS_DEFAULT_LIMIT = 20;
@@ -30,10 +32,77 @@ function isAuditAction(value: string): value is AuditAction {
   return Object.values(AuditAction).includes(value as AuditAction);
 }
 
+function metaEquals(path: string, value: string): Prisma.AuditLogWhereInput {
+  return { metadata: { path, equals: value } };
+}
+
+function buildCategoryWhere(
+  category: AuditLogCategoryFilter,
+): Prisma.AuditLogWhereInput {
+  switch (category) {
+    case 'CONTACT':
+      return {
+        OR: [
+          {
+            action: AuditAction.INTEGRATION,
+            ...metaEquals('$.resourceType', 'COLLECTION_ATTEMPT'),
+          },
+          {
+            action: AuditAction.CREATE,
+            // Tentativas de contato guardam attemptId (cuid, começa com "c").
+            metadata: { path: '$.attemptId', string_starts_with: 'c' },
+          },
+        ],
+      };
+    case 'PROMISE':
+      return metaEquals('$.resourceType', 'PAYMENT_PROMISE');
+    case 'CANCELLATION':
+      return {
+        OR: [
+          metaEquals('$.resourceType', 'CANCELLATION_PROCESS'),
+          metaEquals('$.resourceType', 'CANCELLATION_STEP'),
+          metaEquals('$.action', 'REVERT_CANCELLATION'),
+          metaEquals('$.action', 'RECOVER_CANCELLED'),
+          metaEquals('$.action', 'CANCELLED_RECOVERY_RECOVERED'),
+          metaEquals('$.action', 'CANCELLED_RECOVERY_REACTIVATED'),
+        ],
+      };
+    case 'ACCESS':
+      return {
+        action: { in: [AuditAction.LOGIN, AuditAction.LOGOUT] },
+      };
+    case 'EXPORT':
+      return { action: AuditAction.EXPORT };
+    case 'NOTE':
+      return metaEquals('$.resourceType', 'CASE_NOTE');
+    case 'ADMIN':
+      return {
+        OR: [
+          metaEquals('$.resourceType', 'USER'),
+          metaEquals('$.resourceType', 'SETTING'),
+        ],
+      };
+    case 'MESSAGE':
+      return metaEquals('$.resourceType', 'BULK_CONTACT_JOB');
+    case 'ASSIGNMENT':
+      return {
+        action: AuditAction.UPDATE,
+        ...metaEquals('$.field', 'assignedUserId'),
+      };
+  }
+}
+
+// `extraEntityIds`: casos cujo cliente/contrato bate com a busca — a busca
+// textual também encontra registros pelo nome do cliente ou código do contrato.
 export function buildAuditLogsWhere(
   params: AuditLogsListParams,
+  extraEntityIds: string[] = [],
 ): Prisma.AuditLogWhereInput {
   const where: Prisma.AuditLogWhereInput = {};
+
+  if (params.category) {
+    where.AND = [buildCategoryWhere(params.category)];
+  }
 
   if (params.actorId) {
     where.performedByUserId = params.actorId;
@@ -88,6 +157,10 @@ export function buildAuditLogsWhere(
       orFilters.push({ action: search });
     }
 
+    if (extraEntityIds.length > 0) {
+      orFilters.push({ entityId: { in: extraEntityIds } });
+    }
+
     where.OR = orFilters;
   }
 
@@ -100,18 +173,39 @@ type AuditLogRecordLike = {
   entityId: string;
   action: string;
   metadata?: unknown;
+  beforeSnapshot?: unknown;
+  afterSnapshot?: unknown;
   createdAt: Date | string;
   performedBy?: {
     id: string;
     name: string;
     email: string;
+    avatarUrl?: string | null;
   } | null;
+};
+
+export type AuditLogMapContext = {
+  // Cliente/contrato por id do caso de cobrança.
+  subjects?: ReadonlyMap<
+    string,
+    { customerName: string; contractCode: string | null }
+  >;
+  // Nomes de usuários citados nos snapshots (ex.: nova responsável).
+  userNames?: ReadonlyMap<string, string>;
 };
 
 export function mapAuditLogRecord(
   record: AuditLogRecordLike,
+  context: AuditLogMapContext = {},
 ): AuditLogListItemResponse {
   const metadata = sanitizeAuditMetadata(record.metadata);
+  const presentation = resolveAuditLogPresentation({
+    action: record.action,
+    metadata,
+    beforeSnapshot: record.beforeSnapshot,
+    afterSnapshot: record.afterSnapshot,
+    userNames: context.userNames,
+  });
 
   return {
     id: record.id,
@@ -120,12 +214,25 @@ export function mapAuditLogRecord(
           id: record.performedBy.id,
           name: record.performedBy.name,
           email: record.performedBy.email,
+          avatarUrl: record.performedBy.avatarUrl ?? null,
         }
       : null,
+    actorLabel: record.performedBy
+      ? null
+      : typeof metadata.email === 'string'
+        ? metadata.email
+        : null,
     entityType: record.entityType,
     entityId: record.entityId,
     action: record.action,
     summary: resolveAuditLogSummary(record.action, metadata),
+    category: presentation.category,
+    verb: presentation.verb,
+    detail: presentation.detail,
+    subject:
+      record.entityType === 'COLLECTION_CASE'
+        ? (context.subjects?.get(record.entityId) ?? null)
+        : null,
     createdAt:
       record.createdAt instanceof Date
         ? record.createdAt.toISOString()

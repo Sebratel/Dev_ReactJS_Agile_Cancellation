@@ -94,7 +94,9 @@ export function BulkContactWhatsAppAction({
                   Isso vai disparar a mensagem HSM do WhatsApp para{' '}
                   <strong>
                     {caseIds.length}{' '}
-                    {caseIds.length === 1 ? 'caso selecionado' : 'casos selecionados'}
+                    {caseIds.length === 1
+                      ? 'caso selecionado'
+                      : 'casos selecionados'}
                   </strong>
                   . Casos sem telefone válido ou com status não elegível são
                   pulados automaticamente.

@@ -5,15 +5,29 @@ import { Button } from '@/components/ui/button';
 // Nota explicativa (em popup) para a supervisao entender de onde vem as
 // notificacoes de "cliente regularizado" — quando disparam e para quem. O
 // gatilho fica no cabecalho; o conteudo e apenas informativo.
-export function RecoveryNotificationsInfo() {
+type RecoveryNotificationsInfoProps = {
+  // Quando informado, o diálogo é controlado de fora (ex.: aberto por um item
+  // de menu) e o botão próprio não é exibido.
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+};
+
+export function RecoveryNotificationsInfo({
+  open,
+  onOpenChange,
+}: RecoveryNotificationsInfoProps = {}) {
+  const controlled = open !== undefined;
+
   return (
-    <Dialog.Root>
-      <Dialog.Trigger asChild>
-        <Button variant="secondary">
-          <Info className="h-4 w-4" />
-          Sobre as notificações
-        </Button>
-      </Dialog.Trigger>
+    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+      {controlled ? null : (
+        <Dialog.Trigger asChild>
+          <Button variant="secondary">
+            <Info className="h-4 w-4" />
+            Sobre as notificações
+          </Button>
+        </Dialog.Trigger>
+      )}
 
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-foreground/20 data-[state=open]:animate-fade-in data-[state=closed]:animate-fade-out" />
@@ -58,8 +72,8 @@ export function RecoveryNotificationsInfo() {
                 <span>
                   <strong className="text-foreground">A supervisão</strong>{' '}
                   (você e os demais supervisores) recebe um{' '}
-                  <strong className="text-foreground">resumo</strong> de todos os
-                  clientes que se regularizaram na rodada — sino e e-mail.
+                  <strong className="text-foreground">resumo</strong> de todos
+                  os clientes que se regularizaram na rodada — sino e e-mail.
                 </span>
               </li>
               <li className="flex gap-2">

@@ -1,5 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { isInteractiveTarget } from '@/features/collection-cases/utils/case-row-presentation';
 import {
   AlertTriangle,
   ArrowDown,
@@ -71,6 +72,7 @@ function SortIndicator({
 }
 
 export default function CustomersPage() {
+  const navigate = useNavigate();
   const tableShellRef = useRef<HTMLDivElement>(null);
   const lastPageChangePosition = useRef<{
     windowY: number;
@@ -96,7 +98,10 @@ export default function CustomersPage() {
 
   const customersQuery = useCustomers(params);
 
-  const items = useMemo(() => customersQuery.data?.items ?? [], [customersQuery.data]);
+  const items = useMemo(
+    () => customersQuery.data?.items ?? [],
+    [customersQuery.data],
+  );
   const totalCustomers = customersQuery.data?.pagination.total ?? 0;
   const totalPages = Math.max(
     customersQuery.data?.pagination.totalPages ?? 1,
@@ -145,9 +150,10 @@ export default function CustomersPage() {
     if (!position) return;
 
     const restorePosition = () => {
-      const tableContainer = tableShellRef.current?.querySelector<HTMLDivElement>(
-        '[data-customers-table-scroll]',
-      );
+      const tableContainer =
+        tableShellRef.current?.querySelector<HTMLDivElement>(
+          '[data-customers-table-scroll]',
+        );
       if (tableContainer) {
         tableContainer.scrollTop = position.tableY;
       }
@@ -325,7 +331,15 @@ export default function CustomersPage() {
               </TableHead>
               <TableBody>
                 {items.map((customer) => (
-                  <TableRow key={customer.id}>
+                  <TableRow
+                    key={customer.id}
+                    className="cursor-pointer"
+                    onClick={(event) => {
+                      if (!isInteractiveTarget(event.target)) {
+                        void navigate(`/clientes/${customer.id}`);
+                      }
+                    }}
+                  >
                     <TableCell className="font-medium">
                       <Link
                         to={`/clientes/${customer.id}`}
@@ -346,7 +360,9 @@ export default function CustomersPage() {
                     <TableCell numeric>
                       {customer.overdueInvoicesCount > 0 ? (
                         <span className="font-medium text-danger">
-                          {formatCurrencyFromDecimalString(customer.overdueAmount)}
+                          {formatCurrencyFromDecimalString(
+                            customer.overdueAmount,
+                          )}
                           <span className="ml-1 text-xs font-normal text-danger/70">
                             ({formatInteger(customer.overdueInvoicesCount)})
                           </span>

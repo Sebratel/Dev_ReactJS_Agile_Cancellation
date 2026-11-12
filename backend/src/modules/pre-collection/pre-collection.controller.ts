@@ -1,5 +1,4 @@
-import { Controller, Get, HttpCode, Post, Query, Req } from '@nestjs/common';
-import type { Request } from 'express';
+import { Controller, Get, HttpCode, Post, Query } from '@nestjs/common';
 import { Roles } from '@/modules/auth/decorators/roles.decorator';
 import { createApiResponse } from '@/common/responses/api-response';
 import { PreCollectionService } from '@/modules/pre-collection/pre-collection.service';
@@ -19,9 +18,8 @@ export class PreCollectionController {
   @Roles('ADMIN', 'SUPERVISOR')
   @Post('distribute')
   @HttpCode(200)
-  async distribute(@Req() req: Request) {
-    const user = req.user as { id: string } | undefined;
-    const result = await this.service.distribute(user?.id ?? 'system');
+  async distribute() {
+    const result = await this.service.distribute();
     return createApiResponse(result);
   }
 }

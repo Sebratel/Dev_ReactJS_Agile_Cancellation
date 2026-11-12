@@ -1,14 +1,20 @@
 import { Search } from 'lucide-react';
-import { SectionCard } from '@/components/data-display/section-card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
+import { type UserResponse } from '@/features/users/types/users-api.types';
 import {
-  AUDIT_LOG_ACTION_OPTIONS,
-  AUDIT_LOG_ENTITY_TYPE_OPTIONS,
-} from '@/features/auditoria/types/auditoria-api.types';
+  AUDIT_CATEGORY_FILTER_OPTIONS,
+  AUDIT_PERIOD_PRESETS,
+  getActivePeriodPreset,
+  getPeriodPresetRange,
+} from '@/features/auditoria/utils/auditoria-presentation';
 import { type AuditoriaFiltersState } from '@/features/auditoria/utils/auditoria-search-params';
 
 type AuditoriaFiltersProps = {
   filters: AuditoriaFiltersState;
+  actors: UserResponse[];
   searchInput: string;
   onSearchInputChange: (value: string) => void;
   onFilterChange: (changes: Partial<AuditoriaFiltersState>) => void;
@@ -16,134 +22,150 @@ type AuditoriaFiltersProps = {
   hasActiveFilters: boolean;
 };
 
-const selectClassName =
-  'w-full rounded-xl border border-border bg-card px-3 py-2 text-sm text-foreground outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-primary';
-
-const inputClassName =
-  'w-full rounded-xl border border-border bg-card px-3 py-2 text-sm text-foreground outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-primary';
-
 const labelClassName = 'text-xs font-medium text-neutral';
+
+const chipClassName =
+  'rounded-full border px-3 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40';
 
 export function AuditoriaFilters({
   filters,
+  actors,
   searchInput,
   onSearchInputChange,
   onFilterChange,
   onClearFilters,
   hasActiveFilters,
 }: AuditoriaFiltersProps) {
+  const activePreset = getActivePeriodPreset(
+    filters.startDate,
+    filters.endDate,
+  );
+
   return (
-    <SectionCard
-      title="Filtros"
-      description="Busca textual, usuário, entidade, ação e período."
-      contentClassName="space-y-3"
-    >
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <label className="space-y-1.5 text-sm md:col-span-2 xl:col-span-2">
-          <span className={labelClassName}>Busca</span>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="w-64 space-y-1 text-sm">
+          <span className={labelClassName}>Quem fez</span>
+          <Select
+            value={filters.actorId}
+            onChange={(event) =>
+              onFilterChange({ actorId: event.target.value, page: 1 })
+            }
+          >
+            <option value="">Todos os colaboradores</option>
+            {actors.map((actor) => (
+              <option key={actor.id} value={actor.id}>
+                {actor.name}
+              </option>
+            ))}
+          </Select>
+        </label>
+
+        <label className="min-w-[240px] flex-1 space-y-1 text-sm md:max-w-md">
+          <span className={labelClassName}>Cliente ou contrato</span>
           <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral" />
-            <input
-              className={`${inputClassName} pl-9`}
-              placeholder="Entidade, ação, usuário..."
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral"
+              aria-hidden="true"
+            />
+            <Input
+              className="pl-9"
+              placeholder="Buscar por nome do cliente ou contrato"
               value={searchInput}
               onChange={(event) => onSearchInputChange(event.target.value)}
             />
           </div>
         </label>
 
-        <label className="space-y-1.5 text-sm">
-          <span className={labelClassName}>ID do ator</span>
-          <input
-            className={inputClassName}
-            placeholder="ID do usuário"
-            value={filters.actorId}
-            onChange={(event) =>
-              onFilterChange({ actorId: event.target.value, page: 1 })
-            }
-          />
-        </label>
+        <div className="space-y-1 text-sm">
+          <span className={labelClassName}>Período</span>
+          <div className="flex flex-wrap items-center gap-2">
+            {AUDIT_PERIOD_PRESETS.map((preset) => {
+              const active = activePreset === preset.value;
 
-        <label className="space-y-1.5 text-sm">
-          <span className={labelClassName}>Entidade</span>
-          <select
-            className={selectClassName}
-            value={filters.entityType}
-            onChange={(event) =>
-              onFilterChange({ entityType: event.target.value, page: 1 })
-            }
-          >
-            <option value="">Todas as entidades</option>
-            {AUDIT_LOG_ENTITY_TYPE_OPTIONS.map((entityType) => (
-              <option key={entityType} value={entityType}>
-                {entityType}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="space-y-1.5 text-sm">
-          <span className={labelClassName}>ID da entidade</span>
-          <input
-            className={inputClassName}
-            placeholder="ID da entidade"
-            value={filters.entityId}
-            onChange={(event) =>
-              onFilterChange({ entityId: event.target.value, page: 1 })
-            }
-          />
-        </label>
-
-        <label className="space-y-1.5 text-sm">
-          <span className={labelClassName}>Ação</span>
-          <select
-            className={selectClassName}
-            value={filters.action}
-            onChange={(event) =>
-              onFilterChange({ action: event.target.value, page: 1 })
-            }
-          >
-            <option value="">Todas as ações</option>
-            {AUDIT_LOG_ACTION_OPTIONS.map((action) => (
-              <option key={action} value={action}>
-                {action}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="space-y-1.5 text-sm">
-          <span className={labelClassName}>Período inicial</span>
-          <input
-            type="date"
-            className={inputClassName}
-            value={filters.startDate}
-            onChange={(event) =>
-              onFilterChange({ startDate: event.target.value, page: 1 })
-            }
-          />
-        </label>
-
-        <label className="space-y-1.5 text-sm">
-          <span className={labelClassName}>Período final</span>
-          <input
-            type="date"
-            className={inputClassName}
-            value={filters.endDate}
-            onChange={(event) =>
-              onFilterChange({ endDate: event.target.value, page: 1 })
-            }
-          />
-        </label>
+              return (
+                <button
+                  key={preset.value}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() =>
+                    onFilterChange({
+                      ...getPeriodPresetRange(preset.value),
+                      page: 1,
+                    })
+                  }
+                  className={cn(
+                    chipClassName,
+                    active
+                      ? 'border-primary/50 bg-primary/15 text-foreground'
+                      : 'border-border bg-card text-neutral hover:text-foreground',
+                  )}
+                >
+                  {preset.label}
+                </button>
+              );
+            })}
+            <Input
+              type="date"
+              aria-label="Período inicial"
+              className="w-40"
+              value={filters.startDate}
+              onChange={(event) =>
+                onFilterChange({ startDate: event.target.value, page: 1 })
+              }
+            />
+            <span className="text-neutral" aria-hidden="true">
+              até
+            </span>
+            <Input
+              type="date"
+              aria-label="Período final"
+              className="w-40"
+              value={filters.endDate}
+              onChange={(event) =>
+                onFilterChange({ endDate: event.target.value, page: 1 })
+              }
+            />
+          </div>
+        </div>
       </div>
 
-      {hasActiveFilters ? (
-        <div className="flex justify-end">
-          <Button variant="secondary" onClick={onClearFilters}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div
+          role="group"
+          aria-label="Tipo de ação"
+          className="inline-flex flex-wrap rounded-lg border border-border bg-card p-0.5"
+        >
+          {AUDIT_CATEGORY_FILTER_OPTIONS.map((option) => {
+            const active = filters.category === option.value;
+
+            return (
+              <button
+                key={option.value || 'all'}
+                type="button"
+                aria-pressed={active}
+                onClick={() =>
+                  onFilterChange({ category: option.value, page: 1 })
+                }
+                className={cn(
+                  'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                  active
+                    ? 'bg-primary/15 text-foreground'
+                    : 'text-neutral hover:text-foreground',
+                )}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {hasActiveFilters ? (
+          <Button variant="secondary" size="sm" onClick={onClearFilters}>
             Limpar filtros
           </Button>
-        </div>
-      ) : null}
-    </SectionCard>
+        ) : null}
+      </div>
+    </div>
   );
 }

@@ -1,140 +1,185 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  CheckCircle,
-  RefreshCw,
-  TrendingUp,
-  UserX,
-} from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { RefreshCw, TrendingUp, UserX } from 'lucide-react';
 import { MetricCard } from '@/components/data-display/metric-card';
 import { PageHeader } from '@/components/data-display/page-header';
 import { PageContainer } from '@/components/navigation/page-container';
-import { SectionCard } from '@/components/data-display/section-card';
-import { StatusBadge } from '@/components/data-display/status-badge';
 import { EmptyState } from '@/components/feedback/empty-state';
 import { ErrorState } from '@/components/feedback/error-state';
 import { TableSkeleton } from '@/components/feedback/table-skeleton';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Pagination } from '@/components/ui/pagination';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableHeaderCell,
-  TableRow,
-} from '@/components/ui/table';
+import { Select } from '@/components/ui/select';
+import { useAuth } from '@/features/auth/auth-context';
+import { CancelledClientsTable } from '@/features/cancelled-clients/components/cancelled-clients-table';
+import { canReopenCancelled } from '@/features/cancelled-clients/utils/can-reopen-cancelled';
+import { ReopenCancelledBar } from '@/features/cancelled-clients/components/reopen-cancelled-bar';
+import { useReopenCancelled } from '@/features/cancelled-clients/hooks/use-reopen-cancelled';
+import { useCancellationReasons } from '@/features/dashboard/hooks/use-cancellation-reasons';
 import { useCollectionCases } from '@/features/collection-cases/hooks/use-collection-cases';
-import { useRecoverCancelled } from '@/features/cancelled-clients/hooks/use-recover-cancelled';
-import {
-  getCollectionStatusLabel,
-  getCollectionStatusVariant,
-} from '@/features/collection-cases/utils/collection-case-labels';
+import { useUsers } from '@/features/users/hooks/use-users';
+import { useUsersWorkload } from '@/features/users/hooks/use-users-workload';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
-import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
+import { toast } from '@/lib/toast';
 import { ApiError } from '@/services/api/api-error';
-import {
-  formatCurrencyFromDecimalString,
-  formatDatePtBR,
-  formatInteger,
-} from '@/utils/formatters';
-import type { CollectionCaseListItemResponse } from '@/features/collection-cases/types/collection-cases-api.types';
+import { formatInteger } from '@/utils/formatters';
 
 const DEFAULT_LIMIT = 10;
 
-function ConfirmRecoverDialog({
-  item,
-  onConfirm,
-  onCancel,
-  isPending,
-}: {
-  item: CollectionCaseListItemResponse;
-  onConfirm: () => void;
-  onCancel: () => void;
-  isPending: boolean;
-}) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/30 backdrop-blur-[2px]">
-      <div className="mx-4 w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-floating">
-        <h2 className="mb-2 text-base font-bold">Marcar como Recuperado?</h2>
-        <p className="mb-1 text-sm text-neutral">
-          Cliente: <span className="font-medium text-foreground">{item.customerName}</span>
-        </p>
-        <p className="mb-4 text-sm text-neutral">
-          Contrato: <span className="font-medium text-foreground">{item.contractCode}</span>
-        </p>
-        <p className="mb-6 text-sm text-neutral">
-          Esta ação marcará o caso como <strong>Recuperado</strong> e registrará o evento de
-          auditoria. Confirme apenas se o cliente foi reativado na Voalle após contato do
-          atendente.
-        </p>
-        <div className="flex justify-end gap-3">
-          <Button variant="secondary" onClick={onCancel} disabled={isPending}>
-            Cancelar
-          </Button>
-          <Button onClick={onConfirm} disabled={isPending}>
-            {isPending ? 'Salvando...' : 'Confirmar'}
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
+type View = 'cancelled' | 'reactivated';
+
+const VIEWS: Array<{ key: View; label: string }> = [
+  { key: 'cancelled', label: 'Cancelados' },
+  { key: 'reactivated', label: 'Reativados' },
+];
+
+const CANCELLED_STATUSES = ['CLOSED', 'CANCELLED_IN_RECOVERY'];
 
 export default function CancelledClientsPage() {
+  const { session } = useAuth();
+  // Só supervisão/administração devolve cancelados às carteiras.
+  const canDistribute =
+    session?.user.roles.some(
+      (role) => role === 'ADMIN' || role === 'SUPERVISOR',
+    ) ?? false;
+
   const [searchInput, setSearchInput] = useState('');
   const debouncedSearch = useDebouncedValue(searchInput, 400);
   const [page, setPage] = useState(1);
-  const [confirmItem, setConfirmItem] = useState<CollectionCaseListItemResponse | null>(null);
+  const [view, setView] = useState<View>('cancelled');
+  const [situation, setSituation] = useState('');
+  const [reason, setReason] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  const recoverMutation = useRecoverCancelled();
+  const reopenMutation = useReopenCancelled();
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch]);
+    setSelectedIds(new Set());
+  }, [debouncedSearch, view, situation, reason]);
+
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [page]);
 
   const listParams = useMemo(
-    () => ({
-      status: 'CLOSED',
-      search: debouncedSearch.trim() || undefined,
-      page,
-      limit: DEFAULT_LIMIT,
-    }),
-    [debouncedSearch, page],
+    () =>
+      view === 'reactivated'
+        ? {
+            reactivated: true,
+            search: debouncedSearch.trim() || undefined,
+            page,
+            limit: DEFAULT_LIMIT,
+          }
+        : {
+            // Só contratos de fato cancelados no ERP: casos encerrados por
+            // outro motivo (ex.: duplicados) não são "cancelados".
+            ...(situation
+              ? { status: situation }
+              : { statusIn: CANCELLED_STATUSES }),
+            contractStatus: 'CANCELLED',
+            cancellationReason: reason || undefined,
+            search: debouncedSearch.trim() || undefined,
+            page,
+            limit: DEFAULT_LIMIT,
+          },
+    [debouncedSearch, page, reason, situation, view],
   );
 
   const casesQuery = useCollectionCases(listParams);
-  const recoveredQuery = useCollectionCases({ status: 'RECOVERED', limit: 1 });
-  const closedQuery = useCollectionCases({ status: 'CLOSED', limit: 1 });
+  const closedQuery = useCollectionCases({
+    status: 'CLOSED',
+    contractStatus: 'CANCELLED',
+    limit: 1,
+  });
+  const inRecoveryQuery = useCollectionCases({
+    status: 'CANCELLED_IN_RECOVERY',
+    limit: 1,
+  });
+  const reactivatedQuery = useCollectionCases({ reactivated: true, limit: 1 });
+  const withRevenueQuery = useCollectionCases({
+    reactivated: true,
+    status: 'RECOVERED',
+    limit: 1,
+  });
 
-  const items = casesQuery.data?.items ?? [];
+  // Atendentes ativos de cobrança ou cancelamento que podem receber a carteira.
+  const usersQuery = useUsers({
+    status: 'ACTIVE',
+    limit: 100,
+    enabled: canDistribute,
+  });
+  const agents = useMemo(
+    () =>
+      (usersQuery.data?.items ?? []).filter((user) =>
+        user.roles.some(
+          (role) =>
+            role === 'COLLECTION_AGENT' || role === 'CANCELLATION_AGENT',
+        ),
+      ),
+    [usersQuery.data],
+  );
+  const workloadQuery = useUsersWorkload(canDistribute);
+
+  const reasonsQuery = useCancellationReasons();
+  const reasonOptions = reasonsQuery.data?.allReasons ?? [];
+
+  const items = useMemo(() => casesQuery.data?.items ?? [], [casesQuery.data]);
   const totalPages = Math.max(casesQuery.data?.pagination.totalPages ?? 1, 1);
   const closedTotal = closedQuery.data?.pagination.total ?? 0;
-  const recoveredTotal = recoveredQuery.data?.pagination.total ?? 0;
+  const inRecoveryTotal = inRecoveryQuery.data?.pagination.total ?? 0;
+  const reactivatedTotal = reactivatedQuery.data?.pagination.total ?? 0;
+  const withRevenueTotal = withRevenueQuery.data?.pagination.total ?? 0;
 
-  const handleRetry = useCallback(() => { void casesQuery.refetch(); }, [casesQuery]);
+  const handleRetry = useCallback(() => {
+    void casesQuery.refetch();
+  }, [casesQuery]);
 
-  async function handleConfirmRecover() {
-    if (!confirmItem) return;
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((previous) => {
+      const next = new Set(previous);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds((previous) => {
+      const reopenable = items.filter(canReopenCancelled);
+      const allOnPage =
+        reopenable.length > 0 && reopenable.every((i) => previous.has(i.id));
+
+      return allOnPage ? new Set() : new Set(reopenable.map((i) => i.id));
+    });
+  }, [items]);
+
+  async function handleReopen(assignedUserId: string) {
     try {
-      await recoverMutation.mutateAsync(confirmItem.id);
-      toast.success(`${confirmItem.customerName} marcado como Recuperado.`);
-      setConfirmItem(null);
+      const result = await reopenMutation.mutateAsync({
+        caseIds: Array.from(selectedIds),
+        assignedUserId,
+      });
+      toast.success(
+        `${result.reopened} ${result.reopened === 1 ? 'cliente devolvido' : 'clientes devolvidos'} à carteira.${result.skipped > 0 ? ` ${result.skipped} ignorado(s): não estavam encerrados.` : ''}`,
+      );
+      setSelectedIds(new Set());
     } catch (error) {
       toast.error(
-        error instanceof ApiError ? error.message : 'Não foi possível marcar o caso como recuperado.',
+        error instanceof ApiError
+          ? error.message
+          : 'Não foi possível devolver os clientes à carteira.',
       );
     }
   }
+
+  const hasSearch = debouncedSearch.trim().length > 0;
 
   return (
     <PageContainer>
       <PageHeader
         title="Cancelados"
-        description="Clientes cujo cancelamento foi concluído. Marque como Recuperado quando o cliente reativar o contrato."
+        description="Todos os clientes cancelados que passaram pela plataforma. A supervisão pode devolvê-los a uma carteira; só viram recuperados quando o ERP mostrar o contrato ativo de novo."
         actions={
           <Button onClick={handleRetry} disabled={casesQuery.isLoading}>
             <RefreshCw className="h-4 w-4" />
@@ -147,41 +192,57 @@ export default function CancelledClientsPage() {
         <MetricCard
           title="Cancelados"
           value={formatInteger(closedTotal)}
-          description="Cancelamentos concluídos"
+          description="Encerrados, sem carteira"
           icon={UserX}
           variant="neutral"
           loading={closedQuery.isLoading}
           density="compact"
         />
         <MetricCard
-          title="Recuperados"
-          value={formatInteger(recoveredTotal)}
-          description="Cancelados que voltaram"
-          icon={TrendingUp}
-          variant="success"
-          loading={recoveredQuery.isLoading}
+          title="Em recuperação"
+          value={formatInteger(inRecoveryTotal)}
+          description="Na carteira de um atendente"
+          icon={RefreshCw}
+          variant="warning"
+          loading={inRecoveryQuery.isLoading}
           density="compact"
         />
         <MetricCard
-          title="Taxa de recuperação"
-          value={
-            closedTotal + recoveredTotal > 0
-              ? `${Math.round((recoveredTotal / (closedTotal + recoveredTotal)) * 100)}%`
-              : '0%'
-          }
-          description={`${formatInteger(recoveredTotal)} de ${formatInteger(closedTotal + recoveredTotal)} finalizados`}
-          icon={CheckCircle}
-          variant={recoveredTotal / Math.max(closedTotal + recoveredTotal, 1) >= 0.1 ? 'success' : 'neutral'}
-          loading={closedQuery.isLoading || recoveredQuery.isLoading}
+          title="Reativados"
+          value={formatInteger(reactivatedTotal)}
+          description={`${formatInteger(withRevenueTotal)} com receita para o atendente`}
+          icon={TrendingUp}
+          variant="success"
+          loading={reactivatedQuery.isLoading || withRevenueQuery.isLoading}
           density="compact"
         />
       </div>
 
-      <SectionCard
-        title="Filtros"
-        contentClassName="p-4"
-      >
-        <label className="block max-w-sm space-y-1 text-sm">
+      <div className="flex flex-wrap items-end gap-3">
+        <div
+          role="group"
+          aria-label="Visão"
+          className="inline-flex rounded-lg border border-border bg-card p-0.5"
+        >
+          {VIEWS.map((option) => (
+            <button
+              key={option.key}
+              type="button"
+              aria-pressed={view === option.key}
+              onClick={() => setView(option.key)}
+              className={cn(
+                'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                view === option.key
+                  ? 'bg-primary/15 text-foreground'
+                  : 'text-neutral hover:text-foreground',
+              )}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+
+        <label className="min-w-[240px] flex-1 space-y-1 text-sm md:max-w-md">
           <span className="text-xs font-medium text-neutral">Busca</span>
           <Input
             placeholder="Cliente, documento ou contrato"
@@ -189,7 +250,37 @@ export default function CancelledClientsPage() {
             onChange={(e) => setSearchInput(e.target.value)}
           />
         </label>
-      </SectionCard>
+
+        {view === 'cancelled' ? (
+          <label className="w-64 space-y-1 text-sm">
+            <span className="text-xs font-medium text-neutral">
+              Motivo do cancelamento
+            </span>
+            <Select value={reason} onChange={(e) => setReason(e.target.value)}>
+              <option value="">Todos os motivos</option>
+              {reasonOptions.map((option) => (
+                <option key={option.reason} value={option.reason}>
+                  {option.reason} ({formatInteger(option.count)})
+                </option>
+              ))}
+            </Select>
+          </label>
+        ) : null}
+
+        {view === 'cancelled' ? (
+          <label className="w-56 space-y-1 text-sm">
+            <span className="text-xs font-medium text-neutral">Situação</span>
+            <Select
+              value={situation}
+              onChange={(e) => setSituation(e.target.value)}
+            >
+              <option value="">Todos</option>
+              <option value="CLOSED">Sem carteira</option>
+              <option value="CANCELLED_IN_RECOVERY">Em recuperação</option>
+            </Select>
+          </label>
+        ) : null}
+      </div>
 
       {casesQuery.isLoading ? <TableSkeleton rows={6} columns={7} /> : null}
 
@@ -204,107 +295,46 @@ export default function CancelledClientsPage() {
 
       {!casesQuery.isLoading && !casesQuery.isError && items.length === 0 ? (
         <EmptyState
-          title="Nenhum cancelado encontrado"
-          description={
-            debouncedSearch.trim()
-              ? 'Nenhum caso corresponde à busca.'
-              : 'Não há clientes cancelados no momento.'
+          title={
+            view === 'reactivated'
+              ? 'Nenhum reativado encontrado'
+              : 'Nenhum cancelado encontrado'
           }
-          actionLabel={debouncedSearch.trim() ? 'Limpar busca' : 'Atualizar'}
-          onAction={debouncedSearch.trim() ? () => setSearchInput('') : handleRetry}
+          description={
+            hasSearch
+              ? 'Nenhum caso corresponde à busca.'
+              : view === 'reactivated'
+                ? 'Quando o ERP reativar um contrato devolvido à carteira, ele aparece aqui.'
+                : 'Não há clientes cancelados no momento.'
+          }
+          actionLabel={hasSearch ? 'Limpar busca' : 'Atualizar'}
+          onAction={hasSearch ? () => setSearchInput('') : handleRetry}
         />
       ) : null}
 
       {!casesQuery.isLoading && !casesQuery.isError && items.length > 0 ? (
-        <SectionCard
-          title="Clientes cancelados"
-          description="Cancelamentos concluídos com histórico de cobrança."
-          contentClassName="p-0"
-        >
-          <TableContainer flush className="max-h-[70vh] overflow-y-auto">
-            <Table className="min-w-[960px]">
-              <TableHead sticky>
-                <tr>
-                  <TableHeaderCell>Cliente</TableHeaderCell>
-                  <TableHeaderCell>Contrato</TableHeaderCell>
-                  <TableHeaderCell align="center">Dias em atraso</TableHeaderCell>
-                  <TableHeaderCell align="center">Valor em aberto</TableHeaderCell>
-                  <TableHeaderCell>Motivo</TableHeaderCell>
-                  <TableHeaderCell>Atribuído em</TableHeaderCell>
-                  <TableHeaderCell>Responsável</TableHeaderCell>
-                  <TableHeaderCell>Status</TableHeaderCell>
-                  <TableHeaderCell>Ação</TableHeaderCell>
-                </tr>
-              </TableHead>
-              <TableBody>
-                {items.map((item) => {
-                  return (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">{item.customerName}</TableCell>
-                      <TableCell className="text-neutral">{item.contractCode}</TableCell>
-                      <TableCell align="center" className="tabular-nums">
-                        {formatInteger(item.daysOverdue)}
-                      </TableCell>
-                      <TableCell align="center" className="font-medium tabular-nums">
-                        {formatCurrencyFromDecimalString(item.outstandingAmount)}
-                      </TableCell>
-                      <TableCell className="max-w-[160px] truncate text-sm text-neutral">
-                        {item.contractCancellationReason ?? '—'}
-                      </TableCell>
-                      <TableCell className="text-neutral">
-                        {item.assignedAt ? formatDatePtBR(item.assignedAt) : '—'}
-                      </TableCell>
-                      <TableCell className="text-neutral">
-                        {item.assignedTo?.name ?? 'Não atribuído'}
-                      </TableCell>
-                      <TableCell>
-                        <StatusBadge
-                          label={getCollectionStatusLabel(item.status)}
-                          variant={getCollectionStatusVariant(item.status)}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Link
-                            to={`/cancelados/${item.id}`}
-                            className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }))}
-                          >
-                            Ver
-                          </Link>
-                          {item.totalAttempts > 0 ? (
-                            <Button
-                              size="sm"
-                              variant="primary"
-                              onClick={() => setConfirmItem(item)}
-                              disabled={recoverMutation.isPending}
-                            >
-                              Recuperado
-                            </Button>
-                          ) : null}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </TableContainer>
-
-          <Pagination
-            page={page}
-            totalPages={totalPages}
-            onPageChange={setPage}
-            className="border-t border-border px-4 py-4 lg:px-6"
-          />
-        </SectionCard>
+        <CancelledClientsTable
+          items={items}
+          selectable={canDistribute && view === 'cancelled'}
+          selectedIds={selectedIds}
+          onToggleSelect={toggleSelect}
+          onToggleSelectAll={toggleSelectAll}
+          page={page}
+          totalPages={totalPages}
+          onPageChange={setPage}
+        />
       ) : null}
 
-      {confirmItem ? (
-        <ConfirmRecoverDialog
-          item={confirmItem}
-          onConfirm={() => { void handleConfirmRecover(); }}
-          onCancel={() => setConfirmItem(null)}
-          isPending={recoverMutation.isPending}
+      {canDistribute ? (
+        <ReopenCancelledBar
+          selectedCount={selectedIds.size}
+          agents={agents}
+          workload={workloadQuery.data}
+          isSubmitting={reopenMutation.isPending}
+          onConfirm={(assignedUserId) => {
+            void handleReopen(assignedUserId);
+          }}
+          onClear={() => setSelectedIds(new Set())}
         />
       ) : null}
     </PageContainer>

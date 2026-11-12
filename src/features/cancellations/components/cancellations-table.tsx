@@ -1,6 +1,7 @@
 import { useRef, useEffect } from 'react';
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { ChevronRight } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { SectionCard } from '@/components/data-display/section-card';
 import { StatusBadge } from '@/components/data-display/status-badge';
 import { buttonVariants } from '@/components/ui/button';
@@ -22,15 +23,18 @@ import {
 } from '@/features/collection-cases/types/collection-cases-api.types';
 import {
   getCollectionStatusLabel,
-  getCollectionStatusVariant,
   getPriorityLabel,
   getPriorityVariant,
-  getSlaPresentation,
+  isCreditLockedStatus,
 } from '@/features/collection-cases/utils/collection-case-labels';
+import { getContractStatusLabel } from '@/features/customers/utils/customer-labels';
 import {
-  getContractStatusLabel,
-  getContractStatusVariant,
-} from '@/features/customers/utils/customer-labels';
+  SEVERITY_ROW_CLASS,
+  SEVERITY_TEXT_CLASS,
+  getOverdueSeverity,
+  getVisibleSla,
+  isInteractiveTarget,
+} from '@/features/collection-cases/utils/case-row-presentation';
 import { HsmDeliveryBadge } from '@/features/collection-cases/components/hsm-delivery-badge';
 import { InlineAssigneeSelect } from '@/features/supervision/components/inline-assignee-select';
 import { type UserResponse } from '@/features/users/types/users-api.types';
@@ -65,9 +69,16 @@ type SortableColumn = {
   label: string;
 };
 
+const PRIORITY_DOT_CLASS: Record<string, string> = {
+  success: 'bg-success',
+  warning: 'bg-warning',
+  danger: 'bg-danger',
+  neutral: 'bg-neutral/60',
+};
+
 const SORTABLE_COLUMNS: SortableColumn[] = [
-  { key: 'daysOverdue', label: 'Dias em atraso' },
-  { key: 'totalOutstanding', label: 'Valor em aberto' },
+  { key: 'daysOverdue', label: 'Atraso' },
+  { key: 'totalOutstanding', label: 'Valor' },
   { key: 'slaDueAt', label: 'SLA' },
 ];
 
@@ -132,6 +143,7 @@ export function CancellationsTable({
   onToggleSelect,
   onToggleSelectAll,
 }: CancellationsTableProps) {
+  const navigate = useNavigate();
   const handleSort = (column: CollectionCasesSortBy) => {
     if (sortBy === column) {
       onSortChange(column, sortDirection === 'asc' ? 'desc' : 'asc');
@@ -140,7 +152,8 @@ export function CancellationsTable({
     onSortChange(column, 'desc');
   };
 
-  const allSelected = items.length > 0 && items.every((i) => selectedIds.has(i.id));
+  const allSelected =
+    items.length > 0 && items.every((i) => selectedIds.has(i.id));
   const someSelected = items.some((i) => selectedIds.has(i.id));
 
   return (
@@ -150,7 +163,17 @@ export function CancellationsTable({
       contentClassName="p-0"
     >
       <TableContainer flush className="max-h-[70vh] overflow-y-auto">
-        <Table className="min-w-[1160px]">
+        <Table className="table-fixed">
+          <colgroup>
+            {canDistribute ? <col className="w-10" /> : null}
+            <col className="w-[24%]" />
+            <col className="w-[10%]" />
+            <col className="w-[12%]" />
+            <col className="w-[10%]" />
+            <col className="w-[20%]" />
+            <col className="w-[16%]" />
+            <col className="w-14" />
+          </colgroup>
           <TableHead sticky>
             <tr>
               {canDistribute ? (
@@ -163,13 +186,9 @@ export function CancellationsTable({
                 </th>
               ) : null}
               <TableHeaderCell>Cliente</TableHeaderCell>
-              <TableHeaderCell>Contrato</TableHeaderCell>
-              <TableHeaderCell align="center">Vencimento</TableHeaderCell>
-              <TableHeaderCell align="center">Status contrato</TableHeaderCell>
               {SORTABLE_COLUMNS.map((column) => (
                 <TableHeaderCell
                   key={column.key}
-                  align="center"
                   aria-sort={
                     sortBy === column.key
                       ? sortDirection === 'asc'
@@ -180,7 +199,7 @@ export function CancellationsTable({
                 >
                   <button
                     type="button"
-                    className="inline-flex items-center justify-center font-semibold uppercase tracking-[0.12em]"
+                    className="inline-flex items-center font-semibold uppercase tracking-[0.12em]"
                     onClick={() => handleSort(column.key)}
                   >
                     {column.label}
@@ -191,27 +210,36 @@ export function CancellationsTable({
                   </button>
                 </TableHeaderCell>
               ))}
+              <TableHeaderCell>Situação</TableHeaderCell>
               <TableHeaderCell>Responsável</TableHeaderCell>
-              <TableHeaderCell>Status caso</TableHeaderCell>
-              <TableHeaderCell align="center">Prioridade</TableHeaderCell>
-              <TableHeaderCell>Ação</TableHeaderCell>
+              <TableHeaderCell align="center">
+                <span className="sr-only">Ações</span>
+              </TableHeaderCell>
             </tr>
           </TableHead>
           <TableBody>
             {items.map((item) => {
-              const sla = getSlaPresentation(item.slaDueAt);
+              const sla = getVisibleSla(item.slaDueAt);
               const isSelected = selectedIds.has(item.id);
-              const isCritical =
-                item.priority === 'CRITICAL' || sla.variant === 'danger';
+              const severity = getOverdueSeverity(
+                item.daysOverdue,
+                item.priority === 'CRITICAL' || sla?.variant === 'danger',
+              );
+              const detailPath = `/cancelamentos/${item.id}`;
 
               return (
                 <TableRow
                   key={item.id}
                   className={cn(
-                    isCritical &&
-                      'border-l-2 border-l-danger bg-danger/[0.025] hover:bg-danger/[0.045]',
+                    'cursor-pointer',
+                    SEVERITY_ROW_CLASS[severity],
                     isSelected && 'bg-primary/5',
                   )}
+                  onClick={(event) => {
+                    if (!isInteractiveTarget(event.target)) {
+                      void navigate(detailPath);
+                    }
+                  }}
                 >
                   {canDistribute ? (
                     <TableCell className="w-10">
@@ -225,37 +253,61 @@ export function CancellationsTable({
                     </TableCell>
                   ) : null}
                   <TableCell className="font-medium">
-                    {item.customerName}
-                  </TableCell>
-                  <TableCell className="text-neutral">
-                    {item.contractCode}
-                  </TableCell>
-                  <TableCell align="center" className="text-neutral tabular-nums">
-                    {item.firstOverdueDate
-                      ? formatDatePtBR(item.firstOverdueDate)
-                      : 'Nao informado'}
-                  </TableCell>
-                  <TableCell align="center">
-                    <div className="flex justify-center">
-                      <StatusBadge
-                        label={getContractStatusLabel(item.contractStatus)}
-                        variant={getContractStatusVariant(item.contractStatus)}
-                      />
+                    <div className="truncate">{item.customerName}</div>
+                    <div className="mt-0.5 text-xs font-normal text-neutral">
+                      Contrato {item.contractCode}
+                      {item.firstOverdueDate
+                        ? ` · venc. ${formatDatePtBR(item.firstOverdueDate)}`
+                        : ''}
                     </div>
                   </TableCell>
-                  <TableCell align="center" className="tabular-nums">
-                    {formatInteger(item.daysOverdue)}
+                  <TableCell
+                    className={cn(
+                      'font-semibold tabular-nums',
+                      SEVERITY_TEXT_CLASS[severity],
+                    )}
+                  >
+                    {formatInteger(item.daysOverdue)} dias
                   </TableCell>
-                  <TableCell align="center" className="font-medium tabular-nums">
+                  <TableCell className="font-medium tabular-nums">
                     {formatCurrencyFromDecimalString(item.outstandingAmount)}
                   </TableCell>
-                  <TableCell align="center">
-                    <div className="flex justify-center">
+                  <TableCell>
+                    {sla ? (
                       <StatusBadge label={sla.label} variant={sla.variant} />
+                    ) : (
+                      <span className="text-neutral">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col items-start gap-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className={cn(
+                            'inline-block h-2 w-2 shrink-0 rounded-full',
+                            PRIORITY_DOT_CLASS[
+                              getPriorityVariant(item.priority)
+                            ] ?? 'bg-neutral/60',
+                          )}
+                          title={`Prioridade: ${getPriorityLabel(item.priority)}`}
+                          aria-label={`Prioridade ${getPriorityLabel(item.priority)}`}
+                        />
+                        <span className="font-medium text-foreground">
+                          {getCollectionStatusLabel(item.status)}
+                        </span>
+                      </div>
+                      <div className="text-xs text-neutral">
+                        Contrato {getContractStatusLabel(item.contractStatus)}
+                        <HsmDeliveryBadge
+                          inline
+                          state={item.hsmDeliveryState}
+                          detail={item.hsmDeliveryDetail}
+                        />
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell className="text-neutral">
-                    {canDistribute ? (
+                    {canDistribute && !isCreditLockedStatus(item.status) ? (
                       <InlineAssigneeSelect
                         caseId={item.id}
                         currentAssignee={item.assignedTo}
@@ -264,37 +316,20 @@ export function CancellationsTable({
                         workload={workload}
                       />
                     ) : (
-                      item.assignedTo?.name ?? 'Não atribuído'
+                      (item.assignedTo?.name ?? 'Não atribuído')
                     )}
                   </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col items-start gap-1">
-                      <StatusBadge
-                        label={getCollectionStatusLabel(item.status)}
-                        variant={getCollectionStatusVariant(item.status)}
-                      />
-                      <HsmDeliveryBadge
-                        state={item.hsmDeliveryState}
-                        detail={item.hsmDeliveryDetail}
-                      />
-                    </div>
-                  </TableCell>
                   <TableCell align="center">
-                    <div className="flex justify-center">
-                      <StatusBadge
-                        label={getPriorityLabel(item.priority)}
-                        variant={getPriorityVariant(item.priority)}
-                      />
-                    </div>
-                  </TableCell>
-                  <TableCell>
                     <Link
-                      to={`/cancelamentos/${item.id}`}
-                      className={cn(
-                        buttonVariants({ variant: 'secondary', size: 'sm' }),
-                      )}
+                      to={detailPath}
+                      title="Ver processo"
+                      aria-label={`Ver processo de ${item.customerName}`}
+                      className={buttonVariants({
+                        variant: 'ghost',
+                        size: 'sm',
+                      })}
                     >
-                      Ver processo
+                      <ChevronRight className="h-4 w-4" aria-hidden="true" />
                     </Link>
                   </TableCell>
                 </TableRow>

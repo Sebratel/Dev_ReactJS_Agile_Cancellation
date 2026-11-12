@@ -7,9 +7,11 @@ import { AppModule } from '@/app.module';
 import { getAppConfig } from '@/config/app.config';
 import { HttpExceptionFilter } from '@/common/filters/http-exception.filter';
 import { TimeoutInterceptor } from '@/common/interceptors/timeout.interceptor';
+import { registerProcessSafetyNets } from '@/common/utils/process-safety-nets';
 import { createGlobalValidationPipe } from '@/common/validation/validation-pipe.config';
 
 async function bootstrap() {
+  registerProcessSafetyNets();
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bufferLogs: true,
   });
