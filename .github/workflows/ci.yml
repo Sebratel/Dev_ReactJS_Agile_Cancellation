@@ -195,10 +195,11 @@ jobs:
           fi
           echo "Tudo verde."
 
-  # CD de staging: com o `ci-ok` verde, avisa o Portainer, que faz pull do Git,
-  # rebuilda e redeploya a stack (GitOps). A URL do webhook e segredo do repositorio
-  # (Settings > Secrets and variables > Actions > PORTAINER_WEBHOOK_STAGING): ela
-  # contem o token e nunca vai para o codigo nem para o log.
+  # CD: com o `ci-ok` verde, avisa o Portainer, que faz pull do Git, rebuilda e redeploya a
+  # stack (GitOps). A URL de cada webhook e segredo do repositorio (Settings > Secrets and
+  # variables > Actions): ela contem o token e nunca vai para o codigo nem para o log.
+  #   staging (push na `staging`) -> PORTAINER_WEBHOOK_STAGING
+  #   producao (push na `main`)   -> PORTAINER_WEBHOOK_PRODUCTION
   deploy-staging:
     name: Deploy staging (Portainer)
     runs-on: ubuntu-latest
@@ -212,14 +213,51 @@ jobs:
     steps:
       - name: Acionar o webhook do Portainer
         env:
-          PORTAINER_WEBHOOK_STAGING: ${{ secrets.PORTAINER_WEBHOOK_STAGING }}
+          PORTAINER_WEBHOOK: ${{ secrets.PORTAINER_WEBHOOK_STAGING }}
         run: |
-          if [ -z "$PORTAINER_WEBHOOK_STAGING" ]; then
+          if [ -z "$PORTAINER_WEBHOOK" ]; then
             echo "::error::Segredo PORTAINER_WEBHOOK_STAGING nao configurado no repositorio."; exit 1
           fi
-          status=$(curl -sS -o /dev/null -w '%{http_code}' -X POST --retry 3 --retry-delay 5 --max-time 60 "$PORTAINER_WEBHOOK_STAGING")
+          # Tolera aspas/espacos/quebra de linha colados junto com a URL (sem imprimir o valor).
+          url=$(printf '%s' "$PORTAINER_WEBHOOK" | tr -d '[:space:]"'"'")
+          if ! printf '%s' "$url" | grep -Eq '^https://[^/]+/api/stacks/webhooks/[0-9a-fA-F-]{36}$'; then
+            echo "::error::PORTAINER_WEBHOOK_STAGING nao parece uma URL de webhook do Portainer (https://<host>/api/stacks/webhooks/<uuid>)."; exit 1
+          fi
+          status=$(curl -sS -o /dev/null -w '%{http_code}' -X POST --retry 3 --retry-delay 5 --max-time 60 "$url")
           echo "Portainer respondeu HTTP $status"
           case "$status" in
             2??) echo "Redeploy de staging solicitado para ${GITHUB_SHA::7}." ;;
+            *) echo "::error::Webhook do Portainer falhou (HTTP $status)."; exit 1 ;;
+          esac
+
+  deploy-production:
+    name: Deploy producao (Portainer)
+    runs-on: ubuntu-latest
+    needs: [ci-ok]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    timeout-minutes: 5
+    # Ambiente "production": permite exigir aprovacao manual em Settings > Environments.
+    environment: production
+    # Um deploy por vez e nunca cancela um em andamento.
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      - name: Acionar o webhook do Portainer
+        env:
+          PORTAINER_WEBHOOK: ${{ secrets.PORTAINER_WEBHOOK_PRODUCTION }}
+        run: |
+          if [ -z "$PORTAINER_WEBHOOK" ]; then
+            echo "::error::Segredo PORTAINER_WEBHOOK_PRODUCTION nao configurado no repositorio."; exit 1
+          fi
+          # Tolera aspas/espacos/quebra de linha colados junto com a URL (sem imprimir o valor).
+          url=$(printf '%s' "$PORTAINER_WEBHOOK" | tr -d '[:space:]"'"'")
+          if ! printf '%s' "$url" | grep -Eq '^https://[^/]+/api/stacks/webhooks/[0-9a-fA-F-]{36}$'; then
+            echo "::error::PORTAINER_WEBHOOK_PRODUCTION nao parece uma URL de webhook do Portainer (https://<host>/api/stacks/webhooks/<uuid>)."; exit 1
+          fi
+          status=$(curl -sS -o /dev/null -w '%{http_code}' -X POST --retry 3 --retry-delay 5 --max-time 60 "$url")
+          echo "Portainer respondeu HTTP $status"
+          case "$status" in
+            2??) echo "Redeploy de producao solicitado para ${GITHUB_SHA::7}." ;;
             *) echo "::error::Webhook do Portainer falhou (HTTP $status)."; exit 1 ;;
           esac
