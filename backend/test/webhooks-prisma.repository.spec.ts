@@ -61,14 +61,15 @@ function createPrismaMock(existingCaseId: string | null) {
     collectionAttempt: { create: collectionAttemptCreate },
   };
 
+  const transaction = jest.fn(
+    async (cb: (txArg: typeof tx) => Promise<unknown>) => cb(tx),
+  );
   const prisma = {
-    $transaction: jest.fn(async (cb: (txArg: typeof tx) => Promise<unknown>) =>
-      cb(tx),
-    ),
+    $transaction: transaction,
     integrationEvent: { create: jest.fn().mockResolvedValue({ id: 'evt-1' }) },
   } as unknown as PrismaService;
 
-  return { prisma, tx, collectionAttemptCreate };
+  return { prisma, tx, collectionAttemptCreate, transaction };
 }
 
 describe('WebhooksPrismaRepository.ingestCollectionBatch', () => {
@@ -118,5 +119,53 @@ describe('WebhooksPrismaRepository.ingestCollectionBatch', () => {
     for (const call of collectionAttemptCreate.mock.calls) {
       expect(call[0].data.isAutomatic).toBe(true);
     }
+  });
+
+  describe('conflito de escrita (P2034) — causa do loop de restart da API', () => {
+    const p2034 = () =>
+      Object.assign(
+        new Error(
+          'Transaction failed due to a write conflict or a deadlock. Please retry your transaction',
+        ),
+        { code: 'P2034', meta: { modelName: 'Invoice' } },
+      );
+
+    it('refaz a transacao inteira e conclui o lote quando o P2034 e transitorio', async () => {
+      const { prisma, tx, transaction } = createPrismaMock(null);
+      tx.invoice.upsert
+        .mockRejectedValueOnce(p2034())
+        .mockRejectedValueOnce(p2034())
+        .mockResolvedValue({ id: 'inv-1' });
+      const repository = new WebhooksPrismaRepository(prisma);
+
+      const summary = await repository.ingestCollectionBatch('n8n', [
+        buildEvent(),
+      ]);
+
+      expect(transaction).toHaveBeenCalledTimes(3);
+      expect(summary.casesUpserted).toBe(1);
+    });
+
+    it('rejeita (sem derrubar o processo) quando o conflito persiste, apos 4 tentativas', async () => {
+      const { prisma, tx, transaction } = createPrismaMock(null);
+      tx.invoice.upsert.mockRejectedValue(p2034());
+      const repository = new WebhooksPrismaRepository(prisma);
+
+      await expect(
+        repository.ingestCollectionBatch('n8n', [buildEvent()]),
+      ).rejects.toMatchObject({ code: 'P2034' });
+      expect(transaction).toHaveBeenCalledTimes(4);
+    });
+
+    it('nao repete erros que nao sao conflito de escrita', async () => {
+      const { prisma, tx, transaction } = createPrismaMock(null);
+      tx.invoice.upsert.mockRejectedValue(new Error('outro erro'));
+      const repository = new WebhooksPrismaRepository(prisma);
+
+      await expect(
+        repository.ingestCollectionBatch('n8n', [buildEvent()]),
+      ).rejects.toThrow('outro erro');
+      expect(transaction).toHaveBeenCalledTimes(1);
+    });
   });
 });
