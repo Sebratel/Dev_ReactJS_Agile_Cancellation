@@ -13,6 +13,14 @@ const COLUMN = 'lastContactAt';
 const INDEX = 'collection_cases_lastContactAt_idx';
 
 async function heal({ prisma, resolve, log = console.log }) {
+  // Banco novo: a tabela de historico ainda nao existe (o migrate deploy a cria).
+  const tables = await prisma.$queryRawUnsafe(
+    "SELECT 1 AS ok FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '_prisma_migrations'",
+  );
+  if (tables.length === 0) {
+    return 'nothing-to-do';
+  }
+
   const failed = await prisma.$queryRawUnsafe(
     'SELECT migration_name FROM _prisma_migrations WHERE migration_name = ? AND finished_at IS NULL AND rolled_back_at IS NULL',
     MIGRATION,
