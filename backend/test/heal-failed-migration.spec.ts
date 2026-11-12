@@ -1,9 +1,17 @@
 /* eslint-disable @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call -- script CJS de runtime (prisma/), carregado via require */
 const { heal, MIGRATION } = require('../prisma/heal-failed-migration.cjs');
 
-function build(opts: { failed: boolean; column: boolean; index: boolean }) {
+function build(opts: {
+  failed: boolean;
+  column: boolean;
+  index: boolean;
+  table?: boolean;
+}) {
   const rows = (has: boolean) => (has ? [{ ok: 1 }] : []);
   const queryRawUnsafe = jest.fn((sql: string) => {
+    if (sql.includes('information_schema.TABLES')) {
+      return Promise.resolve(rows(opts.table ?? true));
+    }
     if (sql.includes('_prisma_migrations')) {
       return Promise.resolve(
         opts.failed ? [{ migration_name: MIGRATION }] : [],
@@ -23,6 +31,18 @@ function build(opts: { failed: boolean; column: boolean; index: boolean }) {
 
 describe('heal-failed-migration (P3009)', () => {
   const log = jest.fn();
+
+  it('banco novo (sem _prisma_migrations): nao consulta nem resolve', async () => {
+    const { prisma, resolve } = build({
+      failed: false,
+      column: false,
+      index: false,
+      table: false,
+    });
+    await expect(heal({ prisma, resolve, log })).resolves.toBe('nothing-to-do');
+    expect(prisma.$queryRawUnsafe).toHaveBeenCalledTimes(1);
+    expect(resolve).not.toHaveBeenCalled();
+  });
 
   it('nao faz nada quando a migration nao esta falha', async () => {
     const { prisma, resolve, executeRawUnsafe } = build({
