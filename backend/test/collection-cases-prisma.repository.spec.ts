@@ -347,13 +347,11 @@ describe('CollectionCasesPrismaRepository (reatribuicao de casos pagos)', () => 
     const update = jest.fn();
     const prisma = {
       collectionCase: {
-        findUnique: jest
-          .fn()
-          .mockResolvedValue({
-            id: 'c1',
-            assignedUserId: 'u1',
-            status: 'RECOVERED',
-          }),
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'c1',
+          assignedUserId: 'u1',
+          status: 'RECOVERED',
+        }),
         update,
       },
       $transaction: jest.fn(),
