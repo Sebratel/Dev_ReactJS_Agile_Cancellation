@@ -23,4 +23,4 @@ COPY --chown=node:node --from=builder /app/dist ./dist
 COPY --chown=node:node --from=builder /app/prisma ./prisma
 USER node
 EXPOSE 4000
-CMD ["sh", "-c", "npx prisma migrate deploy || echo 'WARN: prisma migrate deploy failed; starting API anyway'; node dist/main.js"]
+CMD ["sh", "-c", "node prisma/heal-failed-migration.cjs; npx prisma migrate deploy || echo 'WARN: prisma migrate deploy failed; starting API anyway'; node dist/main.js"]
