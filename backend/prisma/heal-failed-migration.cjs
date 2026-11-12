@@ -65,9 +65,17 @@ async function main() {
     const result = await heal({
       prisma,
       resolve: (flag, name) =>
-        execFileSync('npx', ['prisma', 'migrate', 'resolve', flag, name], {
-          stdio: 'inherit',
-        }),
+        execFileSync(
+          process.execPath,
+          [
+            require.resolve('prisma/build/index.js'),
+            'migrate',
+            'resolve',
+            flag,
+            name,
+          ],
+          { stdio: 'inherit' },
+        ),
     });
     console.log(`[heal-migration] resultado: ${result}`);
   } catch (error) {
